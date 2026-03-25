@@ -143,7 +143,7 @@ export default function KalenderPage() {
       <h1 className="text-2xl font-heading font-bold text-foreground">Rollout-Kalender</h1>
 
       <div className="bg-card border border-border rounded-lg p-4 calendar-wrapper">
-        <BigCalendar
+        <DnDCalendar
           localizer={localizer}
           events={events}
           view={view}
@@ -156,7 +156,7 @@ export default function KalenderPage() {
           onSelectEvent={handleSelectEvent}
           onEventDrop={handleEventDrop as any}
           draggableAccessor={() => true}
-          eventPropGetter={eventStyleGetter}
+          eventPropGetter={eventStyleGetter as any}
           messages={MESSAGES}
           culture="de"
           style={{ height: 'calc(100vh - 240px)', minHeight: 500 }}
