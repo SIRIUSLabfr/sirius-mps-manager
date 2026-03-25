@@ -10,9 +10,11 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
   DndContext, closestCorners, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core';
 import KanbanColumn from '@/components/sop/KanbanColumn';
+import SopCard from '@/components/sop/SopCard';
 import SopDetailSheet from '@/components/sop/SopDetailSheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +43,7 @@ export default function SopPage() {
   const { data: users } = useUsers();
   const queryClient = useQueryClient();
 
+  const [activeSop, setActiveSop] = useState<Tables<'sop_orders'> | null>(null);
   const [selectedSop, setSelectedSop] = useState<Tables<'sop_orders'> | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -97,6 +100,11 @@ export default function SopPage() {
     });
     return map;
   }, [filteredOrders]);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const sop = sopOrders?.find(s => s.id === event.active.id) || null;
+    setActiveSop(sop);
+  };
 
   // Drag end handler
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -262,7 +270,7 @@ export default function SopPage() {
       </div>
 
       {/* Kanban Board */}
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={(e) => { handleDragEnd(e); setActiveSop(null); }}>
         <div className="flex gap-3 overflow-x-auto pb-4 print:flex-col print:overflow-visible">
           {COLUMNS.map(col => (
             <KanbanColumn
@@ -276,6 +284,13 @@ export default function SopPage() {
             />
           ))}
         </div>
+        <DragOverlay dropAnimation={{ duration: 200, easing: 'ease-out' }}>
+          {activeSop ? (
+            <div className="rotate-[2deg] scale-105 shadow-xl opacity-90">
+              <SopCard sop={activeSop} technicianName={getUserName(activeSop.technician)} onClick={() => {}} />
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {/* Detail Sheet */}
