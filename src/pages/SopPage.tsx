@@ -10,7 +10,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
   DndContext, closestCorners, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core';
 import KanbanColumn from '@/components/sop/KanbanColumn';
 import SopDetailSheet from '@/components/sop/SopDetailSheet';
@@ -41,6 +42,7 @@ export default function SopPage() {
   const { data: users } = useUsers();
   const queryClient = useQueryClient();
 
+  const [activeSop, setActiveSop] = useState<Tables<'sop_orders'> | null>(null);
   const [selectedSop, setSelectedSop] = useState<Tables<'sop_orders'> | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
