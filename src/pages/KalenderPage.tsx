@@ -2,9 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Calendar as BigCalendar, dateFnsLocalizer, type View } from 'react-big-calendar';
+import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { supabase } from '@/integrations/supabase/client';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useDevicesRealtime, useLocations } from '@/hooks/useRolloutData';
@@ -16,6 +18,7 @@ import type { Tables } from '@/integrations/supabase/types';
 
 const locales = { de };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: () => startOfWeek(new Date(), { locale: de }), getDay, locales });
+const DnDCalendar = withDragAndDrop<CalEvent>(BigCalendar as any);
 
 const LOCATION_COLORS = [
   'hsl(216,100%,32%)', 'hsl(196,100%,44%)', 'hsl(142,70%,40%)', 'hsl(32,90%,50%)',
