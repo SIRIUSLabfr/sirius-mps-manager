@@ -14,9 +14,9 @@ interface ColumnMappingProps {
   fieldLabels?: Record<string, string>;
 }
 
-const TARGET_FIELDS = Object.keys(TARGET_FIELD_LABELS) as TargetField[];
-
-export default function ColumnMapping({ sourceHeaders, mapping, onMappingChange, previewRows }: ColumnMappingProps) {
+export default function ColumnMapping({ sourceHeaders, mapping, onMappingChange, previewRows, fieldLabels }: ColumnMappingProps) {
+  const labels = fieldLabels || TARGET_FIELD_LABELS;
+  const TARGET_FIELDS = Object.keys(labels) as TargetField[];
   // Build mapped preview
   const mappedPreview = previewRows.slice(0, 3).map(row => {
     const mapped: Record<string, string> = {};
@@ -66,7 +66,7 @@ export default function ColumnMapping({ sourceHeaders, mapping, onMappingChange,
                     </SelectTrigger>
                     <SelectContent>
                       {TARGET_FIELDS.map(f => (
-                        <SelectItem key={f} value={f} className="text-xs">{TARGET_FIELD_LABELS[f]}</SelectItem>
+                        <SelectItem key={f} value={f} className="text-xs">{labels[f]}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -87,7 +87,7 @@ export default function ColumnMapping({ sourceHeaders, mapping, onMappingChange,
                 <tr className="border-b border-border bg-muted/30">
                   {activeTargets.filter(f => mappedPreview.some(r => r[f])).map(f => (
                     <th key={f} className="px-3 py-2 text-left font-heading font-bold text-[10px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                      {TARGET_FIELD_LABELS[f]}
+                      {labels[f]}
                     </th>
                   ))}
                 </tr>
