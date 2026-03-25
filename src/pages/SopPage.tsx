@@ -269,7 +269,7 @@ export default function SopPage() {
       </div>
 
       {/* Kanban Board */}
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={(e) => { handleDragEnd(e); setActiveSop(null); }}>
         <div className="flex gap-3 overflow-x-auto pb-4 print:flex-col print:overflow-visible">
           {COLUMNS.map(col => (
             <KanbanColumn
@@ -283,6 +283,13 @@ export default function SopPage() {
             />
           ))}
         </div>
+        <DragOverlay dropAnimation={{ duration: 200, easing: 'ease-out' }}>
+          {activeSop ? (
+            <div className="rotate-[2deg] scale-105 shadow-xl opacity-90">
+              <SopCard sop={activeSop} technicianName={getUserName(activeSop.technician)} onClick={() => {}} />
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {/* Detail Sheet */}
