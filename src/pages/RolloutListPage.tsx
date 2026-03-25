@@ -9,7 +9,7 @@ import FinalCheckChip from '@/components/rollout/FinalCheckChip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Plus, Download, Printer, Search, ArrowUpDown } from 'lucide-react';
+import { Plus, Download, Printer, Search, ArrowUpDown, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import type { Database } from '@/integrations/supabase/types';
