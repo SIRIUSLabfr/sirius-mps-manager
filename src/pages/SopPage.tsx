@@ -109,13 +109,22 @@ export default function SopPage() {
   // Drag end handler
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveSop(null);
     if (!over) return;
 
     const sopId = active.id as string;
-    const newStatus = over.id as string;
+    const overId = over.id as string;
 
-    // Check if dropped on a column
-    if (!COLUMNS.some(c => c.id === newStatus)) return;
+    // Determine target column: either dropped on a column directly, or on a card inside a column
+    let newStatus: string;
+    if (COLUMNS.some(c => c.id === overId)) {
+      newStatus = overId;
+    } else {
+      // Dropped on another card — find which column that card belongs to
+      const targetSop = sopOrders?.find(s => s.id === overId);
+      if (!targetSop) return;
+      newStatus = targetSop.preparation_status;
+    }
 
     const sop = sopOrders?.find(s => s.id === sopId);
     if (!sop || sop.preparation_status === newStatus) return;
@@ -270,7 +279,7 @@ export default function SopPage() {
       </div>
 
       {/* Kanban Board */}
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={(e) => { handleDragEnd(e); setActiveSop(null); }}>
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4 print:flex-col print:overflow-visible">
           {COLUMNS.map(col => (
             <KanbanColumn
