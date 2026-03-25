@@ -1,13 +1,13 @@
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useParams } from 'react-router-dom';
 import {
   ClipboardList, FolderOpen, RefreshCw, BarChart3, Wrench,
   Truck, Monitor, CheckSquare, Calendar, Calculator, FileText,
-  Star, ChevronLeft, ChevronRight,
+  Star, ChevronLeft, ChevronRight, LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { useState } from 'react';
-import { useZoho } from '@/hooks/useZoho';
+import { useActiveProject } from '@/hooks/useActiveProject';
 
 interface NavItem {
   title: string;
@@ -21,14 +21,15 @@ const projecteSection: NavItem[] = [
 ];
 
 const aktuellesProjektSection: NavItem[] = [
-  { title: 'Projektdaten', path: '/projektdaten', icon: FolderOpen, requiresProject: true },
-  { title: 'IST/SOLL Vergleich', path: '/ist-soll', icon: RefreshCw, requiresProject: true },
-  { title: 'Rolloutliste', path: '/rolloutliste', icon: BarChart3, requiresProject: true },
-  { title: 'SOP / Vorrichten', path: '/sop', icon: Wrench, requiresProject: true },
-  { title: 'Logistik', path: '/logistik', icon: Truck, requiresProject: true },
-  { title: 'IT / EDV', path: '/it-edv', icon: Monitor, requiresProject: true },
-  { title: 'Checklisten', path: '/checklisten', icon: CheckSquare, requiresProject: true },
-  { title: 'Kalender', path: '/kalender', icon: Calendar, requiresProject: true },
+  { title: 'Dashboard', path: '/projekt/:id', icon: LayoutDashboard, requiresProject: true },
+  { title: 'Projektdaten', path: '/projekt/:id/daten', icon: FolderOpen, requiresProject: true },
+  { title: 'IST/SOLL Vergleich', path: '/projekt/:id/ist-soll', icon: RefreshCw, requiresProject: true },
+  { title: 'Rolloutliste', path: '/projekt/:id/rolloutliste', icon: BarChart3, requiresProject: true },
+  { title: 'SOP / Vorrichten', path: '/projekt/:id/sop', icon: Wrench, requiresProject: true },
+  { title: 'Logistik', path: '/projekt/:id/logistik', icon: Truck, requiresProject: true },
+  { title: 'IT / EDV', path: '/projekt/:id/it-edv', icon: Monitor, requiresProject: true },
+  { title: 'Checklisten', path: '/projekt/:id/checklisten', icon: CheckSquare, requiresProject: true },
+  { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
 ];
 
 const phase2Section: NavItem[] = [
@@ -38,18 +39,31 @@ const phase2Section: NavItem[] = [
 
 export default function SiriusSidebar() {
   const location = useLocation();
-  const { dealId } = useZoho();
+  const { activeProjectId } = useActiveProject();
   const [collapsed, setCollapsed] = useState(false);
-  const hasProject = !!dealId;
+  const hasProject = !!activeProjectId;
+
+  const resolvePath = (path: string) => {
+    if (activeProjectId) {
+      return path.replace(':id', activeProjectId);
+    }
+    return path;
+  };
+
+  const isActive = (path: string) => {
+    const resolved = resolvePath(path);
+    return location.pathname === resolved;
+  };
 
   const renderItem = (item: NavItem) => {
-    const active = location.pathname === item.path;
+    const active = isActive(item.path);
     const disabled = item.requiresProject && !hasProject;
+    const resolvedPath = resolvePath(item.path);
 
     return (
       <li key={item.path}>
         <Link
-          to={disabled ? '#' : item.path}
+          to={disabled ? '#' : resolvedPath}
           className={cn(
             'flex items-center gap-3 px-4 py-2.5 text-sm rounded-md transition-colors relative',
             active && 'bg-sidebar-accent text-sidebar-primary-foreground border-l-[3px] border-sidebar-primary',
@@ -65,12 +79,17 @@ export default function SiriusSidebar() {
     );
   };
 
-  const renderSection = (label: string, items: NavItem[]) => (
-    <div className="mb-2">
+  const renderSection = (label: string, items: NavItem[], extraInfo?: string) => (
+    <div className="mb-2" key={label}>
       {!collapsed && (
-        <p className="px-4 py-2 text-[10px] font-heading font-bold uppercase tracking-widest text-sidebar-foreground/50">
-          {label}
-        </p>
+        <div className="px-4 py-2 flex items-center justify-between">
+          <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-sidebar-foreground/50">
+            {label}
+          </p>
+          {extraInfo && (
+            <span className="text-[9px] text-sidebar-foreground/30">{extraInfo}</span>
+          )}
+        </div>
       )}
       <ul className="space-y-0.5">{items.map(renderItem)}</ul>
     </div>
@@ -106,7 +125,7 @@ export default function SiriusSidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
         {renderSection('Projekte', projecteSection)}
-        {renderSection('Aktuelles Projekt', aktuellesProjektSection)}
+        {renderSection('Aktuelles Projekt', aktuellesProjektSection, !hasProject ? 'kein Projekt' : undefined)}
         {renderSection('Phase 2', phase2Section)}
       </nav>
 
