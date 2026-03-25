@@ -142,7 +142,7 @@ export async function parsePdfFile(file: File): Promise<ParsedData | null> {
 }
 
 // Auto-mapping logic
-const MAPPING_HINTS: Record<string, string[]> = {
+const IST_MAPPING_HINTS: Record<string, string[]> = {
   ist_manufacturer: ['hersteller', 'manufacturer', 'mfg', 'marke', 'brand', 'fabrikat'],
   ist_model: ['modell', 'model', 'typ', 'type', 'gerät', 'device', 'bezeichnung', 'gerätetyp', 'gerätebezeichnung'],
   ist_serial: ['seriennummer', 'serial', 'sn', 's/n', 'serien-nr', 'seriennr', 'serial number', 'serialnumber'],
@@ -155,31 +155,59 @@ const MAPPING_HINTS: Record<string, string[]> = {
   location_name: ['standort', 'location', 'adresse', 'address', 'filiale', 'niederlassung', 'kostenstelle', 'standortbezeichnung', 'lieferadresse'],
 };
 
-export type TargetField = keyof typeof MAPPING_HINTS | 'ignore';
+const SOLL_MAPPING_HINTS: Record<string, string[]> = {
+  soll_manufacturer: ['hersteller', 'manufacturer', 'mfg', 'marke', 'brand', 'fabrikat'],
+  soll_model: ['modell', 'model', 'typ', 'type', 'gerät', 'device', 'bezeichnung', 'gerätetyp', 'gerätebezeichnung'],
+  soll_serial: ['seriennummer', 'serial', 'sn', 's/n', 'serien-nr', 'seriennr'],
+  soll_device_id: ['id', 'geräte-id', 'sirius-id', 'device-id', 'deviceid'],
+  soll_options: ['optionen', 'options', 'ausstattung', 'zubehör', 'accessories'],
+  soll_building: ['gebäude', 'building', 'haus', 'objekt'],
+  soll_floor: ['etage', 'floor', 'stockwerk', 'og', 'geschoss', 'ebene'],
+  soll_room: ['zimmer', 'raum', 'room', 'büro', 'office', 'raumbezeichnung'],
+  location_name: ['standort', 'location', 'adresse', 'address', 'filiale', 'niederlassung', 'kostenstelle', 'lieferadresse'],
+};
+
+const MAPPING_HINTS = IST_MAPPING_HINTS;
+
+export type TargetField = string;
 
 export const TARGET_FIELD_LABELS: Record<string, string> = {
-  ist_manufacturer: 'Hersteller',
-  ist_model: 'Modell',
-  ist_serial: 'Seriennummer',
-  ist_ip: 'IP-Adresse',
-  ist_inventory_number: 'Inventarnummer',
-  ist_building: 'Gebäude',
-  ist_floor: 'Etage',
-  ist_room: 'Zimmer/Raum',
+  ist_manufacturer: 'IST: Hersteller',
+  ist_model: 'IST: Modell',
+  ist_serial: 'IST: Seriennummer',
+  ist_ip: 'IST: IP-Adresse',
+  ist_inventory_number: 'IST: Inventarnummer',
+  ist_building: 'IST: Gebäude',
+  ist_floor: 'IST: Etage',
+  ist_room: 'IST: Zimmer/Raum',
   customer_device_number: 'Kundennummer / Lfd.Nr',
   location_name: 'Standort/Adresse',
   ignore: '– ignorieren –',
 };
 
-export function autoSuggestMapping(sourceHeaders: string[]): Record<number, TargetField> {
+export const SOLL_TARGET_FIELD_LABELS: Record<string, string> = {
+  soll_manufacturer: 'SOLL: Hersteller',
+  soll_model: 'SOLL: Modell',
+  soll_serial: 'SOLL: Seriennummer',
+  soll_device_id: 'SOLL: Geräte-ID',
+  soll_options: 'SOLL: Optionen',
+  soll_building: 'SOLL: Gebäude',
+  soll_floor: 'SOLL: Etage',
+  soll_room: 'SOLL: Zimmer/Raum',
+  location_name: 'Standort/Adresse',
+  ignore: '– ignorieren –',
+};
+
+export function autoSuggestMapping(sourceHeaders: string[], mode: 'ist' | 'soll' = 'ist'): Record<number, TargetField> {
+  const hints = mode === 'soll' ? SOLL_MAPPING_HINTS : IST_MAPPING_HINTS;
   const mapping: Record<number, TargetField> = {};
   const used = new Set<string>();
 
   sourceHeaders.forEach((header, idx) => {
     const h = header.toLowerCase().trim();
-    for (const [field, hints] of Object.entries(MAPPING_HINTS)) {
+    for (const [field, fieldHints] of Object.entries(hints)) {
       if (used.has(field)) continue;
-      if (hints.some(hint => h.includes(hint) || hint.includes(h))) {
+      if (fieldHints.some(hint => h.includes(hint) || hint.includes(h))) {
         mapping[idx] = field as TargetField;
         used.add(field);
         return;
