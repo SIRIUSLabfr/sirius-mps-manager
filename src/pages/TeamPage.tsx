@@ -12,8 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const ROLES = [
   { value: 'admin', label: 'Admin' },
-  { value: 'projektleiter', label: 'Projektleiter' },
-  { value: 'techniker', label: 'Techniker' },
+  { value: 'project_lead', label: 'Projektleiter' },
+  { value: 'technician', label: 'Techniker' },
   { value: 'viewer', label: 'Viewer' },
 ];
 
