@@ -100,6 +100,11 @@ export default function SopPage() {
     return map;
   }, [filteredOrders]);
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const sop = sopOrders?.find(s => s.id === event.active.id) || null;
+    setActiveSop(sop);
+  };
+
   // Drag end handler
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
