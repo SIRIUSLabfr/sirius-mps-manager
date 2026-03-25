@@ -65,3 +65,11 @@
     font-family: 'Montserrat', sans-serif;
   }
 }
+
+@media print {
+  aside, header, .print\\:hidden { display: none !important; }
+  main { margin-left: 0 !important; padding: 8px !important; max-width: 100% !important; }
+  .flex-1.ml-\\[252px\\] { margin-left: 0 !important; }
+  table { font-size: 7px !important; min-width: 0 !important; }
+  @page { size: landscape; margin: 10mm; }
+}
