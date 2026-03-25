@@ -10,6 +10,7 @@ import ProjectDashboardPage from "./pages/ProjectDashboardPage";
 import ProjectDataPage from "./pages/ProjectDataPage";
 import RolloutListPage from "./pages/RolloutListPage";
 import IstSollPage from "./pages/IstSollPage";
+import SopPage from "./pages/SopPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
@@ -29,7 +30,7 @@ const App = () => (
                 <Route path="/projekt/:projectId/daten" element={<ProjectDataPage />} />
                 <Route path="/projekt/:projectId/rolloutliste" element={<RolloutListPage />} />
                 <Route path="/projekt/:projectId/ist-soll" element={<IstSollPage />} />
-                <Route path="/projekt/:projectId/sop" element={<PlaceholderPage title="SOP / Vorrichten" />} />
+                <Route path="/projekt/:projectId/sop" element={<SopPage />} />
                 <Route path="/projekt/:projectId/logistik" element={<PlaceholderPage title="Logistik" />} />
                 <Route path="/projekt/:projectId/it-edv" element={<PlaceholderPage title="IT / EDV" />} />
                 <Route path="/projekt/:projectId/checklisten" element={<PlaceholderPage title="Checklisten" />} />
