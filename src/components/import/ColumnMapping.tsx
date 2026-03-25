@@ -11,6 +11,7 @@ interface ColumnMappingProps {
   mapping: Record<number, TargetField>;
   onMappingChange: (idx: number, field: TargetField) => void;
   previewRows: string[][];
+  fieldLabels?: Record<string, string>;
 }
 
 const TARGET_FIELDS = Object.keys(TARGET_FIELD_LABELS) as TargetField[];
