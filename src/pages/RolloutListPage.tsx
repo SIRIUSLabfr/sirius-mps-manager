@@ -256,8 +256,12 @@ export default function RolloutListPage() {
           <tbody>
             {grouped.length === 0 && (
               <tr>
-                <td colSpan={25} className="text-center text-muted-foreground py-16">
-                  Noch keine Geräte. Klicke "+ Gerät" um zu beginnen.
+                <td colSpan={25} className="text-center py-16">
+                  <div className="flex flex-col items-center gap-3">
+                    <BarChart3 className="h-10 w-10 text-muted-foreground/20" />
+                    <p className="text-sm text-muted-foreground">Noch keine Geräte vorhanden.</p>
+                    <p className="text-xs text-muted-foreground">Importiere eine IST-Liste oder füge Geräte manuell hinzu.</p>
+                  </div>
                 </td>
               </tr>
             )}
