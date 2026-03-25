@@ -15,7 +15,9 @@ import ItEdvPage from "./pages/ItEdvPage";
 import LogistikPage from "./pages/LogistikPage";
 import ChecklistenPage from "./pages/ChecklistenPage";
 import KalenderPage from "./pages/KalenderPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
+import KalkulationPage from "./pages/KalkulationPage";
+import KonzeptPage from "./pages/KonzeptPage";
+import TeamPage from "./pages/TeamPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,8 +41,9 @@ const App = () => (
                 <Route path="/projekt/:projectId/it-edv" element={<ItEdvPage />} />
                 <Route path="/projekt/:projectId/checklisten" element={<ChecklistenPage />} />
                 <Route path="/projekt/:projectId/kalender" element={<KalenderPage />} />
-                <Route path="/kalkulation" element={<PlaceholderPage title="Kalkulation" />} />
-                <Route path="/konzept" element={<PlaceholderPage title="Konzept" />} />
+                <Route path="/kalkulation" element={<KalkulationPage />} />
+                <Route path="/konzept" element={<KonzeptPage />} />
+                <Route path="/einstellungen" element={<TeamPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
