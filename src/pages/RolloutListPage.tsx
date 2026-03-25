@@ -341,12 +341,3 @@ function DeviceRow({ device: d, onUpdate, rowBg }: {
     </tr>
   );
 }
-
-const OPTIMIZATION_OPTIONS = [
-  { value: 'OneToOne', label: 'OneToOne' },
-  { value: 'Umzug', label: 'Umzug' },
-  { value: 'Keep', label: 'Keep' },
-  { value: 'Neuaufstellung', label: 'Neuaufstellung' },
-  { value: 'Nicht im Projekt', label: 'Nicht im Projekt' },
-  { value: 'Abbau', label: 'Abbau' },
-];
