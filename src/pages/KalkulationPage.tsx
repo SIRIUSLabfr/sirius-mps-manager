@@ -143,12 +143,12 @@ export default function KalkulationPage() {
       total_hardware_ek: hardwareEkTotal,
       total_monthly_rate: monthlyRate + serviceMonthly,
       service_rate: serviceMonthly,
-      config_json: {
+      config_json: JSON.parse(JSON.stringify({
         contract_start: form.contract_start,
         delivery_date: form.delivery_date,
         deviceGroups: form.deviceGroups,
         service: form.service,
-      },
+      })),
     };
 
     const { error } = calc
