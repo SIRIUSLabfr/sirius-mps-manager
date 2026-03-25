@@ -1,0 +1,2 @@
+ALTER TABLE devices DROP CONSTRAINT devices_optimization_type_check;
+ALTER TABLE devices ADD CONSTRAINT devices_optimization_type_check CHECK (optimization_type = ANY (ARRAY['OneToOne', 'Umzug', 'Keep', 'Neuaufstellung', 'Nicht im Projekt', 'Abbau', 'Fällt später weg', 'Abholen']::text[]));
