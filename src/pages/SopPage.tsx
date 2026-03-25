@@ -14,6 +14,7 @@ import {
   type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core';
 import KanbanColumn from '@/components/sop/KanbanColumn';
+import SopCard from '@/components/sop/SopCard';
 import SopDetailSheet from '@/components/sop/SopDetailSheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
