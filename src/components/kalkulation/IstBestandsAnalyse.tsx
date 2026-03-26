@@ -137,21 +137,27 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
     return [...grouped.values()];
   }, [istDevices, existingDevices]);
 
-  // Aggregate SOLL devices from kalkulation device groups
-  const aggregatedSoll = useMemo(() => {
-    return deviceGroups
-      .filter(g => g.mainDevice)
-      .map(g => ({
-        label: g.label,
-        manufacturer: g.mainDevice?.name?.split(' ')[0] || '',
-        model: g.mainDevice?.name || '',
-        quantity: g.mainQuantity,
-      }));
+  // SOLL options from device groups for dropdown
+  const sollOptions = useMemo(() => {
+    const opts: Array<{ value: string; label: string }> = [
+      { value: '__none__', label: '– kein Gerät –' },
+      { value: '__removed__', label: 'Entfällt' },
+    ];
+    deviceGroups.forEach((g, i) => {
+      if (g.mainDevice) {
+        opts.push({
+          value: String(i),
+          label: `${g.mainDevice.name}${g.label ? ` (${g.label})` : ''} – ${g.mainQuantity}×`,
+        });
+      }
+    });
+    return opts;
   }, [deviceGroups]);
 
+  // Track SOLL assignment per IST row
+  const [sollAssignments, setSollAssignments] = useState<Record<string, string>>({});
+
   const totalIst = aggregatedIst.reduce((s, d) => s + d.count, 0);
-  const totalSoll = aggregatedSoll.reduce((s, d) => s + d.quantity, 0);
-  const deviceSaving = totalIst - totalSoll;
   const istMonthlyRate = aggregatedIst.reduce((s, d) => s + (d.monthly_rate || 0), 0);
 
   const hasData = aggregatedIst.length > 0 || existingDevices.length > 0;
