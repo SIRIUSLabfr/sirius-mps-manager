@@ -33,7 +33,7 @@ import {
   FileSpreadsheet,
   Loader2,
   ArrowDownToLine,
-  TrendingDown,
+  Info,
   Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
