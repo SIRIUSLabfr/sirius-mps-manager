@@ -14,12 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      calculation_templates: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          organization_id: string | null
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          organization_id?: string | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          organization_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calculation_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calculation_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calculations: {
         Row: {
           config_json: Json | null
           created_at: string
           finance_type: string | null
           id: string
+          is_active: boolean | null
+          label: string | null
           leasing_factor: number | null
           margin_total: number | null
           old_net_value: number | null
@@ -37,6 +81,8 @@ export type Database = {
           created_at?: string
           finance_type?: string | null
           id?: string
+          is_active?: boolean | null
+          label?: string | null
           leasing_factor?: number | null
           margin_total?: number | null
           old_net_value?: number | null
@@ -54,6 +100,8 @@ export type Database = {
           created_at?: string
           finance_type?: string | null
           id?: string
+          is_active?: boolean | null
+          label?: string | null
           leasing_factor?: number | null
           margin_total?: number | null
           old_net_value?: number | null

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { FileText, Save, Eye, Loader2, Plus, ArrowRight } from 'lucide-react';
 import KonzeptPreview from '@/components/konzept/KonzeptPreview';
@@ -58,15 +59,21 @@ export default function KonzeptPage() {
     enabled: !!activeProjectId,
   });
 
-  const { data: calculation } = useQuery({
-    queryKey: ['calculation', activeProjectId],
+  // Load all calculations (scenarios)
+  const { data: allCalculations = [] } = useQuery({
+    queryKey: ['calculations_all', activeProjectId],
     queryFn: async () => {
-      if (!activeProjectId) return null;
-      const { data } = await supabase.from('calculations').select('*').eq('project_id', activeProjectId).maybeSingle();
-      return data;
+      if (!activeProjectId) return [];
+      const { data } = await supabase.from('calculations').select('*').eq('project_id', activeProjectId).order('created_at');
+      return data || [];
     },
     enabled: !!activeProjectId,
   });
+
+  const [selectedCalcId, setSelectedCalcId] = useState<string | null>(null);
+  const calculation = selectedCalcId
+    ? allCalculations.find(c => c.id === selectedCalcId) || allCalculations.find((c: any) => c.is_active) || allCalculations[0] || null
+    : allCalculations.find((c: any) => c.is_active) || allCalculations[0] || null;
 
   const { data: itConfig } = useQuery({
     queryKey: ['it_config', activeProjectId],
@@ -301,6 +308,21 @@ export default function KonzeptPage() {
               <Label className="text-xs">Ansprechpartner SIRIUS</Label>
               <Input value={config.overrides.contact_sirius || ''} onChange={e => updateOverride('contact_sirius', e.target.value)} className="h-8 text-sm" />
             </div>
+            {allCalculations.length > 1 && (
+              <div>
+                <Label className="text-xs">Kalkulationsszenario</Label>
+                <Select value={calculation?.id || ''} onValueChange={setSelectedCalcId}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Szenario wählen" /></SelectTrigger>
+                  <SelectContent>
+                    {allCalculations.map((c: any, i: number) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.label || `Szenario ${i + 1}`}{c.is_active ? ' (aktiv)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </CardContent>
         </Card>
 
