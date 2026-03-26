@@ -475,8 +475,8 @@ export default function KalkulationPage() {
             onFollowColorChange={(v) => setForm((f) => ({ ...f, followColor: v }))}
           />
 
-          {/* Action buttons */}
-          <div className="mt-4 space-y-2">
+          {/* Action buttons – inside sticky wrapper */}
+          <div className="sticky bottom-4 mt-4 space-y-2 z-10">
             <div className="flex gap-2">
               <Button
                 variant="outline"
