@@ -459,6 +459,7 @@ export default function KalkulationPage() {
 
         {/* Right column – 40% */}
         <div className="lg:col-span-2">
+          <div className="lg:sticky lg:top-4 space-y-4">
           <KalkSummary
             financeType={form.finance_type}
             termMonths={form.term_months}
@@ -475,8 +476,8 @@ export default function KalkulationPage() {
             onFollowColorChange={(v) => setForm((f) => ({ ...f, followColor: v }))}
           />
 
-          {/* Action buttons – inside sticky wrapper */}
-          <div className="sticky bottom-4 mt-4 space-y-2 z-10">
+          {/* Action buttons */}
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -510,6 +511,7 @@ export default function KalkulationPage() {
                 {statusMsg.text}
               </p>
             )}
+          </div>
           </div>
         </div>
       </div>
