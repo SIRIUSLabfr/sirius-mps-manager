@@ -27,6 +27,7 @@ import DeviceGroupCard, {
   calcGroupEk,
   calcGroupPageCosts,
 } from '@/components/kalkulation/DeviceGroupCard';
+import type { ZohoProduct } from '@/components/kalkulation/ZohoProductSearch';
 import ServiceCard, {
   type ServiceConfig,
   type ServiceItem,

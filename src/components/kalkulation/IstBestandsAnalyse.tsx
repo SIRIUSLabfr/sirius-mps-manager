@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   ChevronDown,
@@ -34,12 +33,14 @@ import {
   Loader2,
   ArrowDownToLine,
   Info,
+  Ban,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import type { DeviceGroup } from './DeviceGroupCard';
-import { calcGroupEk } from './DeviceGroupCard';
+import ZohoProductSearch, { type ZohoProduct } from './ZohoProductSearch';
 
 interface IstDevice {
   id: string;
@@ -48,6 +49,7 @@ interface IstDevice {
   location: string;
   floor?: string;
   room?: string;
+  building?: string;
   serial?: string;
   quantity: number;
   monthly_rate?: number;
@@ -55,10 +57,16 @@ interface IstDevice {
   volume_color?: number;
 }
 
+interface SollAssignment {
+  type: 'product' | 'none' | 'removed';
+  product?: ZohoProduct;
+}
+
 interface Props {
   projectId: string;
   deviceGroups: DeviceGroup[];
   totalRate: number;
+  onSollAssigned?: (istDevice: IstDevice, product: ZohoProduct) => void;
 }
 
 const IST_FIELD_OPTIONS = [
@@ -66,6 +74,7 @@ const IST_FIELD_OPTIONS = [
   { value: 'manufacturer', label: 'Hersteller' },
   { value: 'model', label: 'Modell' },
   { value: 'location', label: 'Standort' },
+  { value: 'building', label: 'Gebäude' },
   { value: 'floor', label: 'Etage' },
   { value: 'room', label: 'Raum' },
   { value: 'serial', label: 'Seriennummer' },
@@ -74,7 +83,16 @@ const IST_FIELD_OPTIONS = [
   { value: 'volume_color', label: 'Volumen Farbe' },
 ];
 
-export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate }: Props) {
+function buildLocationString(d: { location?: string; building?: string; floor?: string; room?: string }): string {
+  const parts: string[] = [];
+  if (d.building) parts.push(d.building);
+  if (d.location && d.location !== d.building) parts.push(d.location);
+  if (d.floor) parts.push(`Etage ${d.floor}`);
+  if (d.room) parts.push(`Raum ${d.room}`);
+  return parts.join(', ');
+}
+
+export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate, onSollAssigned }: Props) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -104,13 +122,17 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
   // Local IST list (imported in kalkulation context)
   const [istDevices, setIstDevices] = useState<IstDevice[]>([]);
 
+  // Track SOLL assignment per IST row
+  const [sollAssignments, setSollAssignments] = useState<Record<string, SollAssignment>>({});
+
   // Aggregate IST devices by manufacturer+model+location
   const aggregatedIst = useMemo(() => {
     const source = istDevices.length > 0 ? istDevices : existingDevices.map(d => ({
       id: d.id,
       manufacturer: d.ist_manufacturer || '',
       model: d.ist_model || '',
-      location: d.ist_building || d.ist_floor || '',
+      location: d.ist_building || '',
+      building: d.ist_building || '',
       floor: d.ist_floor || '',
       room: d.ist_room || '',
       serial: d.ist_serial || '',
@@ -136,30 +158,33 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
     return [...grouped.values()];
   }, [istDevices, existingDevices]);
 
-  // SOLL options from device groups for dropdown
-  const sollOptions = useMemo(() => {
-    const opts: Array<{ value: string; label: string }> = [
-      { value: '__none__', label: '– kein Gerät –' },
-      { value: '__removed__', label: 'Entfällt' },
-    ];
-    deviceGroups.forEach((g, i) => {
-      if (g.mainDevice) {
-        opts.push({
-          value: String(i),
-          label: `${g.mainDevice.name}${g.label ? ` (${g.label})` : ''} – ${g.mainQuantity}×`,
-        });
-      }
-    });
-    return opts;
-  }, [deviceGroups]);
-
-  // Track SOLL assignment per IST row
-  const [sollAssignments, setSollAssignments] = useState<Record<string, string>>({});
-
   const totalIst = aggregatedIst.reduce((s, d) => s + d.count, 0);
   const istMonthlyRate = aggregatedIst.reduce((s, d) => s + (d.monthly_rate || 0), 0);
 
   const hasData = aggregatedIst.length > 0 || existingDevices.length > 0;
+
+  // Handle SOLL assignment
+  const handleSollAssign = (istKey: string, istDevice: IstDevice & { count: number }, product: ZohoProduct | null) => {
+    if (product) {
+      setSollAssignments(prev => ({ ...prev, [istKey]: { type: 'product', product } }));
+      // Notify parent to create device group
+      if (onSollAssigned) {
+        onSollAssigned(istDevice, product);
+      }
+    }
+  };
+
+  const handleSollSpecial = (istKey: string, type: 'none' | 'removed') => {
+    setSollAssignments(prev => ({ ...prev, [istKey]: { type } }));
+  };
+
+  const clearSollAssignment = (istKey: string) => {
+    setSollAssignments(prev => {
+      const next = { ...prev };
+      delete next[istKey];
+      return next;
+    });
+  };
 
   // File parsing
   const handleFile = useCallback((file: File) => {
@@ -196,7 +221,8 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
     const patterns: Record<string, RegExp> = {
       manufacturer: /hersteller|manufacturer|marke|brand/i,
       model: /modell|model|typ|type|gerät|device/i,
-      location: /standort|location|adresse|address|gebäude|building/i,
+      location: /standort|location|adresse|address/i,
+      building: /gebäude|building/i,
       floor: /etage|floor|stockwerk|og|ug/i,
       room: /raum|room|zimmer/i,
       serial: /serie|serial|sn/i,
@@ -218,7 +244,7 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
   const handleImport = () => {
     setImporting(true);
     try {
-      const devices: IstDevice[] = parsedData.map((row, i) => {
+      const devices: IstDevice[] = parsedData.map((row) => {
         const get = (field: string) => {
           const col = Object.entries(columnMapping).find(([_, v]) => v === field)?.[0];
           return col ? (row[col] || '').toString().trim() : '';
@@ -232,6 +258,7 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
           manufacturer: get('manufacturer'),
           model: get('model'),
           location: get('location'),
+          building: get('building'),
           floor: get('floor'),
           room: get('room'),
           serial: get('serial'),
@@ -248,7 +275,7 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
       setParsedHeaders([]);
       setOpen(true);
       toast.success(`${devices.length} IST-Geräte importiert`);
-    } catch (err) {
+    } catch {
       toast.error('Importfehler');
     }
     setImporting(false);
@@ -269,7 +296,7 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
         ist_manufacturer: d.manufacturer,
         ist_model: d.model,
         ist_serial: d.serial || null,
-        ist_building: d.location || null,
+        ist_building: d.building || d.location || null,
         ist_floor: d.floor || null,
         ist_room: d.room || null,
         ist_source: 'kalkulation_import',
@@ -285,8 +312,6 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
     }
     setTransferring(false);
   };
-
-  const fmtNum = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <>
@@ -315,8 +340,8 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
               <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/15 rounded-lg text-xs text-muted-foreground">
                 <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <p>
-                  Importiere die aktuelle Geräteliste des Kunden (vom bisherigen MPS-Anbieter),
-                  um Einsparpotenziale zu berechnen.
+                  Importiere die aktuelle Geräteliste des Kunden (vom bisherigen MPS-Anbieter).
+                  Ordne jedem IST-Gerät ein SOLL-Gerät zu – es wird automatisch in der Hardware-Konfiguration angelegt.
                 </p>
               </div>
 
@@ -347,10 +372,10 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
-                        <th className="px-3 py-2 text-left">
+                        <th className="px-3 py-2 text-left w-[45%]">
                           <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-primary">IST (Altgerät)</span>
                         </th>
-                        <th className="px-2 py-2 text-center w-10">
+                        <th className="px-2 py-2 text-center w-8">
                           <ArrowRight className="h-3.5 w-3.5 mx-auto text-muted-foreground" />
                         </th>
                         <th className="px-3 py-2 text-left">
@@ -361,35 +386,98 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
                     <tbody className="divide-y divide-border/50">
                       {aggregatedIst.map((ist, i) => {
                         const key = ist.id || String(i);
-                        const assigned = sollAssignments[key] || '__none__';
+                        const assignment = sollAssignments[key];
+                        const locationStr = buildLocationString(ist);
+
                         return (
                           <tr key={key} className="hover:bg-muted/20">
-                            <td className="px-3 py-2">
-                              <span className="font-medium">{ist.manufacturer} {ist.model}</span>
-                              {ist.location && (
-                                <span className="text-muted-foreground ml-1">({ist.location})</span>
+                            <td className="px-3 py-2.5">
+                              <div className="font-medium">
+                                {ist.manufacturer} {ist.model}
+                                <span className="text-muted-foreground ml-1.5">{ist.count}×</span>
+                              </div>
+                              {locationStr && (
+                                <div className="text-[10px] text-muted-foreground mt-0.5">
+                                  📍 {locationStr}
+                                </div>
                               )}
-                              <span className="text-muted-foreground ml-1">{ist.count}×</span>
                             </td>
                             <td className="px-2 py-2 text-center">
                               <ArrowRight className="h-3 w-3 mx-auto text-muted-foreground/50" />
                             </td>
-                            <td className="px-3 py-2">
-                              <Select
-                                value={assigned}
-                                onValueChange={(v) => setSollAssignments(prev => ({ ...prev, [key]: v }))}
-                              >
-                                <SelectTrigger className="h-7 text-xs w-full">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {sollOptions.map(o => (
-                                    <SelectItem key={o.value} value={o.value} className="text-xs">
-                                      {o.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            <td className="px-3 py-2.5">
+                              {/* Already assigned */}
+                              {assignment?.type === 'product' && assignment.product ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-secondary truncate">
+                                      {assignment.product.name}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground">
+                                      {assignment.product.category}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => clearSollAssignment(key)}
+                                    className="text-muted-foreground hover:text-destructive shrink-0"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : assignment?.type === 'none' ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-muted-foreground italic">– kein Gerät –</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => clearSollAssignment(key)}
+                                    className="text-muted-foreground hover:text-destructive shrink-0"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : assignment?.type === 'removed' ? (
+                                <div className="flex items-center gap-2">
+                                  <Ban className="h-3.5 w-3.5 text-destructive/60" />
+                                  <span className="text-destructive/80 font-medium">Entfällt</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => clearSollAssignment(key)}
+                                    className="text-muted-foreground hover:text-destructive shrink-0 ml-auto"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                /* Not yet assigned – show search + special options */
+                                <div className="space-y-1.5">
+                                  <ZohoProductSearch
+                                    value={null}
+                                    onChange={(product) => {
+                                      if (product) handleSollAssign(key, ist, product);
+                                    }}
+                                    filterType="main_device"
+                                    placeholder="SOLL-Gerät suchen…"
+                                    className="w-full"
+                                  />
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSollSpecial(key, 'none')}
+                                      className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded border border-border/50 hover:border-border transition-colors"
+                                    >
+                                      kein Gerät
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSollSpecial(key, 'removed')}
+                                      className="text-[10px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/50 hover:border-destructive/50 transition-colors"
+                                    >
+                                      Entfällt
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );
@@ -409,7 +497,9 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
                   {istMonthlyRate > 0 && (
                     <div className="p-3 bg-muted/30 rounded-lg text-center">
                       <p className="text-[10px] font-heading uppercase text-muted-foreground">IST Rate gesamt</p>
-                      <p className="text-lg font-bold">{fmtNum(istMonthlyRate)} €</p>
+                      <p className="text-lg font-bold">
+                        {istMonthlyRate.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                      </p>
                     </div>
                   )}
                 </div>
