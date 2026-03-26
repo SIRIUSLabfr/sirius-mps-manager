@@ -512,6 +512,7 @@ export default function KalkulationPage() {
               </p>
             )}
           </div>
+          </div>
         </div>
       </div>
     </div>
