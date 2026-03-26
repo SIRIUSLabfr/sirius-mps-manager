@@ -25,7 +25,7 @@ const topNav: NavItem[] = [
 ];
 
 const phase1Items: NavItem[] = [
-  { title: 'Standorte & Raumpläne', path: '/projekt/:id', icon: Building2, requiresProject: true },
+  { title: 'Standorte & Raumpläne', path: '/projekt/:id/standorte', icon: Building2, requiresProject: true },
   { title: 'IST-Daten Import', path: '/projekt/:id/daten', icon: Download, requiresProject: true },
 ];
 
