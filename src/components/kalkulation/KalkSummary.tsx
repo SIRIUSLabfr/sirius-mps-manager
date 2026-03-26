@@ -1,7 +1,15 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+
+interface MischklickData {
+  totalSwCost: number;
+  totalSwVolume: number;
+  mischklickSw: number;
+  totalColorCost: number;
+  totalColorVolume: number;
+  mischklickColor: number;
+  totalServiceRate: number;
+}
 
 interface KalkSummaryProps {
   financeType: string;
@@ -10,39 +18,28 @@ interface KalkSummaryProps {
   hardwareEkTotal: number;
   marginTotal: number;
   abloeseTotal: number;
-  serviceMonthly: number;
-  volumeBw: number;
-  volumeColor: number;
-  followBw: number;
-  followColor: number;
-  onFollowBwChange: (v: number) => void;
-  onFollowColorChange: (v: number) => void;
+  hwMonthly: number;
+  totalRate: number;
+  mischklick: MischklickData;
 }
 
 const fmt = (v: number) =>
   v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const fmt4 = (v: number) =>
+  v.toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
 export default function KalkSummary({
   financeType,
   termMonths,
-  leasingFactor,
   hardwareEkTotal,
   marginTotal,
   abloeseTotal,
-  serviceMonthly,
-  volumeBw,
-  volumeColor,
-  followBw,
-  followColor,
-  onFollowBwChange,
-  onFollowColorChange,
+  hwMonthly,
+  totalRate,
+  mischklick,
 }: KalkSummaryProps) {
   const investTotal = hardwareEkTotal + marginTotal + abloeseTotal;
-  const hwMonthly =
-    financeType === 'leasing'
-      ? investTotal * leasingFactor
-      : investTotal / termMonths;
-  const totalRate = hwMonthly + serviceMonthly;
 
   const Row = ({
     label,
@@ -61,69 +58,62 @@ export default function KalkSummary({
       >
         {label}
       </span>
-      <span
-        className={`font-heading ${bold ? 'font-extrabold' : 'font-medium'} text-sm`}
-      >
+      <span className={`font-heading ${bold ? 'font-extrabold' : 'font-medium'} text-sm`}>
         {value}
       </span>
     </div>
   );
 
   return (
-    <div className="space-y-4 sticky top-4">
+    <div className="space-y-4">
       {/* Big hero card */}
-      <Card className="bg-primary text-primary-foreground border-0 shadow-lg">
+      <Card className="border-0 shadow-lg" style={{ backgroundColor: '#001A5C' }}>
         <CardContent className="py-6 text-center space-y-1">
-          <p className="text-xs font-heading uppercase tracking-widest opacity-80">
+          <p className="text-xs font-heading uppercase tracking-widest text-white/70">
             Monatliche All-In-Rate
           </p>
-          <p className="text-3xl font-heading font-extrabold text-secondary">
+          <p className="text-3xl font-heading font-extrabold" style={{ color: '#00A3E0' }}>
             {fmt(totalRate)} €
           </p>
-          <p className="text-[10px] opacity-60">
+          <p className="text-[10px] text-white/50">
             {financeType === 'leasing' ? 'Leasing (Bank)' : 'Miete (Eigen)'} · {termMonths} Monate
           </p>
         </CardContent>
       </Card>
 
-      {/* Volume box */}
+      {/* Volume & Mischklick box */}
       <Card>
         <CardContent className="py-4 space-y-3">
           <p className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
-            Volumen
+            Volumen & Mischklick
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center p-2 bg-muted/40 rounded-md">
-              <p className="text-lg font-heading font-bold">{volumeBw.toLocaleString('de-DE')}</p>
-              <p className="text-[10px] text-muted-foreground">Gesamt S/W</p>
+              <p className="text-lg font-heading font-bold">
+                {mischklick.totalSwVolume.toLocaleString('de-DE')}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Gesamtvolumen S/W</p>
             </div>
             <div className="text-center p-2 bg-muted/40 rounded-md">
-              <p className="text-lg font-heading font-bold">{volumeColor.toLocaleString('de-DE')}</p>
-              <p className="text-[10px] text-muted-foreground">Gesamt Farbe</p>
+              <p className="text-lg font-heading font-bold">
+                {mischklick.totalColorVolume.toLocaleString('de-DE')}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Gesamtvolumen Farbe</p>
             </div>
           </div>
+          <Separator />
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-[10px]">Folgeseite S/W €</Label>
-              <Input
-                type="number"
-                step="0.0001"
-                value={followBw || ''}
-                onChange={(e) => onFollowBwChange(parseFloat(e.target.value) || 0)}
-                className="h-8 text-xs"
-                placeholder="0.0000"
-              />
+            <div className="text-center p-2 rounded-md" style={{ backgroundColor: 'hsl(196 100% 44% / 0.08)' }}>
+              <p className="text-lg font-heading font-bold" style={{ color: '#00A3E0' }}>
+                {mischklick.totalSwVolume > 0 ? `${fmt4(mischklick.mischklickSw)} €` : '–'}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Mischklick S/W</p>
             </div>
-            <div className="space-y-1">
-              <Label className="text-[10px]">Folgeseite Farbe €</Label>
-              <Input
-                type="number"
-                step="0.0001"
-                value={followColor || ''}
-                onChange={(e) => onFollowColorChange(parseFloat(e.target.value) || 0)}
-                className="h-8 text-xs"
-                placeholder="0.0000"
-              />
+            <div className="text-center p-2 rounded-md" style={{ backgroundColor: 'hsl(196 100% 44% / 0.08)' }}>
+              <p className="text-lg font-heading font-bold" style={{ color: '#00A3E0' }}>
+                {mischklick.totalColorVolume > 0 ? `${fmt4(mischklick.mischklickColor)} €` : '–'}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Mischklick Farbe</p>
             </div>
           </div>
         </CardContent>
@@ -139,7 +129,7 @@ export default function KalkSummary({
             label={financeType === 'leasing' ? 'Hardware Rate (Leasing)' : 'Hardware Rate (Miete)'}
             value={`${fmt(hwMonthly)} € / Mon.`}
           />
-          <Row label="Service Rate (Klicks)" value={`${fmt(serviceMonthly)} € / Mon.`} />
+          <Row label="Service Rate (alle Klicks)" value={`${fmt(mischklick.totalServiceRate)} € / Mon.`} />
           <Separator />
           <Row label="Gesamtinvestition" value={`${fmt(investTotal)} €`} bold />
           <Row label="Davon Hardware EK" value={`${fmt(hardwareEkTotal)} €`} sub />
