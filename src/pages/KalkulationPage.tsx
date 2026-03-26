@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calculator, Save, Plus, CalendarIcon, FileText, Loader2 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calculator, Save, Plus, CalendarIcon, FileText, Loader2, BookmarkPlus, Download, GitCompareArrows, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -25,18 +26,18 @@ import DeviceGroupCard, {
   type DeviceGroup,
   type PagePrices,
   calcGroupEk,
-  calcGroupPageCosts,
 } from '@/components/kalkulation/DeviceGroupCard';
 import type { ZohoProduct } from '@/components/kalkulation/ZohoProductSearch';
 import ServiceCard, {
   type ServiceConfig,
   type ServiceItem,
-  calcMixServiceRate,
-  calcMixServiceVolumes,
   calcMixServiceCosts,
+  calcMixServiceVolumes,
 } from '@/components/kalkulation/ServiceCard';
 import KalkSummary from '@/components/kalkulation/KalkSummary';
 import IstBestandsAnalyse from '@/components/kalkulation/IstBestandsAnalyse';
+import TemplateDialog from '@/components/kalkulation/TemplateDialog';
+import ScenarioCompare from '@/components/kalkulation/ScenarioCompare';
 
 interface CalcState {
   finance_type: string;
@@ -63,13 +64,6 @@ const createEmptyGroup = (): DeviceGroup => ({
   page_prices: createEmptyPagePrices(),
 });
 
-const createEmptyServiceItem = (): ServiceItem => ({
-  id: crypto.randomUUID(),
-  type: 'bw',
-  product: null,
-  quantity: 1000,
-});
-
 const defaultState: CalcState = {
   finance_type: 'leasing',
   term_months: 60,
@@ -93,8 +87,12 @@ export default function KalkulationPage() {
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+  const [templateSaveOpen, setTemplateSaveOpen] = useState(false);
+  const [templateLoadOpen, setTemplateLoadOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
 
-  // Load locations for dropdown
+  // Load locations
   const { data: locations = [] } = useQuery({
     queryKey: ['locations', activeProjectId],
     queryFn: async () => {
@@ -109,39 +107,48 @@ export default function KalkulationPage() {
     enabled: !!activeProjectId,
   });
 
-  // Load from Supabase
-  const { data: calc } = useQuery({
-    queryKey: ['calculation', activeProjectId],
+  // Load ALL scenarios for this project
+  const { data: allCalcs = [] } = useQuery({
+    queryKey: ['calculations_all', activeProjectId],
     queryFn: async () => {
-      if (!activeProjectId) return null;
-      const { data, error } = await supabase
+      if (!activeProjectId) return [];
+      const { data } = await supabase
         .from('calculations')
         .select('*')
         .eq('project_id', activeProjectId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+        .order('created_at');
+      return data || [];
     },
     enabled: !!activeProjectId,
   });
 
-  // State restore
+  // Select active scenario
   useEffect(() => {
-    if (calc) {
-      const cfg = (calc.config_json as any) || {};
+    if (allCalcs.length > 0 && !activeCalcId) {
+      const active = allCalcs.find((c: any) => c.is_active) || allCalcs[0];
+      setActiveCalcId(active.id);
+    }
+  }, [allCalcs, activeCalcId]);
+
+  const activeCalc = allCalcs.find((c: any) => c.id === activeCalcId) || null;
+
+  // State restore from active calc
+  useEffect(() => {
+    if (activeCalc) {
+      const cfg = (activeCalc.config_json as any) || {};
       const restoreGroups = (groups: any[]) =>
         groups.map((g: any) => ({
           ...g,
           page_prices: g.page_prices || createEmptyPagePrices(),
         }));
       setForm({
-        finance_type: calc.finance_type || 'leasing',
-        term_months: calc.term_months || 60,
-        leasing_factor: calc.leasing_factor || 0.0186,
-        margin_total: calc.margin_total || 0,
-        old_rate: calc.old_rate || 0,
-        old_remaining_months: calc.old_remaining_months || 0,
-        old_net_value: calc.old_net_value || 0,
+        finance_type: activeCalc.finance_type || 'leasing',
+        term_months: activeCalc.term_months || 60,
+        leasing_factor: activeCalc.leasing_factor || 0.0186,
+        margin_total: activeCalc.margin_total || 0,
+        old_rate: activeCalc.old_rate || 0,
+        old_remaining_months: activeCalc.old_remaining_months || 0,
+        old_net_value: activeCalc.old_net_value || 0,
         contract_start: cfg.contract_start || null,
         delivery_date: cfg.delivery_date || null,
         deviceGroups: cfg.device_groups?.length
@@ -155,7 +162,7 @@ export default function KalkulationPage() {
             ? cfg.service
             : { items: [] },
       });
-    } else if (!calc && activeProjectId && ZOHO?.CRM?.API && dealId) {
+    } else if (allCalcs.length === 0 && activeProjectId && ZOHO?.CRM?.API && dealId) {
       ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: dealId })
         .then((resp: any) => {
           const deal = resp?.data?.[0];
@@ -176,12 +183,12 @@ export default function KalkulationPage() {
                     : { items: [] },
               }));
               toast.info('Daten aus Zoho Deal importiert');
-            } catch { /* ignore parse errors */ }
+            } catch { /* ignore */ }
           }
         })
         .catch(() => { /* ignore */ });
     }
-  }, [calc, activeProjectId, ZOHO, dealId]);
+  }, [activeCalc, allCalcs.length, activeProjectId, ZOHO, dealId]);
 
   // ===== COMPUTED VALUES =====
   const residualValue = form.old_net_value * 0.03;
@@ -193,44 +200,32 @@ export default function KalkulationPage() {
       ? investTotal * form.leasing_factor
       : form.term_months > 0 ? investTotal / form.term_months : 0;
 
-  // Collect ALL page costs from device groups
   const groupPageData = useMemo(() => {
     let swCost = 0, swVol = 0, colorCost = 0, colorVol = 0;
     for (const g of form.deviceGroups) {
       const pp = g.page_prices;
-      if (pp?.bw) {
-        swCost += pp.bw.price * pp.bw.volume;
-        swVol += pp.bw.volume;
-      }
-      if (pp?.color) {
-        colorCost += pp.color.price * pp.color.volume;
-        colorVol += pp.color.volume;
-      }
+      if (pp?.bw) { swCost += pp.bw.price * pp.bw.volume; swVol += pp.bw.volume; }
+      if (pp?.color) { colorCost += pp.color.price * pp.color.volume; colorVol += pp.color.volume; }
     }
     return { swCost, swVol, colorCost, colorVol };
   }, [form.deviceGroups]);
 
-  // Mix service data
   const mixData = useMemo(() => {
     const costs = calcMixServiceCosts(form.service);
     const vols = calcMixServiceVolumes(form.service);
     return { ...costs, ...vols };
   }, [form.service]);
 
-  // Combined mischklick
   const mischklick = useMemo(() => {
     const totalSwCost = groupPageData.swCost + mixData.bwCost;
     const totalSwVolume = groupPageData.swVol + mixData.bw;
     const totalColorCost = groupPageData.colorCost + mixData.colorCost;
     const totalColorVolume = groupPageData.colorVol + mixData.color;
     const totalServiceRate = totalSwCost + totalColorCost;
-
     return {
-      totalSwCost,
-      totalSwVolume,
+      totalSwCost, totalSwVolume,
       mischklickSw: totalSwVolume > 0 ? totalSwCost / totalSwVolume : 0,
-      totalColorCost,
-      totalColorVolume,
+      totalColorCost, totalColorVolume,
       mischklickColor: totalColorVolume > 0 ? totalColorCost / totalColorVolume : 0,
       totalServiceRate,
     };
@@ -251,39 +246,38 @@ export default function KalkulationPage() {
     total_hardware_ek: hardwareEkTotal,
     total_monthly_rate: totalRate,
     service_rate: mischklick.totalServiceRate,
-    config_json: JSON.parse(
-      JSON.stringify({
-        contract_start: form.contract_start,
-        delivery_date: form.delivery_date,
-        device_groups: form.deviceGroups,
-        mix_service_items: form.service.items,
-        calculated: {
-          total_ek: hardwareEkTotal,
-          buyout_total: abloeseTotal,
-          invest_total: investTotal,
-          hw_monthly: hwMonthly,
-          srv_rate: mischklick.totalServiceRate,
-          total_rate: totalRate,
-          total_volume_bw: mischklick.totalSwVolume,
-          total_volume_color: mischklick.totalColorVolume,
-          mischklick_bw: mischklick.mischklickSw,
-          mischklick_color: mischklick.mischklickColor,
-        },
-      })
-    ),
+    config_json: JSON.parse(JSON.stringify({
+      contract_start: form.contract_start,
+      delivery_date: form.delivery_date,
+      device_groups: form.deviceGroups,
+      mix_service_items: form.service.items,
+      calculated: {
+        total_ek: hardwareEkTotal,
+        buyout_total: abloeseTotal,
+        invest_total: investTotal,
+        hw_monthly: hwMonthly,
+        srv_rate: mischklick.totalServiceRate,
+        total_rate: totalRate,
+        total_volume_bw: mischklick.totalSwVolume,
+        total_volume_color: mischklick.totalColorVolume,
+        mischklick_bw: mischklick.mischklickSw,
+        mischklick_color: mischklick.mischklickColor,
+      },
+    })),
   });
 
   const saveToSupabase = async () => {
     if (!activeProjectId) return false;
     const payload = buildPayload();
-    const { error } = calc
-      ? await supabase.from('calculations').update(payload).eq('id', calc.id)
-      : await supabase.from('calculations').insert(payload);
-    if (error) {
-      setStatusMsg({ type: 'error', text: 'Speicherfehler: ' + error.message });
-      return false;
+    if (activeCalcId) {
+      const { error } = await supabase.from('calculations').update(payload).eq('id', activeCalcId);
+      if (error) { setStatusMsg({ type: 'error', text: 'Speicherfehler: ' + error.message }); return false; }
+    } else {
+      const { data, error } = await supabase.from('calculations').insert({ ...payload, is_active: allCalcs.length === 0 }).select().single();
+      if (error) { setStatusMsg({ type: 'error', text: 'Speicherfehler: ' + error.message }); return false; }
+      setActiveCalcId(data.id);
     }
-    queryClient.invalidateQueries({ queryKey: ['calculation', activeProjectId] });
+    queryClient.invalidateQueries({ queryKey: ['calculations_all', activeProjectId] });
     return true;
   };
 
@@ -291,8 +285,7 @@ export default function KalkulationPage() {
     if (!ZOHO?.CRM?.API || !dealId) return;
     try {
       await ZOHO.CRM.API.updateRecord({
-        Entity: 'Deals',
-        RecordID: dealId,
+        Entity: 'Deals', RecordID: dealId,
         APIData: { id: dealId, MPS_Config_JSON: JSON.stringify(buildPayload().config_json) },
         Trigger: [],
       });
@@ -300,42 +293,26 @@ export default function KalkulationPage() {
   };
 
   const handleSave = async () => {
-    setSaving(true);
-    setStatusMsg(null);
+    setSaving(true); setStatusMsg(null);
     const ok = await saveToSupabase();
-    if (ok) {
-      await saveToZoho();
-      setStatusMsg({ type: 'success', text: 'Erfolgreich gespeichert' });
-    }
+    if (ok) { await saveToZoho(); setStatusMsg({ type: 'success', text: 'Erfolgreich gespeichert' }); }
     setSaving(false);
   };
 
   const handleCreateEstimate = async () => {
-    setCreating(true);
-    setStatusMsg(null);
+    setCreating(true); setStatusMsg(null);
     const ok = await saveToSupabase();
     if (!ok) { setCreating(false); return; }
     await saveToZoho();
-    if (!ZOHO?.CRM?.FUNCTIONS || !dealId) {
-      setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' });
-      setCreating(false);
-      return;
-    }
+    if (!ZOHO?.CRM?.FUNCTIONS || !dealId) { setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' }); setCreating(false); return; }
     try {
       const mpsPayload = {
-        ...buildPayload(),
-        hardwareEkTotal,
-        serviceMonthly: mischklick.totalServiceRate,
-        abloeseTotal,
-        hwMonthly,
-        totalRate,
+        ...buildPayload(), hardwareEkTotal,
+        serviceMonthly: mischklick.totalServiceRate, abloeseTotal, hwMonthly, totalRate,
         volumes: { bw: mischklick.totalSwVolume, color: mischklick.totalColorVolume },
       };
       await ZOHO.CRM.FUNCTIONS.execute('createMpsEstimateAdvanced', {
-        arguments: JSON.stringify({
-          potentialId: dealId,
-          mpsFullData: mpsPayload,
-        }),
+        arguments: JSON.stringify({ potentialId: dealId, mpsFullData: mpsPayload }),
       });
       setStatusMsg({ type: 'success', text: 'Angebot erstellt' });
     } catch (err: any) {
@@ -344,64 +321,74 @@ export default function KalkulationPage() {
     setCreating(false);
   };
 
+  // ===== SCENARIO ACTIONS =====
+  const handleNewScenario = async (copyFrom?: boolean) => {
+    if (!activeProjectId) return;
+    const payload = copyFrom ? { ...buildPayload(), label: `Szenario ${allCalcs.length + 1}`, is_active: false } : {
+      project_id: activeProjectId,
+      label: `Szenario ${allCalcs.length + 1}`,
+      is_active: false,
+      finance_type: 'leasing',
+      term_months: 60,
+      leasing_factor: 0.0186,
+      margin_total: 0,
+      old_rate: 0,
+      old_remaining_months: 0,
+      old_net_value: 0,
+      total_hardware_ek: 0,
+      total_monthly_rate: 0,
+      service_rate: 0,
+      config_json: {} as any,
+    };
+    const { data, error } = await supabase.from('calculations').insert(payload).select().single();
+    if (error) { toast.error('Fehler: ' + error.message); return; }
+    queryClient.invalidateQueries({ queryKey: ['calculations_all', activeProjectId] });
+    setActiveCalcId(data.id);
+    toast.success('Neues Szenario erstellt');
+  };
+
+  const handleActivateScenario = async (id: string) => {
+    if (!activeProjectId) return;
+    // Deactivate all, activate selected
+    await supabase.from('calculations').update({ is_active: false }).eq('project_id', activeProjectId);
+    await supabase.from('calculations').update({ is_active: true }).eq('id', id);
+    queryClient.invalidateQueries({ queryKey: ['calculations_all', activeProjectId] });
+    toast.success('Szenario aktiviert');
+  };
+
+  const handleTemplateLoad = (cfg: { finance_type: string; term_months: number; leasing_factor: number; margin_total: number }) => {
+    setForm(f => ({ ...f, ...cfg }));
+  };
+
   // ===== HELPERS =====
-  const numField = (
-    label: string,
-    key: keyof CalcState,
-    opts?: { suffix?: string; step?: string; disabled?: boolean }
-  ) => (
+  const numField = (label: string, key: keyof CalcState, opts?: { suffix?: string; step?: string; disabled?: boolean }) => (
     <div className="space-y-1">
       <Label className="text-xs font-heading">{label}</Label>
       <div className="relative">
         <Input
-          type="number"
-          step={opts?.step || 'any'}
+          type="number" step={opts?.step || 'any'}
           value={form[key] as number}
           onChange={(e) => setForm((f) => ({ ...f, [key]: parseFloat(e.target.value) || 0 }))}
           disabled={opts?.disabled}
           className={cn('text-sm h-9', opts?.suffix && 'pr-8', opts?.disabled && 'bg-muted/30')}
         />
-        {opts?.suffix && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-            {opts.suffix}
-          </span>
-        )}
+        {opts?.suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{opts.suffix}</span>}
       </div>
     </div>
   );
 
-  const DateField = ({
-    label,
-    value,
-    onChange: onDateChange,
-  }: {
-    label: string;
-    value: string | null;
-    onChange: (d: string | null) => void;
-  }) => (
+  const DateField = ({ label, value, onChange: onDateChange }: { label: string; value: string | null; onChange: (d: string | null) => void }) => (
     <div className="space-y-1">
       <Label className="text-xs font-heading">{label}</Label>
       <Popover>
         <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn(
-              'w-full justify-start text-left font-normal h-9 text-sm',
-              !value && 'text-muted-foreground'
-            )}
-          >
+          <Button variant="outline" className={cn('w-full justify-start text-left font-normal h-9 text-sm', !value && 'text-muted-foreground')}>
             <CalendarIcon className="mr-2 h-3.5 w-3.5" />
             {value ? format(new Date(value), 'dd.MM.yyyy') : 'Datum wählen'}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={value ? new Date(value) : undefined}
-            onSelect={(d) => onDateChange(d ? d.toISOString().split('T')[0] : null)}
-            locale={de}
-            className="p-3 pointer-events-auto"
-          />
+          <Calendar mode="single" selected={value ? new Date(value) : undefined} onSelect={(d) => onDateChange(d ? d.toISOString().split('T')[0] : null)} locale={de} className="p-3 pointer-events-auto" />
         </PopoverContent>
       </Popover>
     </div>
@@ -417,48 +404,87 @@ export default function KalkulationPage() {
   }
 
   const updateGroup = (index: number, group: DeviceGroup) => {
-    setForm((f) => {
-      const groups = [...f.deviceGroups];
-      groups[index] = group;
-      return { ...f, deviceGroups: groups };
-    });
+    setForm((f) => { const groups = [...f.deviceGroups]; groups[index] = group; return { ...f, deviceGroups: groups }; });
   };
-
   const removeGroup = (index: number) => {
-    setForm((f) => ({
-      ...f,
-      deviceGroups: f.deviceGroups.length > 1 ? f.deviceGroups.filter((_, i) => i !== index) : f.deviceGroups,
-    }));
+    setForm((f) => ({ ...f, deviceGroups: f.deviceGroups.length > 1 ? f.deviceGroups.filter((_, i) => i !== index) : f.deviceGroups }));
   };
 
-  // Called when a SOLL device is assigned in IST-Bestandsanalyse
   const handleSollAssigned = (istDevice: any, product: ZohoProduct) => {
-    const locationStr = [istDevice.building, istDevice.location, istDevice.floor ? `Etage ${istDevice.floor}` : '', istDevice.room ? `Raum ${istDevice.room}` : '']
-      .filter(Boolean)
-      .join(', ');
+    const locationStr = [istDevice.building, istDevice.location, istDevice.floor ? `Etage ${istDevice.floor}` : '', istDevice.room ? `Raum ${istDevice.room}` : ''].filter(Boolean).join(', ');
     const newGroup: DeviceGroup = {
-      id: crypto.randomUUID(),
-      label: locationStr || istDevice.location || '',
-      mainDevice: product,
-      mainQuantity: istDevice.count || 1,
-      accessories: [],
-      page_prices: createEmptyPagePrices(),
+      id: crypto.randomUUID(), label: locationStr || istDevice.location || '',
+      mainDevice: product, mainQuantity: istDevice.count || 1,
+      accessories: [], page_prices: createEmptyPagePrices(),
     };
-    setForm((f) => ({
-      ...f,
-      deviceGroups: [...f.deviceGroups.filter(g => g.mainDevice !== null || f.deviceGroups.length === 1), newGroup],
-    }));
+    setForm((f) => ({ ...f, deviceGroups: [...f.deviceGroups.filter(g => g.mainDevice !== null || f.deviceGroups.length === 1), newGroup] }));
     toast.success(`${product.name} als SOLL-Gerät hinzugefügt`);
   };
 
+  const scenarioLabel = (c: any, i: number) => c.label || `Szenario ${i + 1}`;
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-heading font-bold text-foreground">Kalkulation</h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-2xl font-heading font-bold text-foreground">Kalkulation</h1>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setTemplateLoadOpen(true)}>
+            <Download className="h-3.5 w-3.5" /> Vorlage laden
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setTemplateSaveOpen(true)}>
+            <BookmarkPlus className="h-3.5 w-3.5" /> Als Vorlage
+          </Button>
+          {allCalcs.length >= 2 && (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setCompareOpen(!compareOpen)}>
+              <GitCompareArrows className="h-3.5 w-3.5" /> Vergleichen
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Scenario tabs */}
+      {allCalcs.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Tabs value={activeCalcId || ''} onValueChange={setActiveCalcId} className="flex-1">
+            <TabsList className="h-9">
+              {allCalcs.map((c: any, i: number) => (
+                <TabsTrigger key={c.id} value={c.id} className="text-xs gap-1.5 data-[state=active]:shadow-sm">
+                  {scenarioLabel(c, i)}
+                  {c.is_active && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2" align="end">
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs gap-2" onClick={() => handleNewScenario(false)}>
+                <Plus className="h-3.5 w-3.5" /> Leeres Szenario
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs gap-2" onClick={() => handleNewScenario(true)}>
+                <Copy className="h-3.5 w-3.5" /> Aktuelles kopieren
+              </Button>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      {/* Comparison view */}
+      {compareOpen && allCalcs.length >= 2 && (
+        <ScenarioCompare
+          scenarios={allCalcs as any}
+          onActivate={handleActivateScenario}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
         {/* Left column – 60% */}
         <div className="lg:col-span-3 space-y-4">
-          {/* IST-Bestandsanalyse (collapsible) */}
           <IstBestandsAnalyse
             projectId={activeProjectId}
             deviceGroups={form.deviceGroups}
@@ -466,7 +492,7 @@ export default function KalkulationPage() {
             onSollAssigned={handleSollAssigned}
           />
 
-          {/* Karte 1: Finanzierung & Rahmendaten */}
+          {/* Finanzierung & Rahmendaten */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="font-heading text-base">Finanzierung & Rahmendaten</CardTitle>
@@ -474,13 +500,8 @@ export default function KalkulationPage() {
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs font-heading">Finanzierungsart</Label>
-                <Select
-                  value={form.finance_type}
-                  onValueChange={(v) => setForm((f) => ({ ...f, finance_type: v }))}
-                >
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={form.finance_type} onValueChange={(v) => setForm((f) => ({ ...f, finance_type: v }))}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="leasing">Leasing (Bank)</SelectItem>
                     <SelectItem value="miete">Miete (Eigen)</SelectItem>
@@ -489,22 +510,13 @@ export default function KalkulationPage() {
               </div>
               {numField('Laufzeit (Monate)', 'term_months', { step: '1' })}
               {numField('Marge (Hardware Gesamt) €', 'margin_total', { suffix: '€', step: '50' })}
-              {form.finance_type === 'leasing' &&
-                numField('Leasingfaktor', 'leasing_factor', { step: '0.0001' })}
-              <DateField
-                label="Vertragsstart"
-                value={form.contract_start}
-                onChange={(d) => setForm((f) => ({ ...f, contract_start: d }))}
-              />
-              <DateField
-                label="Lieferung"
-                value={form.delivery_date}
-                onChange={(d) => setForm((f) => ({ ...f, delivery_date: d }))}
-              />
+              {form.finance_type === 'leasing' && numField('Leasingfaktor', 'leasing_factor', { step: '0.0001' })}
+              <DateField label="Vertragsstart" value={form.contract_start} onChange={(d) => setForm((f) => ({ ...f, contract_start: d }))} />
+              <DateField label="Lieferung" value={form.delivery_date} onChange={(d) => setForm((f) => ({ ...f, delivery_date: d }))} />
             </CardContent>
           </Card>
 
-          {/* Karte 2: Ablöse Altvertrag */}
+          {/* Ablöse Altvertrag */}
           <Card className="border-l-4 border-l-orange-400">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -520,100 +532,48 @@ export default function KalkulationPage() {
               {numField('Warennettowert (Ursprung) €', 'old_net_value', { suffix: '€' })}
               <div className="space-y-1">
                 <Label className="text-xs font-heading">Kalk. Restwert (3%)</Label>
-                <Input
-                  value={residualValue.toFixed(2)}
-                  disabled
-                  className="text-sm h-9 bg-muted/30 pr-8"
-                />
+                <Input value={residualValue.toFixed(2)} disabled className="text-sm h-9 bg-muted/30 pr-8" />
                 <span className="text-[10px] text-muted-foreground">= Warennettowert × 3%</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Karte 3: Hardware-Konfiguration (Gerätegruppen) */}
+          {/* Hardware-Konfiguration */}
           <div className="space-y-3">
-            <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-muted-foreground">
-              Hardware-Konfiguration
-            </h2>
+            <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-muted-foreground">Hardware-Konfiguration</h2>
             {form.deviceGroups.map((g, i) => (
-              <DeviceGroupCard
-                key={g.id}
-                group={g}
-                onChange={(updated) => updateGroup(i, updated)}
-                onRemove={() => removeGroup(i)}
-                locations={locations.length > 0 ? locations : undefined}
-              />
+              <DeviceGroupCard key={g.id} group={g} onChange={(updated) => updateGroup(i, updated)} onRemove={() => removeGroup(i)} locations={locations.length > 0 ? locations : undefined} />
             ))}
-            <Button
-              variant="outline"
-              className="w-full h-11 border-foreground/30 font-heading text-xs uppercase tracking-wider gap-2"
-              onClick={() =>
-                setForm((f) => ({
-                  ...f,
-                  deviceGroups: [...f.deviceGroups, createEmptyGroup()],
-                }))
-              }
-            >
+            <Button variant="outline" className="w-full h-11 border-foreground/30 font-heading text-xs uppercase tracking-wider gap-2" onClick={() => setForm((f) => ({ ...f, deviceGroups: [...f.deviceGroups, createEmptyGroup()] }))}>
               <Plus className="h-4 w-4" /> Neuen Standort / Gerät hinzufügen
             </Button>
           </div>
 
-          {/* Karte 4: Mischkalkulation */}
-          <ServiceCard
-            config={form.service}
-            onChange={(s) => setForm((f) => ({ ...f, service: s }))}
-            mischklick={mischklick}
-          />
+          {/* Mischkalkulation */}
+          <ServiceCard config={form.service} onChange={(s) => setForm((f) => ({ ...f, service: s }))} mischklick={mischklick} />
         </div>
 
         {/* Right column – 40% (sticky) */}
         <div className="lg:col-span-2">
           <div className="lg:sticky lg:top-4 space-y-4">
             <KalkSummary
-              financeType={form.finance_type}
-              termMonths={form.term_months}
-              leasingFactor={form.leasing_factor}
-              hardwareEkTotal={hardwareEkTotal}
-              marginTotal={form.margin_total}
-              abloeseTotal={abloeseTotal}
-              hwMonthly={hwMonthly}
-              totalRate={totalRate}
-              mischklick={mischklick}
+              financeType={form.finance_type} termMonths={form.term_months} leasingFactor={form.leasing_factor}
+              hardwareEkTotal={hardwareEkTotal} marginTotal={form.margin_total} abloeseTotal={abloeseTotal}
+              hwMonthly={hwMonthly} totalRate={totalRate} mischklick={mischklick}
             />
-
-            {/* Action buttons */}
             <div className="space-y-2">
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2 font-heading border-foreground/30"
-                  onClick={handleSave}
-                  disabled={saving}
-                >
+                <Button variant="outline" className="flex-1 gap-2 font-heading border-foreground/30" onClick={handleSave} disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   Zwischenspeichern
                 </Button>
-                <Button
-                  className="flex-1 gap-2 font-heading shadow-lg"
-                  style={{ backgroundColor: '#00A3E0' }}
-                  onClick={handleCreateEstimate}
-                  disabled={creating}
-                >
-                  {creating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileText className="h-4 w-4" />
-                  )}
+                <Button className="flex-1 gap-2 font-heading shadow-lg" style={{ backgroundColor: '#00A3E0' }} onClick={handleCreateEstimate} disabled={creating}>
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                   Angebot erstellen
                 </Button>
               </div>
               {statusMsg && (
-                <p
-                  className={cn(
-                    'text-xs text-center font-medium',
-                    statusMsg.type === 'success' ? 'text-green-600' : 'text-destructive'
-                  )}
-                >
+                <p className={cn('text-xs text-center font-medium', statusMsg.type === 'success' ? 'text-green-600' : 'text-destructive')}>
                   {statusMsg.text}
                 </p>
               )}
@@ -621,6 +581,10 @@ export default function KalkulationPage() {
           </div>
         </div>
       </div>
+
+      {/* Template dialogs */}
+      <TemplateDialog mode="save" open={templateSaveOpen} onOpenChange={setTemplateSaveOpen} currentConfig={form} />
+      <TemplateDialog mode="load" open={templateLoadOpen} onOpenChange={setTemplateLoadOpen} onLoad={handleTemplateLoad} />
     </div>
   );
 }
