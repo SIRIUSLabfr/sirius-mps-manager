@@ -431,6 +431,26 @@ export default function KalkulationPage() {
     }));
   };
 
+  // Called when a SOLL device is assigned in IST-Bestandsanalyse
+  const handleSollAssigned = (istDevice: any, product: ZohoProduct) => {
+    const locationStr = [istDevice.building, istDevice.location, istDevice.floor ? `Etage ${istDevice.floor}` : '', istDevice.room ? `Raum ${istDevice.room}` : '']
+      .filter(Boolean)
+      .join(', ');
+    const newGroup: DeviceGroup = {
+      id: crypto.randomUUID(),
+      label: locationStr || istDevice.location || '',
+      mainDevice: product,
+      mainQuantity: istDevice.count || 1,
+      accessories: [],
+      page_prices: createEmptyPagePrices(),
+    };
+    setForm((f) => ({
+      ...f,
+      deviceGroups: [...f.deviceGroups.filter(g => g.mainDevice !== null || f.deviceGroups.length === 1), newGroup],
+    }));
+    toast.success(`${product.name} als SOLL-Gerät hinzugefügt`);
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-heading font-bold text-foreground">Kalkulation</h1>
