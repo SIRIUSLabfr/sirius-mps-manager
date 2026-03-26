@@ -120,6 +120,41 @@ export type Database = {
           },
         ]
       }
+      concepts: {
+        Row: {
+          config_json: Json | null
+          created_at: string
+          id: string
+          project_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          config_json?: Json | null
+          created_at?: string
+          id?: string
+          project_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          config_json?: Json | null
+          created_at?: string
+          id?: string
+          project_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concepts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_placements: {
         Row: {
           created_at: string | null
