@@ -323,6 +323,7 @@ export default function KonzeptPage() {
                 </Select>
               </div>
             )}
+          </CardContent>
         </Card>
 
         {/* Inhaltsbausteine */}
