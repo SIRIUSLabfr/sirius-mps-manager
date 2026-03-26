@@ -120,6 +120,54 @@ export type Database = {
           },
         ]
       }
+      device_placements: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          floor_plan_id: string
+          id: string
+          label: string | null
+          updated_at: string | null
+          x_percent: number
+          y_percent: number
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          floor_plan_id: string
+          id?: string
+          label?: string | null
+          updated_at?: string | null
+          x_percent: number
+          y_percent: number
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          floor_plan_id?: string
+          id?: string
+          label?: string | null
+          updated_at?: string | null
+          x_percent?: number
+          y_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_placements_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_placements_floor_plan_id_fkey"
+            columns: ["floor_plan_id"]
+            isOneToOne: false
+            referencedRelation: "floor_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devices: {
         Row: {
           created_at: string
@@ -335,6 +383,60 @@ export type Database = {
           },
         ]
       }
+      floor_plans: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_type: string
+          file_url: string
+          height: number | null
+          id: string
+          location_id: string
+          sort_order: number | null
+          uploaded_by: string | null
+          width: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_type: string
+          file_url: string
+          height?: number | null
+          id?: string
+          location_id: string
+          sort_order?: number | null
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_type?: string
+          file_url?: string
+          height?: number | null
+          id?: string
+          location_id?: string
+          sort_order?: number | null
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "floor_plans_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "floor_plans_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       it_config: {
         Row: {
           card_reader_type: string | null
@@ -451,8 +553,10 @@ export type Database = {
           building: string | null
           created_at: string
           id: string
+          location_type: string
           name: string
           notes: string | null
+          parent_id: string | null
           project_id: string
           short_name: string | null
           sort_order: number | null
@@ -465,8 +569,10 @@ export type Database = {
           building?: string | null
           created_at?: string
           id?: string
+          location_type?: string
           name: string
           notes?: string | null
+          parent_id?: string | null
           project_id: string
           short_name?: string | null
           sort_order?: number | null
@@ -479,13 +585,22 @@ export type Database = {
           building?: string | null
           created_at?: string
           id?: string
+          location_type?: string
           name?: string
           notes?: string | null
+          parent_id?: string | null
           project_id?: string
           short_name?: string | null
           sort_order?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "locations_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "locations_project_id_fkey"
             columns: ["project_id"]
