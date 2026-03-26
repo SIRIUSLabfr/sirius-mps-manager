@@ -33,6 +33,7 @@ import ServiceCard, {
   calcServiceVolumes,
 } from '@/components/kalkulation/ServiceCard';
 import KalkSummary from '@/components/kalkulation/KalkSummary';
+import IstBestandsAnalyse from '@/components/kalkulation/IstBestandsAnalyse';
 
 interface CalcState {
   finance_type: string;
