@@ -308,7 +308,21 @@ export default function KonzeptPage() {
               <Label className="text-xs">Ansprechpartner SIRIUS</Label>
               <Input value={config.overrides.contact_sirius || ''} onChange={e => updateOverride('contact_sirius', e.target.value)} className="h-8 text-sm" />
             </div>
-          </CardContent>
+            {allCalculations.length > 1 && (
+              <div>
+                <Label className="text-xs">Kalkulationsszenario</Label>
+                <Select value={calculation?.id || ''} onValueChange={setSelectedCalcId}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Szenario wählen" /></SelectTrigger>
+                  <SelectContent>
+                    {allCalculations.map((c: any, i: number) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.label || `Szenario ${i + 1}`}{c.is_active ? ' (aktiv)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
         </Card>
 
         {/* Inhaltsbausteine */}
