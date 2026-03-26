@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useActiveProject } from '@/hooks/useActiveProject';
+import { useZoho } from '@/hooks/useZoho';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,15 +8,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calculator, Save, Plus, CalendarIcon } from 'lucide-react';
+import { Calculator, Save, Plus, CalendarIcon, FileText, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import DeviceGroupCard, { type DeviceGroup } from '@/components/kalkulation/DeviceGroupCard';
-import ServiceCard, { type ServiceConfig } from '@/components/kalkulation/ServiceCard';
+import DeviceGroupCard, {
+  type DeviceGroup,
+  type AccessoryItem,
+  calcGroupEk,
+} from '@/components/kalkulation/DeviceGroupCard';
+import ServiceCard, {
+  type ServiceConfig,
+  type ServiceItem,
+  calcServiceRate,
+  calcServiceVolumes,
+} from '@/components/kalkulation/ServiceCard';
 import KalkSummary from '@/components/kalkulation/KalkSummary';
 
 interface CalcState {
@@ -30,23 +46,22 @@ interface CalcState {
   delivery_date: string | null;
   deviceGroups: DeviceGroup[];
   service: ServiceConfig;
+  followBw: number;
+  followColor: number;
 }
-
-const defaultService: ServiceConfig = {
-  colorProduct: null,
-  bwProduct: null,
-  colorVolume: 0,
-  bwVolume: 0,
-  colorPriceOverride: null,
-  bwPriceOverride: null,
-};
 
 const createEmptyGroup = (): DeviceGroup => ({
   id: crypto.randomUUID(),
-  device: null,
+  label: '',
+  mainDevice: null,
+  mainQuantity: 1,
   accessories: [],
-  quantity: 1,
-  ekOverride: null,
+});
+
+const createEmptyServiceItem = (): ServiceItem => ({
+  id: crypto.randomUUID(),
+  product: null,
+  quantity: 1000,
 });
 
 const defaultState: CalcState = {
@@ -60,13 +75,22 @@ const defaultState: CalcState = {
   contract_start: null,
   delivery_date: null,
   deviceGroups: [createEmptyGroup()],
-  service: defaultService,
+  service: { items: [createEmptyServiceItem()] },
+  followBw: 0,
+  followColor: 0,
 };
 
 export default function KalkulationPage() {
   const { activeProjectId } = useActiveProject();
+  const { ZOHO, dealId } = useZoho();
   const queryClient = useQueryClient();
 
+  const [form, setForm] = useState<CalcState>(defaultState);
+  const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Load from Supabase
   const { data: calc } = useQuery({
     queryKey: ['calculation', activeProjectId],
     queryFn: async () => {
@@ -82,8 +106,7 @@ export default function KalkulationPage() {
     enabled: !!activeProjectId,
   });
 
-  const [form, setForm] = useState<CalcState>(defaultState);
-
+  // State restore
   useEffect(() => {
     if (calc) {
       const cfg = (calc.config_json as any) || {};
@@ -98,86 +121,150 @@ export default function KalkulationPage() {
         contract_start: cfg.contract_start || null,
         delivery_date: cfg.delivery_date || null,
         deviceGroups: cfg.deviceGroups?.length ? cfg.deviceGroups : [createEmptyGroup()],
-        service: cfg.service || defaultService,
+        service: cfg.service?.items ? cfg.service : { items: [createEmptyServiceItem()] },
+        followBw: cfg.followBw || 0,
+        followColor: cfg.followColor || 0,
       });
-    } else {
-      setForm(defaultState);
+    } else if (!calc && activeProjectId && ZOHO?.CRM?.API && dealId) {
+      // Fallback: try Zoho Deal field
+      ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: dealId })
+        .then((resp: any) => {
+          const deal = resp?.data?.[0];
+          const raw = deal?.MPS_Config_JSON;
+          if (raw) {
+            try {
+              const cfg = typeof raw === 'string' ? JSON.parse(raw) : raw;
+              setForm((prev) => ({
+                ...prev,
+                ...cfg,
+                deviceGroups: cfg.deviceGroups?.length ? cfg.deviceGroups : [createEmptyGroup()],
+                service: cfg.service?.items ? cfg.service : { items: [createEmptyServiceItem()] },
+              }));
+              toast.info('Daten aus Zoho Deal importiert');
+            } catch { /* ignore parse errors */ }
+          }
+        })
+        .catch(() => { /* ignore */ });
     }
-  }, [calc]);
+  }, [calc, activeProjectId, ZOHO, dealId]);
 
-  // Computed values
+  // Computed
   const residualValue = form.old_net_value * 0.03;
   const abloeseTotal = form.old_rate * form.old_remaining_months + residualValue;
+  const hardwareEkTotal = form.deviceGroups.reduce((s, g) => s + calcGroupEk(g), 0);
+  const serviceMonthly = calcServiceRate(form.service);
+  const volumes = calcServiceVolumes(form.service);
+  const investTotal = hardwareEkTotal + form.margin_total + abloeseTotal;
+  const hwMonthly =
+    form.finance_type === 'leasing'
+      ? investTotal * form.leasing_factor
+      : investTotal / form.term_months;
+  const totalRate = hwMonthly + serviceMonthly;
 
-  const hardwareEkTotal = form.deviceGroups.reduce((sum, g) => {
-    const devicePrice = g.ekOverride ?? (g.device?.price || 0);
-    const accTotal = g.accessories.reduce((s, a) => s + (a?.price || 0), 0);
-    return sum + (devicePrice + accTotal) * g.quantity;
-  }, 0);
-
-  const serviceMonthly = (() => {
-    const cp = form.service.colorPriceOverride ?? (form.service.colorProduct?.price || 0);
-    const bp = form.service.bwPriceOverride ?? (form.service.bwProduct?.price || 0);
-    return cp * form.service.colorVolume + bp * form.service.bwVolume;
-  })();
-
-  const save = async () => {
-    if (!activeProjectId) return;
-
-    const totalInvestment = hardwareEkTotal + form.margin_total;
-    const investmentWithAbloese = totalInvestment + abloeseTotal;
-    const monthlyRate =
-      form.finance_type === 'leasing'
-        ? investmentWithAbloese * form.leasing_factor
-        : investmentWithAbloese / form.term_months;
-
-    const payload = {
-      project_id: activeProjectId,
-      finance_type: form.finance_type,
-      term_months: form.term_months,
-      leasing_factor: form.leasing_factor,
-      margin_total: form.margin_total,
-      old_rate: form.old_rate,
-      old_remaining_months: form.old_remaining_months,
-      old_net_value: form.old_net_value,
-      total_hardware_ek: hardwareEkTotal,
-      total_monthly_rate: monthlyRate + serviceMonthly,
-      service_rate: serviceMonthly,
-      config_json: JSON.parse(JSON.stringify({
+  const buildPayload = () => ({
+    project_id: activeProjectId!,
+    finance_type: form.finance_type,
+    term_months: form.term_months,
+    leasing_factor: form.leasing_factor,
+    margin_total: form.margin_total,
+    old_rate: form.old_rate,
+    old_remaining_months: form.old_remaining_months,
+    old_net_value: form.old_net_value,
+    total_hardware_ek: hardwareEkTotal,
+    total_monthly_rate: totalRate,
+    service_rate: serviceMonthly,
+    config_json: JSON.parse(
+      JSON.stringify({
         contract_start: form.contract_start,
         delivery_date: form.delivery_date,
         deviceGroups: form.deviceGroups,
         service: form.service,
-      })),
-    };
+        followBw: form.followBw,
+        followColor: form.followColor,
+      })
+    ),
+  });
 
+  const saveToSupabase = async () => {
+    if (!activeProjectId) return false;
+    const payload = buildPayload();
     const { error } = calc
       ? await supabase.from('calculations').update(payload).eq('id', calc.id)
       : await supabase.from('calculations').insert(payload);
-
-    if (error) toast.error('Speicherfehler: ' + error.message);
-    else {
-      toast.success('Kalkulation gespeichert');
-      queryClient.invalidateQueries({ queryKey: ['calculation', activeProjectId] });
+    if (error) {
+      setStatusMsg({ type: 'error', text: 'Speicherfehler: ' + error.message });
+      return false;
     }
+    queryClient.invalidateQueries({ queryKey: ['calculation', activeProjectId] });
+    return true;
   };
 
-  const updateGroup = (index: number, group: DeviceGroup) => {
-    setForm((f) => {
-      const groups = [...f.deviceGroups];
-      groups[index] = group;
-      return { ...f, deviceGroups: groups };
-    });
+  const saveToZoho = async () => {
+    if (!ZOHO?.CRM?.API || !dealId) return;
+    try {
+      await ZOHO.CRM.API.updateRecord({
+        Entity: 'Deals',
+        RecordID: dealId,
+        APIData: { id: dealId, MPS_Config_JSON: JSON.stringify(buildPayload().config_json) },
+        Trigger: [],
+      });
+    } catch { /* non-critical */ }
   };
 
-  const removeGroup = (index: number) => {
-    setForm((f) => ({
-      ...f,
-      deviceGroups: f.deviceGroups.length > 1 ? f.deviceGroups.filter((_, i) => i !== index) : f.deviceGroups,
-    }));
+  const handleSave = async () => {
+    setSaving(true);
+    setStatusMsg(null);
+    const ok = await saveToSupabase();
+    if (ok) {
+      await saveToZoho();
+      setStatusMsg({ type: 'success', text: 'Erfolgreich gespeichert' });
+    }
+    setSaving(false);
   };
 
-  const numField = (label: string, key: keyof CalcState, opts?: { suffix?: string; step?: string; disabled?: boolean }) => (
+  const handleCreateEstimate = async () => {
+    setCreating(true);
+    setStatusMsg(null);
+    const ok = await saveToSupabase();
+    if (!ok) {
+      setCreating(false);
+      return;
+    }
+    await saveToZoho();
+    if (!ZOHO?.CRM?.FUNCTIONS || !dealId) {
+      setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' });
+      setCreating(false);
+      return;
+    }
+    try {
+      const mpsPayload = {
+        ...buildPayload(),
+        hardwareEkTotal,
+        serviceMonthly,
+        abloeseTotal,
+        hwMonthly,
+        totalRate,
+        volumes,
+      };
+      await ZOHO.CRM.FUNCTIONS.execute('createMpsEstimateAdvanced', {
+        arguments: JSON.stringify({
+          potentialId: dealId,
+          mpsFullData: mpsPayload,
+        }),
+      });
+      setStatusMsg({ type: 'success', text: 'Angebot erstellt' });
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: 'Angebotsfehler: ' + (err?.message || 'Unbekannt') });
+    }
+    setCreating(false);
+  };
+
+  // Helpers
+  const numField = (
+    label: string,
+    key: keyof CalcState,
+    opts?: { suffix?: string; step?: string; disabled?: boolean }
+  ) => (
     <div className="space-y-1">
       <Label className="text-xs font-heading">{label}</Label>
       <div className="relative">
@@ -198,14 +285,25 @@ export default function KalkulationPage() {
     </div>
   );
 
-  const DateField = ({ label, value, onChange: onDateChange }: { label: string; value: string | null; onChange: (d: string | null) => void }) => (
+  const DateField = ({
+    label,
+    value,
+    onChange: onDateChange,
+  }: {
+    label: string;
+    value: string | null;
+    onChange: (d: string | null) => void;
+  }) => (
     <div className="space-y-1">
       <Label className="text-xs font-heading">{label}</Label>
       <Popover>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className={cn('w-full justify-start text-left font-normal h-9 text-sm', !value && 'text-muted-foreground')}
+            className={cn(
+              'w-full justify-start text-left font-normal h-9 text-sm',
+              !value && 'text-muted-foreground'
+            )}
           >
             <CalendarIcon className="mr-2 h-3.5 w-3.5" />
             {value ? format(new Date(value), 'dd.MM.yyyy') : 'Datum wählen'}
@@ -233,19 +331,29 @@ export default function KalkulationPage() {
     );
   }
 
+  const updateGroup = (index: number, group: DeviceGroup) => {
+    setForm((f) => {
+      const groups = [...f.deviceGroups];
+      groups[index] = group;
+      return { ...f, deviceGroups: groups };
+    });
+  };
+
+  const removeGroup = (index: number) => {
+    setForm((f) => ({
+      ...f,
+      deviceGroups: f.deviceGroups.length > 1 ? f.deviceGroups.filter((_, i) => i !== index) : f.deviceGroups,
+    }));
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-heading font-bold text-foreground">Kalkulation</h1>
-        <Button onClick={save} className="gap-2 font-heading">
-          <Save className="h-4 w-4" /> Speichern
-        </Button>
-      </div>
+      <h1 className="text-2xl font-heading font-bold text-foreground">Kalkulation</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left column – 60% */}
         <div className="lg:col-span-3 space-y-4">
-          {/* Karte 1: Finanzierung & Rahmendaten */}
+          {/* Karte 1: Finanzierung */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="font-heading text-base">Finanzierung & Rahmendaten</CardTitle>
@@ -253,7 +361,10 @@ export default function KalkulationPage() {
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs font-heading">Finanzierungsart</Label>
-                <Select value={form.finance_type} onValueChange={(v) => setForm((f) => ({ ...f, finance_type: v }))}>
+                <Select
+                  value={form.finance_type}
+                  onValueChange={(v) => setForm((f) => ({ ...f, finance_type: v }))}
+                >
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
@@ -289,7 +400,7 @@ export default function KalkulationPage() {
             </CardContent>
           </Card>
 
-          {/* Karte 3: Ablöse Altvertrag */}
+          {/* Karte 3: Ablöse */}
           <Card className="border-l-4 border-l-orange-400">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -315,32 +426,35 @@ export default function KalkulationPage() {
             </CardContent>
           </Card>
 
-          {/* Gerätegruppen */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading font-semibold text-foreground">Gerätegruppen</h2>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => setForm((f) => ({ ...f, deviceGroups: [...f.deviceGroups, createEmptyGroup()] }))}
-              >
-                <Plus className="h-3.5 w-3.5" /> Gruppe hinzufügen
-              </Button>
-            </div>
+          {/* Karte 4: Gerätegruppen */}
+          <div className="space-y-3">
             {form.deviceGroups.map((g, i) => (
               <DeviceGroupCard
                 key={g.id}
                 group={g}
-                index={i}
                 onChange={(updated) => updateGroup(i, updated)}
                 onRemove={() => removeGroup(i)}
               />
             ))}
+            <Button
+              variant="outline"
+              className="w-full h-11 border-foreground/30 font-heading text-xs uppercase tracking-wider gap-2"
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  deviceGroups: [...f.deviceGroups, createEmptyGroup()],
+                }))
+              }
+            >
+              <Plus className="h-4 w-4" /> Neuen Standort / Gerät hinzufügen
+            </Button>
           </div>
 
-          {/* Service */}
-          <ServiceCard config={form.service} onChange={(s) => setForm((f) => ({ ...f, service: s }))} />
+          {/* Karte 5: Service */}
+          <ServiceCard
+            config={form.service}
+            onChange={(s) => setForm((f) => ({ ...f, service: s }))}
+          />
         </div>
 
         {/* Right column – 40% */}
@@ -353,10 +467,50 @@ export default function KalkulationPage() {
             marginTotal={form.margin_total}
             abloeseTotal={abloeseTotal}
             serviceMonthly={serviceMonthly}
+            volumeBw={volumes.bw}
+            volumeColor={volumes.color}
+            followBw={form.followBw}
+            followColor={form.followColor}
+            onFollowBwChange={(v) => setForm((f) => ({ ...f, followBw: v }))}
+            onFollowColorChange={(v) => setForm((f) => ({ ...f, followColor: v }))}
           />
-          <Button onClick={save} className="w-full gap-2 font-heading mt-4">
-            <Save className="h-4 w-4" /> Speichern
-          </Button>
+
+          {/* Action buttons */}
+          <div className="mt-4 space-y-2">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 gap-2 font-heading border-foreground/30"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Zwischenspeichern
+              </Button>
+              <Button
+                className="flex-1 gap-2 font-heading bg-secondary hover:bg-secondary/90 text-secondary-foreground shadow-lg"
+                onClick={handleCreateEstimate}
+                disabled={creating}
+              >
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                Angebot erstellen
+              </Button>
+            </div>
+            {statusMsg && (
+              <p
+                className={cn(
+                  'text-xs text-center font-medium',
+                  statusMsg.type === 'success' ? 'text-green-600' : 'text-destructive'
+                )}
+              >
+                {statusMsg.text}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

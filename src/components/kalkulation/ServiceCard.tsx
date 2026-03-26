@@ -1,124 +1,116 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Plus, X } from 'lucide-react';
 import ZohoProductSearch, { type ZohoProduct } from './ZohoProductSearch';
 
-export interface ServiceConfig {
-  colorProduct: ZohoProduct | null;
-  bwProduct: ZohoProduct | null;
-  colorVolume: number;
-  bwVolume: number;
-  colorPriceOverride: number | null;
-  bwPriceOverride: number | null;
+export interface ServiceItem {
+  id: string;
+  product: ZohoProduct | null;
+  quantity: number;
 }
 
-interface ServiceCardProps {
+export interface ServiceConfig {
+  items: ServiceItem[];
+}
+
+interface Props {
   config: ServiceConfig;
   onChange: (config: ServiceConfig) => void;
 }
 
-export default function ServiceCard({ config, onChange }: ServiceCardProps) {
-  const colorPrice = config.colorPriceOverride ?? (config.colorProduct?.price || 0);
-  const bwPrice = config.bwPriceOverride ?? (config.bwProduct?.price || 0);
-  const colorTotal = colorPrice * config.colorVolume;
-  const bwTotal = bwPrice * config.bwVolume;
-  const serviceTotal = colorTotal + bwTotal;
+const fmt = (v: number) =>
+  v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export function calcServiceRate(cfg: ServiceConfig): number {
+  return cfg.items.reduce((s, it) => s + (it.product?.price || 0) * it.quantity, 0);
+}
+
+export function calcServiceVolumes(cfg: ServiceConfig) {
+  let bw = 0;
+  let color = 0;
+  for (const it of cfg.items) {
+    if (!it.product) continue;
+    const cat = it.product.category || '';
+    if (cat.includes('S/W')) bw += it.quantity;
+    else if (cat.includes('Farbe')) color += it.quantity;
+  }
+  return { bw, color };
+}
+
+export default function ServiceCard({ config, onChange }: Props) {
+  const serviceTotal = calcServiceRate(config);
+
+  const addItem = () => {
+    onChange({
+      ...config,
+      items: [
+        ...config.items,
+        { id: crypto.randomUUID(), product: null, quantity: 1000 },
+      ],
+    });
+  };
+
+  const updateItem = (idx: number, patch: Partial<ServiceItem>) => {
+    const items = [...config.items];
+    items[idx] = { ...items[idx], ...patch };
+    onChange({ ...config, items });
+  };
+
+  const removeItem = (idx: number) => {
+    onChange({ ...config, items: config.items.filter((_, i) => i !== idx) });
+  };
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="font-heading text-base">Service / Seitenpreise</CardTitle>
-          <span className="text-sm font-semibold text-primary">
-            {serviceTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € / Mon.
+          <CardTitle className="font-heading text-base">Service & Seitenpreise</CardTitle>
+          <span className="text-sm font-semibold text-secondary">
+            {fmt(serviceTotal)} € / Mon.
           </span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Color */}
-        <div className="space-y-2">
-          <Label className="text-xs font-heading">Seitenpreis Farbe</Label>
-          <ZohoProductSearch
-            value={config.colorProduct}
-            onChange={(p) => onChange({ ...config, colorProduct: p })}
-            categoryFilter={['Seitenpreis Farbe']}
-            placeholder="Farbe Seitenpreis suchen…"
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Volumen / Mon.</Label>
-              <Input
-                type="number"
-                value={config.colorVolume}
-                onChange={(e) => onChange({ ...config, colorVolume: parseInt(e.target.value) || 0 })}
-                className="h-9 text-sm"
-              />
+      <CardContent className="space-y-3">
+        {config.items.map((it, i) => (
+          <div key={it.id} className="grid grid-cols-[1fr_100px_100px_28px] gap-2 items-end">
+            <ZohoProductSearch
+              value={it.product}
+              onChange={(p) => updateItem(i, { product: p })}
+              categoryFilter={['Seitenpreis Farbe', 'Seitenpreis S/W']}
+              placeholder="Klick-Modell suchen..."
+            />
+            <Input
+              type="number"
+              min={0}
+              value={it.quantity}
+              onChange={(e) =>
+                updateItem(i, { quantity: parseInt(e.target.value) || 0 })
+              }
+              className="h-9 text-sm text-center"
+              title="Menge"
+            />
+            <div className="h-9 flex items-center justify-end text-sm font-medium text-foreground pr-1">
+              {it.product ? `${fmt(it.product.price * it.quantity)} €` : '–'}
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Preis / Seite €</Label>
-              <Input
-                type="number"
-                step="0.0001"
-                value={config.colorPriceOverride ?? config.colorProduct?.price ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    ...config,
-                    colorPriceOverride: e.target.value === '' ? null : parseFloat(e.target.value) || 0,
-                  })
-                }
-                placeholder="auto"
-                className="h-9 text-sm"
-              />
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={() => removeItem(i)}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
           </div>
-        </div>
-
-        {/* BW */}
-        <div className="space-y-2">
-          <Label className="text-xs font-heading">Seitenpreis S/W</Label>
-          <ZohoProductSearch
-            value={config.bwProduct}
-            onChange={(p) => onChange({ ...config, bwProduct: p })}
-            categoryFilter={['Seitenpreis S/W']}
-            placeholder="S/W Seitenpreis suchen…"
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Volumen / Mon.</Label>
-              <Input
-                type="number"
-                value={config.bwVolume}
-                onChange={(e) => onChange({ ...config, bwVolume: parseInt(e.target.value) || 0 })}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Preis / Seite €</Label>
-              <Input
-                type="number"
-                step="0.0001"
-                value={config.bwPriceOverride ?? config.bwProduct?.price ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    ...config,
-                    bwPriceOverride: e.target.value === '' ? null : parseFloat(e.target.value) || 0,
-                  })
-                }
-                placeholder="auto"
-                className="h-9 text-sm"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between text-xs bg-muted/50 rounded-md px-3 py-2">
-          <span className="text-muted-foreground">
-            Farbe: {colorTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € + S/W: {bwTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-          </span>
-          <span className="font-semibold">
-            = {serviceTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € / Mon.
-          </span>
-        </div>
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full border-dashed text-xs gap-1"
+          onClick={addItem}
+        >
+          <Plus className="h-3 w-3" /> Klick-Modell hinzufügen
+        </Button>
       </CardContent>
     </Card>
   );
