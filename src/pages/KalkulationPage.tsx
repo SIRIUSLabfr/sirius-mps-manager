@@ -459,6 +459,7 @@ export default function KalkulationPage() {
 
         {/* Right column – 40% */}
         <div className="lg:col-span-2">
+          <div className="lg:sticky lg:top-4 space-y-4">
           <KalkSummary
             financeType={form.finance_type}
             termMonths={form.term_months}
