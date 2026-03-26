@@ -33,7 +33,6 @@ import {
   FileSpreadsheet,
   Loader2,
   ArrowDownToLine,
-  TrendingDown,
   Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -137,21 +136,27 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
     return [...grouped.values()];
   }, [istDevices, existingDevices]);
 
-  // Aggregate SOLL devices from kalkulation device groups
-  const aggregatedSoll = useMemo(() => {
-    return deviceGroups
-      .filter(g => g.mainDevice)
-      .map(g => ({
-        label: g.label,
-        manufacturer: g.mainDevice?.name?.split(' ')[0] || '',
-        model: g.mainDevice?.name || '',
-        quantity: g.mainQuantity,
-      }));
+  // SOLL options from device groups for dropdown
+  const sollOptions = useMemo(() => {
+    const opts: Array<{ value: string; label: string }> = [
+      { value: '__none__', label: '– kein Gerät –' },
+      { value: '__removed__', label: 'Entfällt' },
+    ];
+    deviceGroups.forEach((g, i) => {
+      if (g.mainDevice) {
+        opts.push({
+          value: String(i),
+          label: `${g.mainDevice.name}${g.label ? ` (${g.label})` : ''} – ${g.mainQuantity}×`,
+        });
+      }
+    });
+    return opts;
   }, [deviceGroups]);
 
+  // Track SOLL assignment per IST row
+  const [sollAssignments, setSollAssignments] = useState<Record<string, string>>({});
+
   const totalIst = aggregatedIst.reduce((s, d) => s + d.count, 0);
-  const totalSoll = aggregatedSoll.reduce((s, d) => s + d.quantity, 0);
-  const deviceSaving = totalIst - totalSoll;
   const istMonthlyRate = aggregatedIst.reduce((s, d) => s + (d.monthly_rate || 0), 0);
 
   const hasData = aggregatedIst.length > 0 || existingDevices.length > 0;
@@ -351,17 +356,14 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
                         <th className="px-3 py-2 text-left">
                           <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-secondary">SOLL (Neugerät)</span>
                         </th>
-                        <th className="px-3 py-2 text-right">
-                          <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground">Einsparung</span>
-                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
                       {aggregatedIst.map((ist, i) => {
-                        const soll = aggregatedSoll[i] || null;
-                        const saving = soll ? ist.count - soll.quantity : 0;
+                        const key = ist.id || String(i);
+                        const assigned = sollAssignments[key] || '__none__';
                         return (
-                          <tr key={ist.id || i} className="hover:bg-muted/20">
+                          <tr key={key} className="hover:bg-muted/20">
                             <td className="px-3 py-2">
                               <span className="font-medium">{ist.manufacturer} {ist.model}</span>
                               {ist.location && (
@@ -373,24 +375,21 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
                               <ArrowRight className="h-3 w-3 mx-auto text-muted-foreground/50" />
                             </td>
                             <td className="px-3 py-2">
-                              {soll ? (
-                                <>
-                                  <span className="font-medium">{soll.model}</span>
-                                  {soll.label && <span className="text-muted-foreground ml-1">({soll.label})</span>}
-                                  <span className="text-muted-foreground ml-1">{soll.quantity}×</span>
-                                </>
-                              ) : (
-                                <span className="text-muted-foreground italic">– kein SOLL –</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              {soll && saving > 0 ? (
-                                <span className="text-emerald-600 font-semibold">-{saving} Geräte</span>
-                              ) : soll && saving < 0 ? (
-                                <span className="text-orange-600 font-semibold">+{Math.abs(saving)} Geräte</span>
-                              ) : (
-                                <span className="text-muted-foreground">–</span>
-                              )}
+                              <Select
+                                value={assigned}
+                                onValueChange={(v) => setSollAssignments(prev => ({ ...prev, [key]: v }))}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {sollOptions.map(o => (
+                                    <SelectItem key={o.value} value={o.value} className="text-xs">
+                                      {o.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </td>
                           </tr>
                         );
@@ -402,28 +401,15 @@ export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate 
 
               {/* Summary */}
               {hasData && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-muted/30 rounded-lg text-center">
                     <p className="text-[10px] font-heading uppercase text-muted-foreground">IST Geräte</p>
                     <p className="text-lg font-bold">{totalIst}</p>
                   </div>
-                  <div className="p-3 bg-muted/30 rounded-lg text-center">
-                    <p className="text-[10px] font-heading uppercase text-muted-foreground">SOLL Geräte</p>
-                    <p className="text-lg font-bold">{totalSoll}</p>
-                  </div>
-                  <div className={cn('p-3 rounded-lg text-center', deviceSaving > 0 ? 'bg-emerald-50' : 'bg-muted/30')}>
-                    <p className="text-[10px] font-heading uppercase text-muted-foreground">Einsparung</p>
-                    <p className={cn('text-lg font-bold', deviceSaving > 0 ? 'text-emerald-600' : '')}>
-                      {deviceSaving > 0 ? `-${deviceSaving}` : deviceSaving} Geräte
-                    </p>
-                  </div>
                   {istMonthlyRate > 0 && (
-                    <div className="p-3 bg-emerald-50 rounded-lg text-center">
-                      <p className="text-[10px] font-heading uppercase text-muted-foreground">Rate-Differenz</p>
-                      <p className="text-lg font-bold text-emerald-600">
-                        <TrendingDown className="h-4 w-4 inline mr-1" />
-                        {fmtNum(istMonthlyRate - totalRate)} €
-                      </p>
+                    <div className="p-3 bg-muted/30 rounded-lg text-center">
+                      <p className="text-[10px] font-heading uppercase text-muted-foreground">IST Rate gesamt</p>
+                      <p className="text-lg font-bold">{fmtNum(istMonthlyRate)} €</p>
                     </div>
                   )}
                 </div>
