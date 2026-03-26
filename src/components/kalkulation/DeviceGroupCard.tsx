@@ -1,148 +1,165 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import ZohoProductSearch, { type ZohoProduct } from './ZohoProductSearch';
+
+export interface AccessoryItem {
+  id: string;
+  product: ZohoProduct | null;
+  quantity: number;
+}
 
 export interface DeviceGroup {
   id: string;
-  device: ZohoProduct | null;
-  accessories: ZohoProduct[];
-  quantity: number;
-  ekOverride: number | null;
+  label: string;
+  mainDevice: ZohoProduct | null;
+  mainQuantity: number;
+  accessories: AccessoryItem[];
 }
 
-interface DeviceGroupCardProps {
+interface Props {
   group: DeviceGroup;
-  index: number;
   onChange: (group: DeviceGroup) => void;
   onRemove: () => void;
 }
 
-export default function DeviceGroupCard({ group, index, onChange, onRemove }: DeviceGroupCardProps) {
-  const devicePrice = group.ekOverride ?? (group.device?.price || 0);
-  const accessoriesTotal = group.accessories.reduce((s, a) => s + (a?.price || 0), 0);
-  const unitTotal = devicePrice + accessoriesTotal;
-  const groupTotal = unitTotal * group.quantity;
+const fmt = (v: number) =>
+  v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export function calcGroupEk(g: DeviceGroup): number {
+  const mainPrice = (g.mainDevice?.price || 0) * g.mainQuantity;
+  const accPrice = g.accessories.reduce(
+    (s, a) => s + (a.product?.price || 0) * a.quantity,
+    0
+  );
+  return mainPrice + accPrice;
+}
+
+export default function DeviceGroupCard({ group, onChange, onRemove }: Props) {
+  const groupTotal = calcGroupEk(group);
+
+  const addAccessory = () => {
+    onChange({
+      ...group,
+      accessories: [
+        ...group.accessories,
+        { id: crypto.randomUUID(), product: null, quantity: 1 },
+      ],
+    });
+  };
+
+  const updateAcc = (idx: number, patch: Partial<AccessoryItem>) => {
+    const acc = [...group.accessories];
+    acc[idx] = { ...acc[idx], ...patch };
+    onChange({ ...group, accessories: acc });
+  };
+
+  const removeAcc = (idx: number) => {
+    onChange({
+      ...group,
+      accessories: group.accessories.filter((_, i) => i !== idx),
+    });
+  };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="font-heading text-base">Gerätegruppe {index + 1}</CardTitle>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-primary">
-              {groupTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-            </span>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onRemove}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+    <Card className="border-border/60">
+      <CardContent className="pt-4 space-y-4">
+        {/* Header: label + delete */}
+        <div className="flex items-center gap-2">
+          <Input
+            value={group.label}
+            onChange={(e) => onChange({ ...group, label: e.target.value })}
+            placeholder="Standort / Bezeichnung"
+            className="h-9 text-sm font-semibold border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+            onClick={onRemove}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* HAUPTGERÄT */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-secondary">
+            Hauptgerät
+          </span>
+          <div className="grid grid-cols-[1fr_80px_100px] gap-2 items-end">
+            <ZohoProductSearch
+              value={group.mainDevice}
+              onChange={(p) => onChange({ ...group, mainDevice: p })}
+              categoryFilter={['Grundgerät A3', 'Grundgerät A4', 'Scanner', 'LFP']}
+              placeholder="Gerät suchen..."
+            />
+            <Input
+              type="number"
+              min={1}
+              value={group.mainQuantity}
+              onChange={(e) =>
+                onChange({ ...group, mainQuantity: parseInt(e.target.value) || 1 })
+              }
+              className="h-9 text-sm text-center"
+              title="Menge"
+            />
+            <div className="h-9 flex items-center justify-end text-sm font-medium text-foreground pr-1">
+              {group.mainDevice ? `${fmt(group.mainDevice.price * group.mainQuantity)} €` : '–'}
+            </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <Label className="text-xs font-heading">Hauptgerät</Label>
-            <ZohoProductSearch
-              value={group.device}
-              onChange={(p) => onChange({ ...group, device: p })}
-              categoryFilter={['Grundgerät A3', 'Grundgerät A4', 'Scanner', 'LFP']}
-              placeholder="Gerät suchen…"
-            />
-            {group.device && (
-              <div className="text-xs text-muted-foreground mt-1">
-                Listenpreis: {group.device.price.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-heading">Anzahl</Label>
+
+        {/* ZUBEHÖR */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground">
+            Zubehör
+          </span>
+          {group.accessories.map((acc, i) => (
+            <div key={acc.id} className="grid grid-cols-[1fr_80px_100px_28px] gap-2 items-end">
+              <ZohoProductSearch
+                value={acc.product}
+                onChange={(p) => updateAcc(i, { product: p })}
+                categoryFilter={['Option A3', 'Option A4', 'Software Print']}
+                placeholder="Option suchen..."
+              />
               <Input
                 type="number"
                 min={1}
-                value={group.quantity}
-                onChange={(e) => onChange({ ...group, quantity: parseInt(e.target.value) || 1 })}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-heading">EK Überschr. €</Label>
-              <Input
-                type="number"
-                step="any"
-                value={group.ekOverride ?? ''}
+                value={acc.quantity}
                 onChange={(e) =>
-                  onChange({
-                    ...group,
-                    ekOverride: e.target.value === '' ? null : parseFloat(e.target.value) || 0,
-                  })
+                  updateAcc(i, { quantity: parseInt(e.target.value) || 1 })
                 }
-                placeholder="auto"
-                className="h-9 text-sm"
+                className="h-9 text-sm text-center"
               />
-            </div>
-          </div>
-        </div>
-
-        {/* Accessories */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-heading">Zubehör / Optionen</Label>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs gap-1"
-              onClick={() =>
-                onChange({ ...group, accessories: [...group.accessories, null as any] })
-              }
-            >
-              <Plus className="h-3 w-3" /> Zubehör
-            </Button>
-          </div>
-          {group.accessories.map((acc, ai) => (
-            <div key={ai} className="flex items-center gap-2">
-              <ZohoProductSearch
-                value={acc}
-                onChange={(p) => {
-                  const newAcc = [...group.accessories];
-                  if (p) {
-                    newAcc[ai] = p;
-                  } else {
-                    newAcc.splice(ai, 1);
-                  }
-                  onChange({ ...group, accessories: newAcc });
-                }}
-                categoryFilter={['Option A3', 'Option A4', 'Software Print']}
-                placeholder="Zubehör suchen…"
-                className="flex-1"
-              />
+              <div className="h-9 flex items-center justify-end text-sm text-foreground pr-1">
+                {acc.product ? `${fmt(acc.product.price * acc.quantity)} €` : '–'}
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-destructive shrink-0"
-                onClick={() => {
-                  const newAcc = [...group.accessories];
-                  newAcc.splice(ai, 1);
-                  onChange({ ...group, accessories: newAcc });
-                }}
+                className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => removeAcc(i)}
               >
-                <Trash2 className="h-3 w-3" />
+                <X className="h-3.5 w-3.5" />
               </Button>
             </div>
           ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full border-dashed border-secondary text-secondary hover:bg-secondary/5 text-xs gap-1"
+            onClick={addAccessory}
+          >
+            <Plus className="h-3 w-3" /> Zubehör
+          </Button>
         </div>
 
-        {/* Unit summary */}
+        {/* Group total */}
         <div className="flex items-center justify-between text-xs bg-muted/50 rounded-md px-3 py-2">
-          <span className="text-muted-foreground">
-            Stückpreis: {unitTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € × {group.quantity}
-          </span>
-          <span className="font-semibold">
-            = {groupTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-          </span>
+          <span className="text-muted-foreground">Gruppen-EK</span>
+          <span className="font-semibold font-heading">{fmt(groupTotal)} €</span>
         </div>
       </CardContent>
     </Card>
