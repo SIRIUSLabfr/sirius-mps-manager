@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useProject, useProjectDevices, useUsers } from '@/hooks/useProjectData';
 import { useLocations } from '@/hooks/useRolloutData';
 import { useConcept, useSaveConcept, defaultConceptConfig, type ConceptConfig } from '@/hooks/useConceptData';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,9 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FileText, Save, ChevronDown, Eye, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { FileText, Save, Eye, Loader2, Plus, ArrowRight } from 'lucide-react';
 import KonzeptPreview from '@/components/konzept/KonzeptPreview';
+import WorkflowIndicator from '@/components/konzept/WorkflowIndicator';
+import ConceptVersionList from '@/components/konzept/ConceptVersionList';
+import ZohoConceptActions from '@/components/konzept/ZohoConceptActions';
 import { formatDate } from '@/lib/constants';
 
 const BLOCK_LABELS: Record<string, string> = {
@@ -30,13 +34,29 @@ const BLOCK_LABELS: Record<string, string> = {
 };
 
 export default function KonzeptPage() {
+  const navigate = useNavigate();
   const { activeProjectId } = useActiveProject();
   const { data: project } = useProject(activeProjectId);
   const { data: devices = [] } = useProjectDevices(activeProjectId);
   const { data: locations = [] } = useLocations(activeProjectId);
   const { data: users = [] } = useUsers();
-  const { data: conceptRow, isLoading } = useConcept(activeProjectId);
-  const saveMutation = useSaveConcept(activeProjectId);
+  const queryClient = useQueryClient();
+
+  // Load all concept versions
+  const { data: allConcepts = [], isLoading } = useQuery({
+    queryKey: ['concepts_all', activeProjectId],
+    queryFn: async () => {
+      if (!activeProjectId) return [];
+      const { data, error } = await supabase
+        .from('concepts')
+        .select('*')
+        .eq('project_id', activeProjectId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeProjectId,
+  });
 
   const { data: calculation } = useQuery({
     queryKey: ['calculation', activeProjectId],
@@ -58,44 +78,148 @@ export default function KonzeptPage() {
     enabled: !!activeProjectId,
   });
 
+  const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [config, setConfig] = useState<ConceptConfig>(defaultConceptConfig);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [rolloutDialogOpen, setRolloutDialogOpen] = useState(false);
+  const [transferring, setTransferring] = useState(false);
 
+  // Select latest concept when loaded
   useEffect(() => {
-    if (conceptRow?.config_json) {
-      const saved = conceptRow.config_json as unknown as ConceptConfig;
-      setConfig({ ...defaultConceptConfig, ...saved, blocks: { ...defaultConceptConfig.blocks, ...saved.blocks }, texts: { ...defaultConceptConfig.texts, ...saved.texts }, overrides: { ...defaultConceptConfig.overrides, ...saved.overrides } });
+    if (allConcepts.length > 0 && !activeConceptId) {
+      setActiveConceptId(allConcepts[0].id);
     }
-  }, [conceptRow]);
+  }, [allConcepts, activeConceptId]);
 
-  // Pre-fill overrides from project data
+  // Load config from active concept
   useEffect(() => {
-    if (project && !conceptRow) {
-      const lead = users.find(u => u.id === project.project_lead);
-      const contacts = project.customer_contacts as any[];
-      const firstContact = contacts?.[0];
-      setConfig(prev => ({
-        ...prev,
-        overrides: {
-          ...prev.overrides,
-          customer_name: prev.overrides.customer_name || project.customer_name,
-          project_number: prev.overrides.project_number || project.project_number || '',
-          contact_sirius: prev.overrides.contact_sirius || lead?.full_name || '',
-          contact_customer: prev.overrides.contact_customer || (firstContact ? `${firstContact.name || ''} ${firstContact.email ? `(${firstContact.email})` : ''}`.trim() : ''),
-          date: prev.overrides.date || new Date().toISOString().slice(0, 10),
-        },
-      }));
+    const active = allConcepts.find(c => c.id === activeConceptId);
+    if (active?.config_json) {
+      const saved = active.config_json as unknown as ConceptConfig;
+      setConfig({
+        ...defaultConceptConfig,
+        ...saved,
+        blocks: { ...defaultConceptConfig.blocks, ...saved.blocks },
+        texts: { ...defaultConceptConfig.texts, ...saved.texts },
+        overrides: { ...defaultConceptConfig.overrides, ...saved.overrides },
+      });
+    } else if (allConcepts.length === 0) {
+      // Pre-fill from project
+      if (project) {
+        const lead = users.find(u => u.id === project.project_lead);
+        const contacts = project.customer_contacts as any[];
+        const firstContact = contacts?.[0];
+        setConfig(prev => ({
+          ...prev,
+          overrides: {
+            customer_name: project.customer_name,
+            project_number: project.project_number || '',
+            contact_sirius: lead?.full_name || '',
+            contact_customer: firstContact ? `${firstContact.name || ''} ${firstContact.email ? `(${firstContact.email})` : ''}`.trim() : '',
+            date: new Date().toISOString().slice(0, 10),
+          },
+        }));
+      }
     }
-  }, [project, users, conceptRow]);
+  }, [activeConceptId, allConcepts, project, users]);
 
   const handleSave = async () => {
+    if (!activeProjectId) return;
+    setSaving(true);
     try {
-      await saveMutation.mutateAsync(config);
+      if (activeConceptId) {
+        const { error } = await supabase
+          .from('concepts')
+          .update({ config_json: config as any })
+          .eq('id', activeConceptId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('concepts')
+          .insert({ project_id: activeProjectId, config_json: config as any })
+          .select()
+          .single();
+        if (error) throw error;
+        setActiveConceptId(data.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ['concepts_all', activeProjectId] });
       toast.success('Konzept gespeichert');
     } catch {
       toast.error('Fehler beim Speichern');
+    } finally {
+      setSaving(false);
     }
   };
+
+  const handleNewVersion = async () => {
+    if (!activeProjectId) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('concepts')
+        .insert({
+          project_id: activeProjectId,
+          config_json: config as any,
+          title: `MPS Konzept v${allConcepts.length + 1}`,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      setActiveConceptId(data.id);
+      queryClient.invalidateQueries({ queryKey: ['concepts_all', activeProjectId] });
+      toast.success('Neue Version erstellt');
+    } catch {
+      toast.error('Fehler beim Erstellen');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTransferToRollout = async () => {
+    if (!activeProjectId || !calculation?.config_json) return;
+    setTransferring(true);
+    try {
+      const calcConfig = calculation.config_json as any;
+      const groups = calcConfig?.device_groups || [];
+      const inserts: any[] = [];
+      for (const group of groups) {
+        const qty = group.quantity || 1;
+        for (let i = 0; i < qty; i++) {
+          inserts.push({
+            project_id: activeProjectId,
+            soll_manufacturer: group.manufacturer || null,
+            soll_model: group.model || null,
+            soll_building: group.location || null,
+            zoho_product_id: group.zoho_product_id || null,
+            preparation_status: 'pending',
+          });
+        }
+      }
+      if (inserts.length > 0) {
+        const { error } = await supabase.from('devices').insert(inserts);
+        if (error) throw error;
+      }
+      toast.success(`${inserts.length} SOLL-Geräte in die Rolloutliste übernommen`);
+      setRolloutDialogOpen(false);
+      navigate(`/projekt/${activeProjectId}/rollout`);
+    } catch {
+      toast.error('Fehler beim Übernehmen');
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  // Workflow status
+  const hasCalc = !!calculation;
+  const hasConcept = allConcepts.length > 0;
+  const sollDevices = devices.filter(d => d.soll_model);
+  const hasRolloutData = sollDevices.length > 0;
+  const workflowSteps = [
+    { label: 'Kalkulation', status: hasCalc ? 'done' as const : 'pending' as const },
+    { label: 'Konzept', status: hasConcept ? 'done' as const : 'active' as const },
+    { label: 'Rollout-Planung', status: hasRolloutData ? 'done' as const : 'pending' as const },
+  ];
 
   const updateOverride = (key: string, val: string) =>
     setConfig(p => ({ ...p, overrides: { ...p.overrides, [key]: val } }));
@@ -119,18 +243,35 @@ export default function KonzeptPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-heading font-bold text-foreground">Konzept / Angebot</h1>
-        <div className="flex gap-2">
+      {/* Workflow indicator */}
+      <WorkflowIndicator steps={workflowSteps} />
+
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-2xl font-heading font-bold text-foreground">Konzept</h1>
+        <div className="flex gap-2 flex-wrap">
+          <ZohoConceptActions config={config} project={project} devices={devices} calculation={calculation} />
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setPreviewOpen(!previewOpen)}>
-            <Eye className="h-4 w-4" /> {previewOpen ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
+            <Eye className="h-4 w-4" /> {previewOpen ? 'Ausblenden' : 'Vorschau'}
           </Button>
-          <Button size="sm" className="gap-2" onClick={handleSave} disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {allConcepts.length > 0 && (
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleNewVersion} disabled={saving}>
+              <Plus className="h-4 w-4" /> Neue Version
+            </Button>
+          )}
+          <Button size="sm" className="gap-2" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Speichern
           </Button>
         </div>
       </div>
+
+      {/* Version list */}
+      <ConceptVersionList
+        versions={allConcepts}
+        activeId={activeConceptId}
+        onSelect={setActiveConceptId}
+      />
 
       {/* Config section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -219,6 +360,26 @@ export default function KonzeptPage() {
         </Card>
       </div>
 
+      {/* Navigation to Rollout */}
+      {hasConcept && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              if (hasCalc && !hasRolloutData) {
+                setRolloutDialogOpen(true);
+              } else {
+                navigate(`/projekt/${activeProjectId}/rollout`);
+              }
+            }}
+          >
+            Weiter zur Rollout-Planung <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Preview */}
       {previewOpen && (
         <KonzeptPreview
@@ -230,6 +391,31 @@ export default function KonzeptPage() {
           itConfig={itConfig}
         />
       )}
+
+      {/* Transfer dialog */}
+      <Dialog open={rolloutDialogOpen} onOpenChange={setRolloutDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-heading">SOLL-Geräte übernehmen?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Möchtest du die SOLL-Geräte aus der Kalkulation in die Rolloutliste übernehmen?
+            Es werden Geräte-Einträge basierend auf den Gerätegruppen der Kalkulation erstellt.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => {
+              setRolloutDialogOpen(false);
+              navigate(`/projekt/${activeProjectId}/rollout`);
+            }}>
+              Ohne Übernahme fortfahren
+            </Button>
+            <Button size="sm" className="gap-2" onClick={handleTransferToRollout} disabled={transferring}>
+              {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              Geräte übernehmen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
