@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useZoho } from '@/hooks/useZoho';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,14 +23,16 @@ import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import DeviceGroupCard, {
   type DeviceGroup,
-  type AccessoryItem,
+  type PagePrices,
   calcGroupEk,
+  calcGroupPageCosts,
 } from '@/components/kalkulation/DeviceGroupCard';
 import ServiceCard, {
   type ServiceConfig,
   type ServiceItem,
-  calcServiceRate,
-  calcServiceVolumes,
+  calcMixServiceRate,
+  calcMixServiceVolumes,
+  calcMixServiceCosts,
 } from '@/components/kalkulation/ServiceCard';
 import KalkSummary from '@/components/kalkulation/KalkSummary';
 import IstBestandsAnalyse from '@/components/kalkulation/IstBestandsAnalyse';
@@ -47,9 +49,9 @@ interface CalcState {
   delivery_date: string | null;
   deviceGroups: DeviceGroup[];
   service: ServiceConfig;
-  followBw: number;
-  followColor: number;
 }
+
+const createEmptyPagePrices = (): PagePrices => ({ bw: null, color: null });
 
 const createEmptyGroup = (): DeviceGroup => ({
   id: crypto.randomUUID(),
@@ -57,10 +59,12 @@ const createEmptyGroup = (): DeviceGroup => ({
   mainDevice: null,
   mainQuantity: 1,
   accessories: [],
+  page_prices: createEmptyPagePrices(),
 });
 
 const createEmptyServiceItem = (): ServiceItem => ({
   id: crypto.randomUUID(),
+  type: 'bw',
   product: null,
   quantity: 1000,
 });
@@ -76,9 +80,7 @@ const defaultState: CalcState = {
   contract_start: null,
   delivery_date: null,
   deviceGroups: [createEmptyGroup()],
-  service: { items: [createEmptyServiceItem()] },
-  followBw: 0,
-  followColor: 0,
+  service: { items: [] },
 };
 
 export default function KalkulationPage() {
@@ -90,6 +92,21 @@ export default function KalkulationPage() {
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Load locations for dropdown
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations', activeProjectId],
+    queryFn: async () => {
+      if (!activeProjectId) return [];
+      const { data } = await supabase
+        .from('locations')
+        .select('id, name')
+        .eq('project_id', activeProjectId)
+        .order('sort_order');
+      return data || [];
+    },
+    enabled: !!activeProjectId,
+  });
 
   // Load from Supabase
   const { data: calc } = useQuery({
@@ -111,6 +128,11 @@ export default function KalkulationPage() {
   useEffect(() => {
     if (calc) {
       const cfg = (calc.config_json as any) || {};
+      const restoreGroups = (groups: any[]) =>
+        groups.map((g: any) => ({
+          ...g,
+          page_prices: g.page_prices || createEmptyPagePrices(),
+        }));
       setForm({
         finance_type: calc.finance_type || 'leasing',
         term_months: calc.term_months || 60,
@@ -121,13 +143,18 @@ export default function KalkulationPage() {
         old_net_value: calc.old_net_value || 0,
         contract_start: cfg.contract_start || null,
         delivery_date: cfg.delivery_date || null,
-        deviceGroups: cfg.deviceGroups?.length ? cfg.deviceGroups : [createEmptyGroup()],
-        service: cfg.service?.items ? cfg.service : { items: [createEmptyServiceItem()] },
-        followBw: cfg.followBw || 0,
-        followColor: cfg.followColor || 0,
+        deviceGroups: cfg.device_groups?.length
+          ? restoreGroups(cfg.device_groups)
+          : cfg.deviceGroups?.length
+            ? restoreGroups(cfg.deviceGroups)
+            : [createEmptyGroup()],
+        service: cfg.mix_service_items
+          ? { items: cfg.mix_service_items }
+          : cfg.service?.items
+            ? cfg.service
+            : { items: [] },
       });
     } else if (!calc && activeProjectId && ZOHO?.CRM?.API && dealId) {
-      // Fallback: try Zoho Deal field
       ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: dealId })
         .then((resp: any) => {
           const deal = resp?.data?.[0];
@@ -138,8 +165,14 @@ export default function KalkulationPage() {
               setForm((prev) => ({
                 ...prev,
                 ...cfg,
-                deviceGroups: cfg.deviceGroups?.length ? cfg.deviceGroups : [createEmptyGroup()],
-                service: cfg.service?.items ? cfg.service : { items: [createEmptyServiceItem()] },
+                deviceGroups: cfg.deviceGroups?.length
+                  ? cfg.deviceGroups.map((g: any) => ({ ...g, page_prices: g.page_prices || createEmptyPagePrices() }))
+                  : [createEmptyGroup()],
+                service: cfg.mix_service_items
+                  ? { items: cfg.mix_service_items }
+                  : cfg.service?.items
+                    ? cfg.service
+                    : { items: [] },
               }));
               toast.info('Daten aus Zoho Deal importiert');
             } catch { /* ignore parse errors */ }
@@ -149,19 +182,62 @@ export default function KalkulationPage() {
     }
   }, [calc, activeProjectId, ZOHO, dealId]);
 
-  // Computed
+  // ===== COMPUTED VALUES =====
   const residualValue = form.old_net_value * 0.03;
   const abloeseTotal = form.old_rate * form.old_remaining_months + residualValue;
   const hardwareEkTotal = form.deviceGroups.reduce((s, g) => s + calcGroupEk(g), 0);
-  const serviceMonthly = calcServiceRate(form.service);
-  const volumes = calcServiceVolumes(form.service);
   const investTotal = hardwareEkTotal + form.margin_total + abloeseTotal;
   const hwMonthly =
     form.finance_type === 'leasing'
       ? investTotal * form.leasing_factor
-      : investTotal / form.term_months;
-  const totalRate = hwMonthly + serviceMonthly;
+      : form.term_months > 0 ? investTotal / form.term_months : 0;
 
+  // Collect ALL page costs from device groups
+  const groupPageData = useMemo(() => {
+    let swCost = 0, swVol = 0, colorCost = 0, colorVol = 0;
+    for (const g of form.deviceGroups) {
+      const pp = g.page_prices;
+      if (pp?.bw) {
+        swCost += pp.bw.price * pp.bw.volume;
+        swVol += pp.bw.volume;
+      }
+      if (pp?.color) {
+        colorCost += pp.color.price * pp.color.volume;
+        colorVol += pp.color.volume;
+      }
+    }
+    return { swCost, swVol, colorCost, colorVol };
+  }, [form.deviceGroups]);
+
+  // Mix service data
+  const mixData = useMemo(() => {
+    const costs = calcMixServiceCosts(form.service);
+    const vols = calcMixServiceVolumes(form.service);
+    return { ...costs, ...vols };
+  }, [form.service]);
+
+  // Combined mischklick
+  const mischklick = useMemo(() => {
+    const totalSwCost = groupPageData.swCost + mixData.bwCost;
+    const totalSwVolume = groupPageData.swVol + mixData.bw;
+    const totalColorCost = groupPageData.colorCost + mixData.colorCost;
+    const totalColorVolume = groupPageData.colorVol + mixData.color;
+    const totalServiceRate = totalSwCost + totalColorCost;
+
+    return {
+      totalSwCost,
+      totalSwVolume,
+      mischklickSw: totalSwVolume > 0 ? totalSwCost / totalSwVolume : 0,
+      totalColorCost,
+      totalColorVolume,
+      mischklickColor: totalColorVolume > 0 ? totalColorCost / totalColorVolume : 0,
+      totalServiceRate,
+    };
+  }, [groupPageData, mixData]);
+
+  const totalRate = hwMonthly + mischklick.totalServiceRate;
+
+  // ===== PAYLOAD =====
   const buildPayload = () => ({
     project_id: activeProjectId!,
     finance_type: form.finance_type,
@@ -173,15 +249,25 @@ export default function KalkulationPage() {
     old_net_value: form.old_net_value,
     total_hardware_ek: hardwareEkTotal,
     total_monthly_rate: totalRate,
-    service_rate: serviceMonthly,
+    service_rate: mischklick.totalServiceRate,
     config_json: JSON.parse(
       JSON.stringify({
         contract_start: form.contract_start,
         delivery_date: form.delivery_date,
-        deviceGroups: form.deviceGroups,
-        service: form.service,
-        followBw: form.followBw,
-        followColor: form.followColor,
+        device_groups: form.deviceGroups,
+        mix_service_items: form.service.items,
+        calculated: {
+          total_ek: hardwareEkTotal,
+          buyout_total: abloeseTotal,
+          invest_total: investTotal,
+          hw_monthly: hwMonthly,
+          srv_rate: mischklick.totalServiceRate,
+          total_rate: totalRate,
+          total_volume_bw: mischklick.totalSwVolume,
+          total_volume_color: mischklick.totalColorVolume,
+          mischklick_bw: mischklick.mischklickSw,
+          mischklick_color: mischklick.mischklickColor,
+        },
       })
     ),
   });
@@ -227,10 +313,7 @@ export default function KalkulationPage() {
     setCreating(true);
     setStatusMsg(null);
     const ok = await saveToSupabase();
-    if (!ok) {
-      setCreating(false);
-      return;
-    }
+    if (!ok) { setCreating(false); return; }
     await saveToZoho();
     if (!ZOHO?.CRM?.FUNCTIONS || !dealId) {
       setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' });
@@ -241,11 +324,11 @@ export default function KalkulationPage() {
       const mpsPayload = {
         ...buildPayload(),
         hardwareEkTotal,
-        serviceMonthly,
+        serviceMonthly: mischklick.totalServiceRate,
         abloeseTotal,
         hwMonthly,
         totalRate,
-        volumes,
+        volumes: { bw: mischklick.totalSwVolume, color: mischklick.totalColorVolume },
       };
       await ZOHO.CRM.FUNCTIONS.execute('createMpsEstimateAdvanced', {
         arguments: JSON.stringify({
@@ -260,7 +343,7 @@ export default function KalkulationPage() {
     setCreating(false);
   };
 
-  // Helpers
+  // ===== HELPERS =====
   const numField = (
     label: string,
     key: keyof CalcState,
@@ -351,7 +434,7 @@ export default function KalkulationPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-heading font-bold text-foreground">Kalkulation</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
         {/* Left column – 60% */}
         <div className="lg:col-span-3 space-y-4">
           {/* IST-Bestandsanalyse (collapsible) */}
@@ -361,7 +444,7 @@ export default function KalkulationPage() {
             totalRate={totalRate}
           />
 
-          {/* Karte 1: Finanzierung */}
+          {/* Karte 1: Finanzierung & Rahmendaten */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="font-heading text-base">Finanzierung & Rahmendaten</CardTitle>
@@ -386,15 +469,6 @@ export default function KalkulationPage() {
               {numField('Marge (Hardware Gesamt) €', 'margin_total', { suffix: '€', step: '50' })}
               {form.finance_type === 'leasing' &&
                 numField('Leasingfaktor', 'leasing_factor', { step: '0.0001' })}
-            </CardContent>
-          </Card>
-
-          {/* Karte 2: Vertragsdetails */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="font-heading text-base">Vertragsdetails</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <DateField
                 label="Vertragsstart"
                 value={form.contract_start}
@@ -408,7 +482,7 @@ export default function KalkulationPage() {
             </CardContent>
           </Card>
 
-          {/* Karte 3: Ablöse */}
+          {/* Karte 2: Ablöse Altvertrag */}
           <Card className="border-l-4 border-l-orange-400">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -434,14 +508,18 @@ export default function KalkulationPage() {
             </CardContent>
           </Card>
 
-          {/* Karte 4: Gerätegruppen */}
+          {/* Karte 3: Hardware-Konfiguration (Gerätegruppen) */}
           <div className="space-y-3">
+            <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-muted-foreground">
+              Hardware-Konfiguration
+            </h2>
             {form.deviceGroups.map((g, i) => (
               <DeviceGroupCard
                 key={g.id}
                 group={g}
                 onChange={(updated) => updateGroup(i, updated)}
                 onRemove={() => removeGroup(i)}
+                locations={locations.length > 0 ? locations : undefined}
               />
             ))}
             <Button
@@ -458,68 +536,66 @@ export default function KalkulationPage() {
             </Button>
           </div>
 
-          {/* Karte 5: Service */}
+          {/* Karte 4: Mischkalkulation */}
           <ServiceCard
             config={form.service}
             onChange={(s) => setForm((f) => ({ ...f, service: s }))}
+            mischklick={mischklick}
           />
         </div>
 
-        {/* Right column – 40% */}
+        {/* Right column – 40% (sticky) */}
         <div className="lg:col-span-2">
           <div className="lg:sticky lg:top-4 space-y-4">
-          <KalkSummary
-            financeType={form.finance_type}
-            termMonths={form.term_months}
-            leasingFactor={form.leasing_factor}
-            hardwareEkTotal={hardwareEkTotal}
-            marginTotal={form.margin_total}
-            abloeseTotal={abloeseTotal}
-            serviceMonthly={serviceMonthly}
-            volumeBw={volumes.bw}
-            volumeColor={volumes.color}
-            followBw={form.followBw}
-            followColor={form.followColor}
-            onFollowBwChange={(v) => setForm((f) => ({ ...f, followBw: v }))}
-            onFollowColorChange={(v) => setForm((f) => ({ ...f, followColor: v }))}
-          />
+            <KalkSummary
+              financeType={form.finance_type}
+              termMonths={form.term_months}
+              leasingFactor={form.leasing_factor}
+              hardwareEkTotal={hardwareEkTotal}
+              marginTotal={form.margin_total}
+              abloeseTotal={abloeseTotal}
+              hwMonthly={hwMonthly}
+              totalRate={totalRate}
+              mischklick={mischklick}
+            />
 
-          {/* Action buttons */}
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1 gap-2 font-heading border-foreground/30"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Zwischenspeichern
-              </Button>
-              <Button
-                className="flex-1 gap-2 font-heading bg-secondary hover:bg-secondary/90 text-secondary-foreground shadow-lg"
-                onClick={handleCreateEstimate}
-                disabled={creating}
-              >
-                {creating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )}
-                Angebot erstellen
-              </Button>
+            {/* Action buttons */}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2 font-heading border-foreground/30"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Zwischenspeichern
+                </Button>
+                <Button
+                  className="flex-1 gap-2 font-heading shadow-lg"
+                  style={{ backgroundColor: '#00A3E0' }}
+                  onClick={handleCreateEstimate}
+                  disabled={creating}
+                >
+                  {creating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4" />
+                  )}
+                  Angebot erstellen
+                </Button>
+              </div>
+              {statusMsg && (
+                <p
+                  className={cn(
+                    'text-xs text-center font-medium',
+                    statusMsg.type === 'success' ? 'text-green-600' : 'text-destructive'
+                  )}
+                >
+                  {statusMsg.text}
+                </p>
+              )}
             </div>
-            {statusMsg && (
-              <p
-                className={cn(
-                  'text-xs text-center font-medium',
-                  statusMsg.type === 'success' ? 'text-green-600' : 'text-destructive'
-                )}
-              >
-                {statusMsg.text}
-              </p>
-            )}
-          </div>
           </div>
         </div>
       </div>
