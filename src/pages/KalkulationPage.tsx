@@ -463,6 +463,7 @@ export default function KalkulationPage() {
             projectId={activeProjectId}
             deviceGroups={form.deviceGroups}
             totalRate={totalRate}
+            onSollAssigned={handleSollAssigned}
           />
 
           {/* Karte 1: Finanzierung & Rahmendaten */}
