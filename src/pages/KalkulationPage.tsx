@@ -354,6 +354,13 @@ export default function KalkulationPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left column – 60% */}
         <div className="lg:col-span-3 space-y-4">
+          {/* IST-Bestandsanalyse (collapsible) */}
+          <IstBestandsAnalyse
+            projectId={activeProjectId}
+            deviceGroups={form.deviceGroups}
+            totalRate={totalRate}
+          />
+
           {/* Karte 1: Finanzierung */}
           <Card>
             <CardHeader className="pb-3">
