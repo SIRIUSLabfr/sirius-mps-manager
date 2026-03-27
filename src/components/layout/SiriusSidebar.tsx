@@ -37,11 +37,14 @@ const phase2Items: NavItem[] = [
 
 const phase3Items: NavItem[] = [
   { title: 'Rolloutliste', path: '/projekt/:id/rolloutliste', icon: BarChart3, requiresProject: true, badgeKey: 'devices' },
-  { title: 'SOP / Vorrichten', path: '/projekt/:id/sop', icon: Wrench, requiresProject: true, badgeKey: 'sop_pending' },
   { title: 'Logistik', path: '/projekt/:id/logistik', icon: Truck, requiresProject: true },
   { title: 'IT / EDV', path: '/projekt/:id/it-edv', icon: Monitor, requiresProject: true },
   { title: 'Checklisten', path: '/projekt/:id/checklisten', icon: CheckSquare, requiresProject: true, badgeKey: 'checklists_open' },
-  { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
+];
+
+const globalItems: NavItem[] = [
+  { title: 'SOP / Vorrichten', path: '/sop', icon: Wrench, badgeKey: 'sop_pending' },
+  { title: 'Kalender', path: '/kalender', icon: Calendar },
 ];
 
 const bottomNav: NavItem[] = [
@@ -209,6 +212,18 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
         <div className="mb-1">
           {phaseHeader('Phase 3 · Rollout', phase3Status)}
           <ul className="space-y-0.5">{phase3Items.map(renderItem)}</ul>
+        </div>
+
+        {phaseDivider()}
+
+        {/* Global */}
+        <div className="mb-1">
+          <div className="px-5 pt-4 pb-1">
+            <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">
+              Allgemein
+            </span>
+          </div>
+          <ul className="space-y-0.5">{globalItems.map(renderItem)}</ul>
         </div>
 
         {phaseDivider()}

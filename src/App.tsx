@@ -38,11 +38,11 @@ const App = () => (
                 <Route path="/projekt/:projectId/daten" element={<ProjectDataPage />} />
                 <Route path="/projekt/:projectId/rolloutliste" element={<RolloutListPage />} />
                 <Route path="/projekt/:projectId/ist-soll" element={<IstSollPage />} />
-                <Route path="/projekt/:projectId/sop" element={<SopPage />} />
                 <Route path="/projekt/:projectId/logistik" element={<LogistikPage />} />
                 <Route path="/projekt/:projectId/it-edv" element={<ItEdvPage />} />
                 <Route path="/projekt/:projectId/checklisten" element={<ChecklistenPage />} />
-                <Route path="/projekt/:projectId/kalender" element={<KalenderPage />} />
+                <Route path="/sop" element={<SopPage />} />
+                <Route path="/kalender" element={<KalenderPage />} />
                 <Route path="/kalkulation" element={<KalkulationPage />} />
                 <Route path="/konzept" element={<KonzeptPage />} />
                 <Route path="/einstellungen" element={<TeamPage />} />
