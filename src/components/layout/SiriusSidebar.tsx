@@ -216,6 +216,18 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
 
         {phaseDivider()}
 
+        {/* Global */}
+        <div className="mb-1">
+          <div className="px-5 pt-4 pb-1">
+            <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">
+              Allgemein
+            </span>
+          </div>
+          <ul className="space-y-0.5">{globalItems.map(renderItem)}</ul>
+        </div>
+
+        {phaseDivider()}
+
         {/* Bottom */}
         <div className="mt-2">
           <ul className="space-y-0.5">{bottomNav.map(renderItem)}</ul>
