@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjectData';
@@ -29,6 +29,8 @@ export default function ProjectListPage() {
   const { data: projects, isLoading } = useProjects();
   const { setActiveProjectId } = useActiveProject();
   const navigate = useNavigate();
+
+  useEffect(() => { setActiveProjectId(null); }, [setActiveProjectId]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
