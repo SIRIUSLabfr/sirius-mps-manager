@@ -238,14 +238,15 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
         </div>
       </nav>
 
-      {/* Progress footer */}
-      <div className="px-5 py-4 border-t border-sidebar-border">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-sidebar-foreground/50">Projektfortschritt</span>
-          <span className="text-[10px] font-heading font-bold text-sidebar-foreground/50">{progressPct}%</span>
+      {hasProject && (
+        <div className="px-5 py-4 border-t border-sidebar-border">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-sidebar-foreground/50">Projektfortschritt</span>
+            <span className="text-[10px] font-heading font-bold text-sidebar-foreground/50">{progressPct}%</span>
+          </div>
+          <Progress value={progressPct} className="h-1.5 bg-sidebar-foreground/10 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-secondary" />
         </div>
-        <Progress value={progressPct} className="h-1.5 bg-sidebar-foreground/10 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-secondary" />
-      </div>
+      )}
     </>
   );
 
