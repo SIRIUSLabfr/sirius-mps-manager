@@ -29,6 +29,8 @@ export default function ProjectListPage() {
   const { data: projects, isLoading } = useProjects();
   const { setActiveProjectId } = useActiveProject();
   const navigate = useNavigate();
+
+  useEffect(() => { setActiveProjectId(null); }, [setActiveProjectId]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
