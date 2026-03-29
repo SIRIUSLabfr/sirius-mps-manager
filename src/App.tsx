@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ZohoProvider } from "@/hooks/useZoho";
 import { ActiveProjectProvider } from "@/hooks/useActiveProject";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import ZohoEntryRouter from "@/components/ZohoEntryRouter";
 import ProjectListPage from "./pages/ProjectListPage";
+import TagesgeschaeftListPage from "./pages/TagesgeschaeftListPage";
 import ProjectDashboardPage from "./pages/ProjectDashboardPage";
 import DailyDashboardPage from "./pages/DailyDashboardPage";
 import DailyGeraeteListePage from "./pages/DailyGeraeteListePage";
@@ -32,24 +34,33 @@ const App = () => (
         <ActiveProjectProvider>
           <Toaster position="bottom-right" />
           <BrowserRouter>
+            <ZohoEntryRouter />
             <Routes>
               <Route element={<DashboardLayout />}>
-                <Route path="/" element={<ProjectListPage />} />
+                {/* Ebene 1: Overview */}
+                <Route path="/" element={<Navigate to="/projekte" replace />} />
+                <Route path="/projekte" element={<ProjectListPage />} />
+                <Route path="/tagesgeschaeft" element={<TagesgeschaeftListPage />} />
+                <Route path="/sop" element={<SopPage />} />
+                <Route path="/kalender" element={<KalenderPage />} />
+                <Route path="/team" element={<TeamPage />} />
+                <Route path="/einstellungen" element={<TeamPage />} />
+
+                {/* Ebene 2: Project-specific */}
                 <Route path="/projekt/:projectId" element={<ProjectDashboardPage />} />
-                <Route path="/projekt/:projectId/daily" element={<DailyDashboardPage />} />
-                <Route path="/projekt/:projectId/geraete" element={<DailyGeraeteListePage />} />
                 <Route path="/projekt/:projectId/standorte" element={<StandortePage />} />
                 <Route path="/projekt/:projectId/daten" element={<ProjectDataPage />} />
-                <Route path="/projekt/:projectId/rolloutliste" element={<RolloutListPage />} />
                 <Route path="/projekt/:projectId/ist-soll" element={<IstSollPage />} />
+                <Route path="/projekt/:projectId/kalkulation" element={<KalkulationPage />} />
+                <Route path="/projekt/:projectId/konzept" element={<KonzeptPage />} />
+                <Route path="/projekt/:projectId/rolloutliste" element={<RolloutListPage />} />
+                <Route path="/projekt/:projectId/sop" element={<SopPage />} />
                 <Route path="/projekt/:projectId/logistik" element={<LogistikPage />} />
                 <Route path="/projekt/:projectId/it-edv" element={<ItEdvPage />} />
                 <Route path="/projekt/:projectId/checklisten" element={<ChecklistenPage />} />
-                <Route path="/sop" element={<SopPage />} />
-                <Route path="/kalender" element={<KalenderPage />} />
-                <Route path="/kalkulation" element={<KalkulationPage />} />
-                <Route path="/konzept" element={<KonzeptPage />} />
-                <Route path="/einstellungen" element={<TeamPage />} />
+                <Route path="/projekt/:projectId/kalender" element={<KalenderPage />} />
+                <Route path="/projekt/:projectId/geraete" element={<DailyGeraeteListePage />} />
+                <Route path="/projekt/:projectId/daily" element={<DailyDashboardPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
