@@ -189,6 +189,14 @@ export default function SopPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Modell, SN, OW..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm h-9" />
         </div>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Auftragstyp" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Alle Aufträge</SelectItem>
+            <SelectItem value="project" className="text-xs">📦 Nur MPS-Projekte</SelectItem>
+            <SelectItem value="daily" className="text-xs">🖨️ Nur Tagesgeschäft</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={filterProject} onValueChange={setFilterProject}>
           <SelectTrigger className="w-48 h-9 text-xs"><SelectValue placeholder="Projekt" /></SelectTrigger>
           <SelectContent>
@@ -247,6 +255,10 @@ export default function SopPage() {
               color={col.color}
               items={columnData[col.id] || []}
               getUserName={getUserName}
+              getProjectType={(projectId: string) => {
+                const proj = projects?.find(p => p.id === projectId);
+                return (proj as any)?.project_type || 'project';
+              }}
               onCardClick={(sop) => { setSelectedSop(sop); setSheetOpen(true); }}
             />
           ))}
