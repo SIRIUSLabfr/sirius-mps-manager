@@ -110,11 +110,16 @@ export default function SopPage() {
       }
       if (filterTechnician !== 'all' && sop.technician !== filterTechnician) return false;
       if (filterProject !== 'all' && sop.project_id !== filterProject) return false;
+      if (filterType !== 'all') {
+        const proj = projects?.find(p => p.id === sop.project_id);
+        const pType = (proj as any)?.project_type || 'project';
+        if (pType !== filterType) return false;
+      }
       if (dateFrom && sop.delivery_date && new Date(sop.delivery_date) < dateFrom) return false;
       if (dateTo && sop.delivery_date && new Date(sop.delivery_date) > dateTo) return false;
       return true;
     });
-  }, [sopOrders, search, filterTechnician, filterProject, dateFrom, dateTo]);
+  }, [sopOrders, search, filterTechnician, filterProject, filterType, dateFrom, dateTo, projects]);
 
   // Group by status
   const columnData = useMemo(() => {
