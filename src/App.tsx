@@ -7,6 +7,8 @@ import { ActiveProjectProvider } from "@/hooks/useActiveProject";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ProjectListPage from "./pages/ProjectListPage";
 import ProjectDashboardPage from "./pages/ProjectDashboardPage";
+import DailyDashboardPage from "./pages/DailyDashboardPage";
+import DailyGeraeteListePage from "./pages/DailyGeraeteListePage";
 import ProjectDataPage from "./pages/ProjectDataPage";
 import RolloutListPage from "./pages/RolloutListPage";
 import IstSollPage from "./pages/IstSollPage";
@@ -34,6 +36,8 @@ const App = () => (
               <Route element={<DashboardLayout />}>
                 <Route path="/" element={<ProjectListPage />} />
                 <Route path="/projekt/:projectId" element={<ProjectDashboardPage />} />
+                <Route path="/projekt/:projectId/daily" element={<DailyDashboardPage />} />
+                <Route path="/projekt/:projectId/geraete" element={<DailyGeraeteListePage />} />
                 <Route path="/projekt/:projectId/standorte" element={<StandortePage />} />
                 <Route path="/projekt/:projectId/daten" element={<ProjectDataPage />} />
                 <Route path="/projekt/:projectId/rolloutliste" element={<RolloutListPage />} />
