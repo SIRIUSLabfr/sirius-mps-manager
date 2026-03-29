@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useUsers } from '@/hooks/useProjectData';
@@ -69,6 +70,7 @@ function useAllProjects() {
 }
 
 export default function SopPage() {
+  const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const { data: sopOrders } = useAllSopOrders();
   const { data: projects } = useAllProjects();
   const { data: users } = useUsers();
@@ -81,7 +83,7 @@ export default function SopPage() {
   // Filters
   const [search, setSearch] = useState('');
   const [filterTechnician, setFilterTechnician] = useState<string>('all');
-  const [filterProject, setFilterProject] = useState<string>('all');
+  const [filterProject, setFilterProject] = useState<string>(urlProjectId || 'all');
   const [filterType, setFilterType] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
