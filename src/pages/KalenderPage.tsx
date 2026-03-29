@@ -175,19 +175,29 @@ export default function KalenderPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-heading font-bold text-foreground">Rollout-Kalender</h1>
-        <Select value={filterProject} onValueChange={setFilterProject}>
-          <SelectTrigger className="w-56 h-9 text-xs"><SelectValue placeholder="Projekt filtern" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">Alle Projekte</SelectItem>
-            {projects?.map(p => (
-              <SelectItem key={p.id} value={p.id} className="text-xs">
-                {p.project_name || p.customer_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Auftragstyp" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">Alle</SelectItem>
+              <SelectItem value="project" className="text-xs">📦 Nur Projekte</SelectItem>
+              <SelectItem value="daily" className="text-xs">🖨️ Nur Tagesgeschäft</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-56 h-9 text-xs"><SelectValue placeholder="Projekt filtern" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">Alle Projekte</SelectItem>
+              {projects?.map(p => (
+                <SelectItem key={p.id} value={p.id} className="text-xs">
+                  {p.project_name || p.customer_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-lg p-4 calendar-wrapper">
