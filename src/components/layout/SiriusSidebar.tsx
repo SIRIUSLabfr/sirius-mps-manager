@@ -2,12 +2,12 @@ import { useLocation, Link } from 'react-router-dom';
 import {
   ClipboardList, Building2, Download, RefreshCw, Calculator, FileText,
   BarChart3, Wrench, Truck, Monitor, CheckSquare, Calendar,
-  Star, Users, Settings, X,
+  Star, Users, Settings, X, List,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { useActiveProject } from '@/hooks/useActiveProject';
-import { useProjectDevices } from '@/hooks/useProjectData';
+import { useProject, useProjectDevices } from '@/hooks/useProjectData';
 import { useSopOrders } from '@/hooks/useSopData';
 import { useLocations } from '@/hooks/useRolloutData';
 import { useChecklists } from '@/hooks/useChecklistData';
@@ -24,22 +24,34 @@ const topNav: NavItem[] = [
   { title: 'Projektübersicht', path: '/', icon: ClipboardList },
 ];
 
+// MPS project phases
 const phase1Items: NavItem[] = [
   { title: 'Standorte & Raumpläne', path: '/projekt/:id/standorte', icon: Building2, requiresProject: true },
   { title: 'IST-Daten Import', path: '/projekt/:id/daten', icon: Download, requiresProject: true },
 ];
-
 const phase2Items: NavItem[] = [
   { title: 'IST/SOLL Vergleich', path: '/projekt/:id/ist-soll', icon: RefreshCw, requiresProject: true },
   { title: 'Kalkulation', path: '/kalkulation', icon: Calculator },
   { title: 'Konzept', path: '/konzept', icon: FileText },
 ];
-
 const phase3Items: NavItem[] = [
   { title: 'Rolloutliste', path: '/projekt/:id/rolloutliste', icon: BarChart3, requiresProject: true, badgeKey: 'devices' },
   { title: 'Logistik', path: '/projekt/:id/logistik', icon: Truck, requiresProject: true },
   { title: 'IT / EDV', path: '/projekt/:id/it-edv', icon: Monitor, requiresProject: true },
   { title: 'Checklisten', path: '/projekt/:id/checklisten', icon: CheckSquare, requiresProject: true, badgeKey: 'checklists_open' },
+];
+
+// Daily phases
+const dailyPhase1: NavItem[] = [
+  { title: 'Auftragsübersicht', path: '/projekt/:id', icon: ClipboardList, requiresProject: true },
+];
+const dailyPhase2: NavItem[] = [
+  { title: 'Kalkulation', path: '/kalkulation', icon: Calculator },
+  { title: 'Geräteliste', path: '/projekt/:id/geraete', icon: List, requiresProject: true },
+];
+const dailyPhase3: NavItem[] = [
+  { title: 'SOP / Vorrichten', path: '/sop', icon: Wrench },
+  { title: 'Kalender', path: '/kalender', icon: Calendar },
 ];
 
 const globalItems: NavItem[] = [
@@ -62,11 +74,14 @@ interface SiriusSidebarProps {
 export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSidebarProps) {
   const location = useLocation();
   const { activeProjectId } = useActiveProject();
+  const { data: project } = useProject(activeProjectId);
   const { data: devices } = useProjectDevices(activeProjectId);
   const { data: sopOrders } = useSopOrders(activeProjectId);
   const { data: locations } = useLocations(activeProjectId);
   const { data: checklists } = useChecklists(activeProjectId);
   const hasProject = !!activeProjectId;
+  const projectType = (project as any)?.project_type || 'project';
+  const isDaily = projectType === 'daily';
 
   const totalDevices = devices?.length || 0;
   const checkedDevices = devices?.filter(d => d.preparation_status === 'checked').length || 0;
@@ -74,7 +89,6 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
   const hasLocations = (locations?.length || 0) > 0;
   const hasIstDevices = (devices?.filter(d => d.ist_manufacturer || d.ist_model)?.length || 0) > 0;
 
-  // Checklist open items count
   const checklistOpenCount = checklists?.reduce((acc, cl) => {
     const items = cl.items as Array<{ status?: string }> | null;
     if (!items) return acc;
@@ -87,21 +101,12 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
     checklists_open: checklistOpenCount,
   };
 
-  // Phase status
   const phase1Status: PhaseStatus = hasLocations && hasIstDevices ? 'done' : (hasLocations || hasIstDevices) ? 'active' : 'idle';
   const hasSollMapping = (devices?.filter(d => d.soll_model)?.length || 0) > 0;
   const phase2Status: PhaseStatus = hasSollMapping ? 'done' : (hasIstDevices) ? 'active' : 'idle';
   const phase3Status: PhaseStatus = totalDevices > 0 && checkedDevices === totalDevices ? 'done' : totalDevices > 0 ? 'active' : 'idle';
 
-  // Milestones for progress
-  const milestones = [
-    hasLocations,
-    hasIstDevices,
-    hasSollMapping,
-    false, // kalkulation saved - would need calc data
-    pendingSops === 0 && (sopOrders?.length || 0) > 0,
-    totalDevices > 0 && checkedDevices === totalDevices,
-  ];
+  const milestones = [hasLocations, hasIstDevices, hasSollMapping, false, pendingSops === 0 && (sopOrders?.length || 0) > 0, totalDevices > 0 && checkedDevices === totalDevices];
   const completedMilestones = milestones.filter(Boolean).length;
   const progressPct = Math.round((completedMilestones / 6) * 100);
 
@@ -190,30 +195,42 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
           <ul className="space-y-0.5">{topNav.map(renderItem)}</ul>
         </div>
 
-        {hasProject && (
+        {hasProject && !isDaily && (
           <>
             {phaseDivider()}
-
-            {/* Phase 1 */}
             <div className="mb-1">
               {phaseHeader('Phase 1 · Analyse', phase1Status)}
               <ul className="space-y-0.5">{phase1Items.map(renderItem)}</ul>
             </div>
-
             {phaseDivider()}
-
-            {/* Phase 2 */}
             <div className="mb-1">
               {phaseHeader('Phase 2 · Planung', phase2Status)}
               <ul className="space-y-0.5">{phase2Items.map(renderItem)}</ul>
             </div>
-
             {phaseDivider()}
-
-            {/* Phase 3 */}
             <div className="mb-1">
               {phaseHeader('Phase 3 · Rollout', phase3Status)}
               <ul className="space-y-0.5">{phase3Items.map(renderItem)}</ul>
+            </div>
+          </>
+        )}
+
+        {hasProject && isDaily && (
+          <>
+            {phaseDivider()}
+            <div className="mb-1">
+              {phaseHeader('Auftrag')}
+              <ul className="space-y-0.5">{dailyPhase1.map(renderItem)}</ul>
+            </div>
+            {phaseDivider()}
+            <div className="mb-1">
+              {phaseHeader('Planung')}
+              <ul className="space-y-0.5">{dailyPhase2.map(renderItem)}</ul>
+            </div>
+            {phaseDivider()}
+            <div className="mb-1">
+              {phaseHeader('Ausführung')}
+              <ul className="space-y-0.5">{dailyPhase3.map(renderItem)}</ul>
             </div>
           </>
         )}
@@ -238,7 +255,7 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
         </div>
       </nav>
 
-      {hasProject && (
+      {hasProject && !isDaily && (
         <div className="px-5 py-4 border-t border-sidebar-border">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-sidebar-foreground/50">Projektfortschritt</span>
@@ -252,12 +269,9 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
 
   return (
     <>
-      {/* Desktop */}
       <aside className="hidden lg:flex fixed top-0 left-0 h-screen bg-sidebar flex-col z-50 border-r border-sidebar-border w-[252px]">
         {sidebarContent()}
       </aside>
-
-      {/* Mobile overlay */}
       {mobileOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-[60] lg:hidden" onClick={onMobileClose} />

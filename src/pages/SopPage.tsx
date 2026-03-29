@@ -61,7 +61,7 @@ function useAllProjects() {
   return useQuery({
     queryKey: ['projects_all'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('projects').select('id, customer_name, project_name, project_number').order('customer_name');
+      const { data, error } = await supabase.from('projects').select('id, customer_name, project_name, project_number, project_type').order('customer_name');
       if (error) throw error;
       return data;
     },
@@ -82,6 +82,7 @@ export default function SopPage() {
   const [search, setSearch] = useState('');
   const [filterTechnician, setFilterTechnician] = useState<string>('all');
   const [filterProject, setFilterProject] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
@@ -109,11 +110,16 @@ export default function SopPage() {
       }
       if (filterTechnician !== 'all' && sop.technician !== filterTechnician) return false;
       if (filterProject !== 'all' && sop.project_id !== filterProject) return false;
+      if (filterType !== 'all') {
+        const proj = projects?.find(p => p.id === sop.project_id);
+        const pType = (proj as any)?.project_type || 'project';
+        if (pType !== filterType) return false;
+      }
       if (dateFrom && sop.delivery_date && new Date(sop.delivery_date) < dateFrom) return false;
       if (dateTo && sop.delivery_date && new Date(sop.delivery_date) > dateTo) return false;
       return true;
     });
-  }, [sopOrders, search, filterTechnician, filterProject, dateFrom, dateTo]);
+  }, [sopOrders, search, filterTechnician, filterProject, filterType, dateFrom, dateTo, projects]);
 
   // Group by status
   const columnData = useMemo(() => {
@@ -183,6 +189,14 @@ export default function SopPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Modell, SN, OW..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm h-9" />
         </div>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Auftragstyp" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Alle Aufträge</SelectItem>
+            <SelectItem value="project" className="text-xs">📦 Nur MPS-Projekte</SelectItem>
+            <SelectItem value="daily" className="text-xs">🖨️ Nur Tagesgeschäft</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={filterProject} onValueChange={setFilterProject}>
           <SelectTrigger className="w-48 h-9 text-xs"><SelectValue placeholder="Projekt" /></SelectTrigger>
           <SelectContent>
@@ -241,6 +255,10 @@ export default function SopPage() {
               color={col.color}
               items={columnData[col.id] || []}
               getUserName={getUserName}
+              getProjectType={(projectId: string) => {
+                const proj = projects?.find(p => p.id === projectId);
+                return (proj as any)?.project_type || 'project';
+              }}
               onCardClick={(sop) => { setSelectedSop(sop); setSheetOpen(true); }}
             />
           ))}

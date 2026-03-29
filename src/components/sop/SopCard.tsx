@@ -8,10 +8,11 @@ import type { Tables } from '@/integrations/supabase/types';
 interface Props {
   sop: Tables<'sop_orders'>;
   technicianName?: string;
+  projectType?: string;
   onClick: () => void;
 }
 
-export default function SopCard({ sop, technicianName, onClick }: Props) {
+export default function SopCard({ sop, technicianName, projectType, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sop.id });
 
   const style = {
@@ -48,6 +49,16 @@ export default function SopCard({ sop, technicianName, onClick }: Props) {
           )}
 
           <div className="flex items-center gap-2 flex-wrap">
+            {projectType && (
+              <span className={cn(
+                'text-[9px] font-heading font-bold px-1.5 py-0.5 rounded',
+                projectType === 'daily'
+                  ? 'bg-orange-100 text-orange-700'
+                  : 'bg-primary/10 text-primary'
+              )}>
+                {projectType === 'daily' ? '🖨️ Tagesgeschäft' : '📦 Projekt'}
+              </span>
+            )}
             {sop.delivery_date && (
               <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-body">
                 {format(new Date(sop.delivery_date), 'dd.MM.yyyy')}

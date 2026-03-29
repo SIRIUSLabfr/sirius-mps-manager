@@ -727,6 +727,7 @@ export type Database = {
           project_lead: string | null
           project_name: string | null
           project_number: string | null
+          project_type: string
           rollout_end: string | null
           rollout_start: string | null
           status: string
@@ -747,6 +748,7 @@ export type Database = {
           project_lead?: string | null
           project_name?: string | null
           project_number?: string | null
+          project_type?: string
           rollout_end?: string | null
           rollout_start?: string | null
           status?: string
@@ -767,6 +769,7 @@ export type Database = {
           project_lead?: string | null
           project_name?: string | null
           project_number?: string | null
+          project_type?: string
           rollout_end?: string | null
           rollout_start?: string | null
           status?: string

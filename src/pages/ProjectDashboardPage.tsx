@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo } from 'react';
 import { useProject, useProjectDevices } from '@/hooks/useProjectData';
 import { useActiveProject } from '@/hooks/useActiveProject';
@@ -15,6 +15,7 @@ import { de } from 'date-fns/locale';
 export default function ProjectDashboardPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { setActiveProjectId } = useActiveProject();
+  const navigate = useNavigate();
   const { data: project, isLoading } = useProject(projectId || null);
   const { data: devices } = useProjectDevices(projectId || null);
   const { data: sopOrders } = useSopOrders(projectId || null);
@@ -22,6 +23,13 @@ export default function ProjectDashboardPage() {
   useEffect(() => {
     if (projectId) setActiveProjectId(projectId);
   }, [projectId, setActiveProjectId]);
+
+  // Redirect daily projects to their dashboard
+  useEffect(() => {
+    if (project && (project as any).project_type === 'daily') {
+      navigate(`/projekt/${projectId}/daily`, { replace: true });
+    }
+  }, [project, projectId, navigate]);
 
   // Build activity feed from recent device/sop changes
   const activities = useMemo(() => {
