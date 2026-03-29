@@ -70,7 +70,7 @@ function useAllProjects() {
   return useQuery({
     queryKey: ['projects_all'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('projects').select('id, customer_name, project_name, project_number').order('customer_name');
+      const { data, error } = await supabase.from('projects').select('id, customer_name, project_name, project_number, project_type').order('customer_name');
       if (error) throw error;
       return data;
     },
@@ -87,6 +87,9 @@ export default function KalenderPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [filterProject, setFilterProject] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
+
+  const DAILY_COLOR = 'hsl(32,100%,50%)';
 
   const projectColorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -101,22 +104,31 @@ export default function KalenderPage() {
 
   const events: CalEvent[] = useMemo(() => {
     if (!devices) return [];
-    const filtered = filterProject === 'all' ? devices : devices.filter(d => d.project_id === filterProject);
+    let filtered = filterProject === 'all' ? devices : devices.filter(d => d.project_id === filterProject);
+    if (filterType !== 'all') {
+      filtered = filtered.filter(d => {
+        const proj = projects?.find(p => p.id === d.project_id);
+        const pType = (proj as any)?.project_type || 'project';
+        return pType === filterType;
+      });
+    }
     return filtered.map(d => {
       const dateObj = new Date(d.delivery_date!);
       const model = d.soll_model || d.ist_model || 'Gerät';
       const proj = getProjectLabel(d.project_id);
+      const projData = projects?.find(p => p.id === d.project_id);
+      const pType = (projData as any)?.project_type || 'project';
       return {
         id: d.id,
         title: proj ? `${model} – ${proj}` : model,
         start: dateObj,
         end: dateObj,
         device: d,
-        color: projectColorMap[d.project_id] || PROJECT_COLORS[0],
+        color: pType === 'daily' ? DAILY_COLOR : (projectColorMap[d.project_id] || PROJECT_COLORS[0]),
         projectId: d.project_id,
       };
     });
-  }, [devices, filterProject, projectColorMap, getProjectLabel]);
+  }, [devices, filterProject, filterType, projectColorMap, getProjectLabel, projects, DAILY_COLOR]);
 
   const selectedDateDevices = useMemo(() => {
     if (!selectedDate || !devices) return [];
