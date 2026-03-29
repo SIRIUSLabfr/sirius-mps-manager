@@ -61,7 +61,7 @@ function useAllProjects() {
   return useQuery({
     queryKey: ['projects_all'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('projects').select('id, customer_name, project_name, project_number').order('customer_name');
+      const { data, error } = await supabase.from('projects').select('id, customer_name, project_name, project_number, project_type').order('customer_name');
       if (error) throw error;
       return data;
     },
@@ -82,6 +82,7 @@ export default function SopPage() {
   const [search, setSearch] = useState('');
   const [filterTechnician, setFilterTechnician] = useState<string>('all');
   const [filterProject, setFilterProject] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
