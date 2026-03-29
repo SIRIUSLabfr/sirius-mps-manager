@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useZoho } from '@/hooks/useZoho';
 import { supabase } from '@/integrations/supabase/client';
@@ -79,9 +80,14 @@ const defaultState: CalcState = {
 };
 
 export default function KalkulationPage() {
-  const { activeProjectId } = useActiveProject();
+  const { projectId: urlProjectId } = useParams<{ projectId: string }>();
+  const { activeProjectId, setActiveProjectId } = useActiveProject();
   const { ZOHO, dealId } = useZoho();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (urlProjectId) setActiveProjectId(urlProjectId);
+  }, [urlProjectId, setActiveProjectId]);
 
   const [form, setForm] = useState<CalcState>(defaultState);
   const [saving, setSaving] = useState(false);

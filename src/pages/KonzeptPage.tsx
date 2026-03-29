@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useProject, useProjectDevices, useUsers } from '@/hooks/useProjectData';
 import { useLocations } from '@/hooks/useRolloutData';
@@ -36,7 +36,12 @@ const BLOCK_LABELS: Record<string, string> = {
 
 export default function KonzeptPage() {
   const navigate = useNavigate();
-  const { activeProjectId } = useActiveProject();
+  const { projectId: urlProjectId } = useParams<{ projectId: string }>();
+  const { activeProjectId, setActiveProjectId } = useActiveProject();
+
+  useEffect(() => {
+    if (urlProjectId) setActiveProjectId(urlProjectId);
+  }, [urlProjectId, setActiveProjectId]);
   const { data: project } = useProject(activeProjectId);
   const { data: devices = [] } = useProjectDevices(activeProjectId);
   const { data: locations = [] } = useLocations(activeProjectId);
