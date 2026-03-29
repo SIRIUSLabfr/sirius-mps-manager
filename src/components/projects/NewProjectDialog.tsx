@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useActiveProject } from '@/hooks/useActiveProject';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { CalendarIcon, Package, Printer, Check } from 'lucide-react';
@@ -19,14 +21,23 @@ import { useZoho } from '@/hooks/useZoho';
 interface NewProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultType?: 'project' | 'daily' | null;
+  zohoPreFill?: { customer_name?: string; contact_name?: string; deal_id?: string };
 }
 
 type ProjectType = 'project' | 'daily' | null;
 
-export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialogProps) {
+export default function NewProjectDialog({ open, onOpenChange, defaultType = null, zohoPreFill }: NewProjectDialogProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { setActiveProjectId } = useActiveProject();
   const { ZOHO, dealId } = useZoho();
-  const [selectedType, setSelectedType] = useState<ProjectType>(null);
+  const [selectedType, setSelectedType] = useState<ProjectType>(defaultType);
+
+  // Reset to defaultType when dialog opens
+  useEffect(() => {
+    if (open) setSelectedType(defaultType);
+  }, [open, defaultType]);
 
   // MPS Project form
   const [form, setForm] = useState({
@@ -52,10 +63,19 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
 
   const [loading, setLoading] = useState(false);
 
+  // Pre-fill from zoho props
+  useEffect(() => {
+    if (zohoPreFill && open) {
+      setForm(f => ({ ...f, customer_name: zohoPreFill.customer_name || '', zoho_deal_id: zohoPreFill.deal_id || '' }));
+      setDailyForm(f => ({ ...f, customer_name: zohoPreFill.customer_name || '', contact_name: zohoPreFill.contact_name || '' }));
+    }
+  }, [zohoPreFill, open]);
+
   const createMutation = useMutation({
     mutationFn: async () => {
+      let insertData: any;
       if (selectedType === 'project') {
-        const { error } = await supabase.from('projects').insert({
+        insertData = {
           customer_name: form.customer_name,
           project_number: form.project_number || null,
           project_name: form.project_name || null,
@@ -64,13 +84,12 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
           rollout_start: rolloutStart ? format(rolloutStart, 'yyyy-MM-dd') : null,
           rollout_end: rolloutEnd ? format(rolloutEnd, 'yyyy-MM-dd') : null,
           project_type: 'project',
-        } as any);
-        if (error) throw error;
+        };
       } else {
         const contacts = dailyForm.contact_name
           ? [{ name: dailyForm.contact_name, phone: dailyForm.contact_phone }]
           : [];
-        const { error } = await supabase.from('projects').insert({
+        insertData = {
           customer_name: dailyForm.customer_name,
           project_number: dailyForm.project_number || null,
           customer_contacts: contacts,
@@ -78,16 +97,24 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
           rollout_start: deliveryDate ? format(deliveryDate, 'yyyy-MM-dd') : null,
           logistics_notes: dailyForm.note || null,
           project_type: 'daily',
+          zoho_deal_id: form.zoho_deal_id || null,
           status: 'draft',
-        } as any);
-        if (error) throw error;
+        };
       }
+      const { data, error } = await supabase.from('projects').insert(insertData as any).select().single();
+      if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success(selectedType === 'project' ? 'Projekt erstellt' : 'Auftrag erstellt');
       onOpenChange(false);
       resetAll();
+      // Navigate to the new project
+      if (data?.id) {
+        setActiveProjectId(data.id);
+        navigate(`/projekt/${data.id}`);
+      }
     },
     onError: (err: any) => {
       toast.error('Fehler: ' + err.message);
@@ -95,7 +122,7 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
   });
 
   const resetAll = () => {
-    setSelectedType(null);
+    setSelectedType(defaultType);
     setForm({ customer_name: '', project_number: '', project_name: '', warehouse_address: '', zoho_deal_id: '' });
     setRolloutStart(undefined);
     setRolloutEnd(undefined);
@@ -112,11 +139,18 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
       const resp = await ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: id });
       const deal = resp.data?.[0];
       if (deal) {
+        const customerName = deal.Account_Name?.name || deal.Deal_Name || '';
+        const contactName = deal.Contact_Name?.name || '';
         setForm(prev => ({
           ...prev,
-          customer_name: deal.Account_Name?.name || deal.Deal_Name || '',
+          customer_name: customerName,
           project_name: deal.Deal_Name || '',
           zoho_deal_id: id,
+        }));
+        setDailyForm(prev => ({
+          ...prev,
+          customer_name: customerName,
+          contact_name: contactName,
         }));
         toast.success('Daten aus Zoho Deal geladen');
       }
@@ -126,18 +160,19 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
   };
 
   const canSubmit = selectedType === 'project' ? !!form.customer_name : !!dailyForm.customer_name;
+  const showTypeSelection = !defaultType && !selectedType;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetAll(); onOpenChange(v); }}>
-      <DialogContent className={cn('transition-all', selectedType ? 'sm:max-w-[540px]' : 'sm:max-w-[620px]')}>
+      <DialogContent className={cn('transition-all', showTypeSelection ? 'sm:max-w-[620px]' : 'sm:max-w-[540px]')}>
         <DialogHeader>
           <DialogTitle className="font-heading">
-            {!selectedType ? 'Neuer Vorgang' : selectedType === 'project' ? 'Neues MPS-Projekt' : 'Neuer Tagesgeschäft-Auftrag'}
+            {showTypeSelection ? 'Neuer Vorgang' : selectedType === 'project' ? 'Neues MPS-Projekt' : 'Neuer Tagesgeschäft-Auftrag'}
           </DialogTitle>
         </DialogHeader>
 
         {/* Type selection */}
-        {!selectedType && (
+        {showTypeSelection && (
           <div className="grid grid-cols-2 gap-4 py-4">
             <TypeCard
               icon={<Package className="h-10 w-10" />}
@@ -165,7 +200,9 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
               <Button type="button" variant="outline" size="sm" onClick={loadFromZoho} disabled={loading} className="font-heading text-xs">
                 {loading ? 'Laden...' : 'Aus Zoho Deal laden'}
               </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedType(null)} className="text-xs">← Zurück</Button>
+              {!defaultType && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedType(null)} className="text-xs">← Zurück</Button>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="font-heading text-xs">Kundenname *</Label>
@@ -221,7 +258,14 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
         {/* Daily Form */}
         {selectedType === 'daily' && (
           <div className="space-y-4 py-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedType(null)} className="text-xs">← Zurück</Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={loadFromZoho} disabled={loading} className="font-heading text-xs">
+                {loading ? 'Laden...' : 'Aus Zoho Deal laden'}
+              </Button>
+              {!defaultType && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedType(null)} className="text-xs">← Zurück</Button>
+              )}
+            </div>
             <div className="space-y-2">
               <Label className="font-heading text-xs">Kundenname *</Label>
               <Input value={dailyForm.customer_name} onChange={e => setDailyForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="z.B. Müller AG" />

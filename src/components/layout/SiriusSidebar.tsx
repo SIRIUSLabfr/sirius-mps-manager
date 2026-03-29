@@ -1,8 +1,8 @@
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   ClipboardList, Building2, Download, RefreshCw, Calculator, FileText,
   BarChart3, Wrench, Truck, Monitor, CheckSquare, Calendar,
-  Star, Users, Settings, X, List,
+  Star, Users, Settings, X, List, ArrowLeft, Package, Printer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -20,48 +20,50 @@ interface NavItem {
   badgeKey?: string;
 }
 
-const topNav: NavItem[] = [
-  { title: 'Projektübersicht', path: '/', icon: ClipboardList },
+// ── EBENE 1: Overview nav ──
+const overviewItems: NavItem[] = [
+  { title: 'MPS-Projekte', path: '/projekte', icon: Package },
+  { title: 'Tagesgeschäft', path: '/tagesgeschaeft', icon: Printer },
+];
+const globalItems: NavItem[] = [
+  { title: 'SOP / Vorrichten', path: '/sop', icon: Wrench },
+  { title: 'Kalender', path: '/kalender', icon: Calendar },
+];
+const bottomNav: NavItem[] = [
+  { title: 'Team', path: '/team', icon: Users },
+  { title: 'Einstellungen', path: '/einstellungen', icon: Settings },
 ];
 
-// MPS project phases
+// ── EBENE 2: MPS project phases ──
 const phase1Items: NavItem[] = [
   { title: 'Standorte & Raumpläne', path: '/projekt/:id/standorte', icon: Building2, requiresProject: true },
   { title: 'IST-Daten Import', path: '/projekt/:id/daten', icon: Download, requiresProject: true },
 ];
 const phase2Items: NavItem[] = [
   { title: 'IST/SOLL Vergleich', path: '/projekt/:id/ist-soll', icon: RefreshCw, requiresProject: true },
-  { title: 'Kalkulation', path: '/kalkulation', icon: Calculator },
-  { title: 'Konzept', path: '/konzept', icon: FileText },
+  { title: 'Kalkulation', path: '/projekt/:id/kalkulation', icon: Calculator, requiresProject: true },
+  { title: 'Konzept', path: '/projekt/:id/konzept', icon: FileText, requiresProject: true },
 ];
 const phase3Items: NavItem[] = [
   { title: 'Rolloutliste', path: '/projekt/:id/rolloutliste', icon: BarChart3, requiresProject: true, badgeKey: 'devices' },
+  { title: 'SOP / Vorrichten', path: '/projekt/:id/sop', icon: Wrench, requiresProject: true },
   { title: 'Logistik', path: '/projekt/:id/logistik', icon: Truck, requiresProject: true },
   { title: 'IT / EDV', path: '/projekt/:id/it-edv', icon: Monitor, requiresProject: true },
   { title: 'Checklisten', path: '/projekt/:id/checklisten', icon: CheckSquare, requiresProject: true, badgeKey: 'checklists_open' },
+  { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
 ];
 
-// Daily phases
+// ── EBENE 2: Daily phases ──
 const dailyPhase1: NavItem[] = [
   { title: 'Auftragsübersicht', path: '/projekt/:id', icon: ClipboardList, requiresProject: true },
 ];
 const dailyPhase2: NavItem[] = [
-  { title: 'Kalkulation', path: '/kalkulation', icon: Calculator },
+  { title: 'Kalkulation', path: '/projekt/:id/kalkulation', icon: Calculator, requiresProject: true },
   { title: 'Geräteliste', path: '/projekt/:id/geraete', icon: List, requiresProject: true },
 ];
 const dailyPhase3: NavItem[] = [
-  { title: 'SOP / Vorrichten', path: '/sop', icon: Wrench },
-  { title: 'Kalender', path: '/kalender', icon: Calendar },
-];
-
-const globalItems: NavItem[] = [
-  { title: 'SOP / Vorrichten', path: '/sop', icon: Wrench, badgeKey: 'sop_pending' },
-  { title: 'Kalender', path: '/kalender', icon: Calendar },
-];
-
-const bottomNav: NavItem[] = [
-  { title: 'Team', path: '/einstellungen', icon: Users },
-  { title: 'Einstellungen', path: '/einstellungen', icon: Settings },
+  { title: 'SOP / Vorrichten', path: '/projekt/:id/sop', icon: Wrench, requiresProject: true },
+  { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
 ];
 
 type PhaseStatus = 'idle' | 'active' | 'done';
@@ -73,7 +75,8 @@ interface SiriusSidebarProps {
 
 export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSidebarProps) {
   const location = useLocation();
-  const { activeProjectId } = useActiveProject();
+  const navigate = useNavigate();
+  const { activeProjectId, setActiveProjectId } = useActiveProject();
   const { data: project } = useProject(activeProjectId);
   const { data: devices } = useProjectDevices(activeProjectId);
   const { data: sopOrders } = useSopOrders(activeProjectId);
@@ -121,6 +124,12 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
       status === 'done' && 'bg-green-500',
     )} />
   );
+
+  const handleBackToOverview = () => {
+    setActiveProjectId(null);
+    navigate('/projekte');
+    onMobileClose?.();
+  };
 
   const renderItem = (item: NavItem) => {
     const active = isActive(item.path);
@@ -187,74 +196,106 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-1">
-        {/* Projekt */}
-        <div className="mb-1">
-          <div className="px-5 pt-2 pb-1">
-            <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">Projekt</span>
-          </div>
-          <ul className="space-y-0.5">{topNav.map(renderItem)}</ul>
-        </div>
-
-        {hasProject && !isDaily && (
+        {/* ── EBENE 2: Inside a project ── */}
+        {hasProject && (
           <>
-            {phaseDivider()}
-            <div className="mb-1">
-              {phaseHeader('Phase 1 · Analyse', phase1Status)}
-              <ul className="space-y-0.5">{phase1Items.map(renderItem)}</ul>
+            {/* Back button */}
+            <button
+              onClick={handleBackToOverview}
+              className="flex items-center gap-2 px-5 py-2 text-[11px] text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors w-full text-left"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span className="font-body">Zurück zur Übersicht</span>
+            </button>
+
+            {/* Project name area */}
+            <div className="px-5 py-3 border-b border-sidebar-foreground/[0.08] mb-2">
+              <div className="flex items-center gap-2">
+                {isDaily ? (
+                  <Printer className="h-4 w-4 text-sidebar-foreground/60 shrink-0" />
+                ) : (
+                  <Package className="h-4 w-4 text-sidebar-foreground/60 shrink-0" />
+                )}
+                <span className="font-heading font-bold text-sidebar-primary-foreground text-[14px] truncate">
+                  {project?.customer_name || 'Projekt'}
+                </span>
+              </div>
+              <p className="text-[11px] text-sidebar-foreground/40 mt-0.5 pl-6">
+                {isDaily ? 'Auftrag' : 'Projekt'} {project?.project_number ? `#${project.project_number}` : ''}
+              </p>
             </div>
-            {phaseDivider()}
-            <div className="mb-1">
-              {phaseHeader('Phase 2 · Planung', phase2Status)}
-              <ul className="space-y-0.5">{phase2Items.map(renderItem)}</ul>
-            </div>
-            {phaseDivider()}
-            <div className="mb-1">
-              {phaseHeader('Phase 3 · Rollout', phase3Status)}
-              <ul className="space-y-0.5">{phase3Items.map(renderItem)}</ul>
-            </div>
+
+            {/* MPS Project nav */}
+            {!isDaily && (
+              <>
+                <div className="mb-1">
+                  {phaseHeader('Phase 1 · Analyse', phase1Status)}
+                  <ul className="space-y-0.5">{phase1Items.map(renderItem)}</ul>
+                </div>
+                {phaseDivider()}
+                <div className="mb-1">
+                  {phaseHeader('Phase 2 · Planung', phase2Status)}
+                  <ul className="space-y-0.5">{phase2Items.map(renderItem)}</ul>
+                </div>
+                {phaseDivider()}
+                <div className="mb-1">
+                  {phaseHeader('Phase 3 · Rollout', phase3Status)}
+                  <ul className="space-y-0.5">{phase3Items.map(renderItem)}</ul>
+                </div>
+              </>
+            )}
+
+            {/* Daily nav */}
+            {isDaily && (
+              <>
+                <div className="mb-1">
+                  {phaseHeader('Auftrag')}
+                  <ul className="space-y-0.5">{dailyPhase1.map(renderItem)}</ul>
+                </div>
+                {phaseDivider()}
+                <div className="mb-1">
+                  {phaseHeader('Planung')}
+                  <ul className="space-y-0.5">{dailyPhase2.map(renderItem)}</ul>
+                </div>
+                {phaseDivider()}
+                <div className="mb-1">
+                  {phaseHeader('Ausführung')}
+                  <ul className="space-y-0.5">{dailyPhase3.map(renderItem)}</ul>
+                </div>
+              </>
+            )}
           </>
         )}
 
-        {hasProject && isDaily && (
+        {/* ── EBENE 1: Overview (no project selected) ── */}
+        {!hasProject && (
           <>
-            {phaseDivider()}
             <div className="mb-1">
-              {phaseHeader('Auftrag')}
-              <ul className="space-y-0.5">{dailyPhase1.map(renderItem)}</ul>
+              <div className="px-5 pt-2 pb-1">
+                <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">Übersicht</span>
+              </div>
+              <ul className="space-y-0.5">{overviewItems.map(renderItem)}</ul>
             </div>
+
             {phaseDivider()}
+
             <div className="mb-1">
-              {phaseHeader('Planung')}
-              <ul className="space-y-0.5">{dailyPhase2.map(renderItem)}</ul>
+              <div className="px-5 pt-4 pb-1">
+                <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">Übergreifend</span>
+              </div>
+              <ul className="space-y-0.5">{globalItems.map(renderItem)}</ul>
             </div>
+
             {phaseDivider()}
-            <div className="mb-1">
-              {phaseHeader('Ausführung')}
-              <ul className="space-y-0.5">{dailyPhase3.map(renderItem)}</ul>
+
+            <div className="mt-2">
+              <ul className="space-y-0.5">{bottomNav.map(renderItem)}</ul>
             </div>
           </>
         )}
-
-        {phaseDivider()}
-
-        {/* Global */}
-        <div className="mb-1">
-          <div className="px-5 pt-4 pb-1">
-            <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">
-              Allgemein
-            </span>
-          </div>
-          <ul className="space-y-0.5">{globalItems.map(renderItem)}</ul>
-        </div>
-
-        {phaseDivider()}
-
-        {/* Bottom */}
-        <div className="mt-2">
-          <ul className="space-y-0.5">{bottomNav.map(renderItem)}</ul>
-        </div>
       </nav>
 
+      {/* Progress footer for MPS projects */}
       {hasProject && !isDaily && (
         <div className="px-5 py-4 border-t border-sidebar-border">
           <div className="flex items-center justify-between mb-2">

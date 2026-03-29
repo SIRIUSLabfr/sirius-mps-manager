@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { Calendar as BigCalendar, dateFnsLocalizer, type View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
@@ -78,6 +79,7 @@ function useAllProjects() {
 }
 
 export default function KalenderPage() {
+  const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const { data: devices } = useAllDevicesWithDelivery();
   const { data: projects } = useAllProjects();
   const queryClient = useQueryClient();
@@ -86,7 +88,7 @@ export default function KalenderPage() {
   const [date, setDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [filterProject, setFilterProject] = useState<string>('all');
+  const [filterProject, setFilterProject] = useState<string>(urlProjectId || 'all');
   const [filterType, setFilterType] = useState<string>('all');
 
   const DAILY_COLOR = 'hsl(32,100%,50%)';
