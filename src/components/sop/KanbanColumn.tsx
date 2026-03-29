@@ -10,10 +10,11 @@ interface Props {
   color: string;
   items: Tables<'sop_orders'>[];
   getUserName: (id: string | null) => string | undefined;
+  getProjectType?: (projectId: string) => string;
   onCardClick: (sop: Tables<'sop_orders'>) => void;
 }
 
-export default function KanbanColumn({ id, title, color, items, getUserName, onCardClick }: Props) {
+export default function KanbanColumn({ id, title, color, items, getUserName, getProjectType, onCardClick }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
@@ -31,7 +32,13 @@ export default function KanbanColumn({ id, title, color, items, getUserName, onC
       >
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map(sop => (
-            <SopCard key={sop.id} sop={sop} technicianName={getUserName(sop.technician)} onClick={() => onCardClick(sop)} />
+            <SopCard
+              key={sop.id}
+              sop={sop}
+              technicianName={getUserName(sop.technician)}
+              projectType={getProjectType?.(sop.project_id)}
+              onClick={() => onCardClick(sop)}
+            />
           ))}
         </SortableContext>
         {items.length === 0 && (
