@@ -23,7 +23,8 @@ export function useZohoSync() {
     const ZOHO = (window as any).ZOHO;
     setSyncState(prev => ({ ...prev, status: 'syncing', errorMessage: undefined }));
     try {
-      await ZOHO.CRM.API.updateRecord({
+      const Z = (window as any).ZOHO;
+      await Z.CRM.API.updateRecord({
         Entity: 'Deals',
         APIData: { id: dealId, ...fieldUpdates },
         Trigger: ['workflow'],
@@ -32,7 +33,7 @@ export function useZohoSync() {
     } catch (err: any) {
       setSyncState({ lastSync: null, status: 'error', errorMessage: err?.message || 'Sync fehlgeschlagen' });
     }
-  }, [ZOHO]);
+  }, [isZohoAvailable]);
 
   const syncCalcData = useCallback(async (dealId: string | null, calcData: {
     totalRate?: number;
