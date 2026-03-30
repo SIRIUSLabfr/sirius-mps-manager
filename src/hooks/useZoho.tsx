@@ -28,9 +28,8 @@ export const ZohoProvider = ({ children }: { children: ReactNode }) => {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // 1. URL-Parameter prüfen (Custom Button "URL öffnen")
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlDealId = urlParams.get('deal_id') || urlParams.get('dealId') || urlParams.get('entityId');
+    // 1. Deal-ID aus sessionStorage (wurde in main.tsx synchron gespeichert)
+    const storedDealId = sessionStorage.getItem('zoho_deal_id');
 
     const initZohoSDK = () => {
       const Z = (window as any).ZOHO;
