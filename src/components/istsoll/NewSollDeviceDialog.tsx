@@ -48,16 +48,13 @@ export default function NewSollDeviceDialog({ open, onOpenChange, projectId, loc
   const [showProducts, setShowProducts] = useState(false);
 
   const handleSearchZoho = async () => {
-    if (!ZOHO || !searchTerm.trim()) return;
+    if (!isZohoAvailable() || !searchTerm.trim()) return;
     setSearching(true);
     setShowProducts(true);
     try {
-      const resp = await ZOHO.CRM.API.searchRecord({
-        Entity: 'Products',
-        Type: 'word',
-        Query: searchTerm,
-      });
-      setProducts(resp?.data || []);
+      const { zohoAPI } = await import('@/lib/zohoAPI');
+      const data = await zohoAPI.searchRecord('Products', searchTerm);
+      setProducts(data || []);
     } catch {
       setProducts([]);
     } finally {
