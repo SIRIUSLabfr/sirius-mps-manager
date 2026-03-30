@@ -168,10 +168,9 @@ export default function KalkulationPage() {
             ? cfg.service
             : { items: [] },
       });
-    } else if (allCalcs.length === 0 && activeProjectId && ZOHO?.CRM?.API && dealId) {
-      ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: dealId })
-        .then((resp: any) => {
-          const deal = resp?.data?.[0];
+    } else if (allCalcs.length === 0 && activeProjectId && isZohoAvailable() && dealId) {
+      zohoAPI.getRecord('Deals', dealId)
+        .then((deal: any) => {
           const raw = deal?.MPS_Config_JSON;
           if (raw) {
             try {
@@ -194,7 +193,7 @@ export default function KalkulationPage() {
         })
         .catch(() => { /* ignore */ });
     }
-  }, [activeCalc, allCalcs.length, activeProjectId, ZOHO, dealId]);
+  }, [activeCalc, allCalcs.length, activeProjectId, isZohoAvailable, dealId]);
 
   // ===== COMPUTED VALUES =====
   const residualValue = form.old_net_value * 0.03;
