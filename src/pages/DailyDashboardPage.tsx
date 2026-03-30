@@ -176,19 +176,19 @@ export default function DailyDashboardPage() {
           icon={<Calculator className="h-10 w-10 text-primary" />}
           title="Kalkulation starten"
           description="Geräte kalkulieren und Angebot berechnen"
-          onClick={() => navigate('/kalkulation')}
+          onClick={() => navigate(`/projekt/${projectId}/kalkulation`)}
         />
         <QuickAction
           icon={<Wrench className="h-10 w-10 text-primary" />}
           title="SOP erstellen"
           description="Serviceauftrag für Vorbereitung anlegen"
-          onClick={() => navigate('/sop')}
+          onClick={() => navigate(`/projekt/${projectId}/sop`)}
         />
         <QuickAction
           icon={<Calendar className="h-10 w-10 text-primary" />}
           title="Im Kalender planen"
           description="Liefertermin im Kalender einplanen"
-          onClick={() => navigate('/kalender')}
+          onClick={() => navigate(`/projekt/${projectId}/kalender`)}
         />
       </div>
 
