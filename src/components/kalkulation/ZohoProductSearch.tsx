@@ -39,7 +39,7 @@ export default function ZohoProductSearch({
   className,
   categoryFilter: legacyCategoryFilter,
 }: ZohoProductSearchProps) {
-  const { ZOHO } = useZoho();
+  const { isZohoAvailable } = useZoho();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,11 +51,11 @@ export default function ZohoProductSearch({
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const categories = legacyCategoryFilter || CATEGORY_MAP[filterType] || [];
-  const isZohoAvailable = !!ZOHO?.CRM?.API;
+  const zohoAvail = isZohoAvailable();
 
   useEffect(() => {
-    if (!isZohoAvailable) setManualMode(true);
-  }, [isZohoAvailable]);
+    if (!zohoAvail) setManualMode(true);
+  }, [zohoAvail]);
 
   // Close dropdown on outside click
   useEffect(() => {
