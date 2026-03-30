@@ -31,7 +31,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { setActiveProjectId } = useActiveProject();
-  const { ZOHO, dealId } = useZoho();
+  const { dealId, isZohoAvailable } = useZoho();
   const [selectedType, setSelectedType] = useState<ProjectType>(defaultType);
 
   // Reset to defaultType when dialog opens
@@ -131,13 +131,13 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
   };
 
   const loadFromZoho = async () => {
-    if (!ZOHO?.CRM) { toast.error('Zoho CRM nicht verfügbar (Dev Mode)'); return; }
+    if (!isZohoAvailable()) { toast.error('Zoho CRM nicht verfügbar (App läuft nicht im Zoho-iframe)'); return; }
     const id = dealId;
     if (!id) { toast.error('Keine Deal-ID verfügbar'); return; }
     setLoading(true);
     try {
-      const resp = await ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: id });
-      const deal = resp.data?.[0];
+      const { zohoAPI } = await import('@/lib/zohoAPI');
+      const deal = await zohoAPI.getRecord('Deals', id);
       if (deal) {
         const customerName = deal.Account_Name?.name || deal.Deal_Name || '';
         const contactName = deal.Contact_Name?.name || '';
@@ -155,7 +155,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
         toast.success('Daten aus Zoho Deal geladen');
       }
     } catch (err: any) {
-      toast.error('Zoho API Fehler: ' + err.message);
+      console.warn('Zoho API Fehler:', err);
     } finally { setLoading(false); }
   };
 

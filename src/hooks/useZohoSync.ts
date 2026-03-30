@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useZoho } from '@/hooks/useZoho';
+import { zohoAPI } from '@/lib/zohoAPI';
 
 export interface ZohoSyncState {
   lastSync: Date | null;
@@ -7,10 +8,6 @@ export interface ZohoSyncState {
   errorMessage?: string;
 }
 
-/**
- * Automatic Zoho CRM write-back hook.
- * Modules call syncToZoho(dealId, fields) to push data silently.
- */
 export function useZohoSync() {
   const { isZohoAvailable } = useZoho();
   const [syncState, setSyncState] = useState<ZohoSyncState>({
@@ -20,15 +17,9 @@ export function useZohoSync() {
 
   const syncToZoho = useCallback(async (dealId: string | null, fieldUpdates: Record<string, any>) => {
     if (!dealId || !isZohoAvailable()) return;
-    const ZOHO = (window as any).ZOHO;
     setSyncState(prev => ({ ...prev, status: 'syncing', errorMessage: undefined }));
     try {
-      const Z = (window as any).ZOHO;
-      await Z.CRM.API.updateRecord({
-        Entity: 'Deals',
-        APIData: { id: dealId, ...fieldUpdates },
-        Trigger: ['workflow'],
-      });
+      await zohoAPI.updateRecord('Deals', { id: dealId, ...fieldUpdates }, ['workflow']);
       setSyncState({ lastSync: new Date(), status: 'success' });
     } catch (err: any) {
       setSyncState({ lastSync: null, status: 'error', errorMessage: err?.message || 'Sync fehlgeschlagen' });

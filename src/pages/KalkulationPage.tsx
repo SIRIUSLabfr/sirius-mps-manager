@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useZoho } from '@/hooks/useZoho';
+import { zohoAPI } from '@/lib/zohoAPI';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -82,7 +83,7 @@ const defaultState: CalcState = {
 export default function KalkulationPage() {
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const { activeProjectId, setActiveProjectId } = useActiveProject();
-  const { ZOHO, dealId } = useZoho();
+  const { dealId, isZohoAvailable } = useZoho();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -168,10 +169,9 @@ export default function KalkulationPage() {
             ? cfg.service
             : { items: [] },
       });
-    } else if (allCalcs.length === 0 && activeProjectId && ZOHO?.CRM?.API && dealId) {
-      ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: dealId })
-        .then((resp: any) => {
-          const deal = resp?.data?.[0];
+    } else if (allCalcs.length === 0 && activeProjectId && isZohoAvailable() && dealId) {
+      zohoAPI.getRecord('Deals', dealId)
+        .then((deal: any) => {
           const raw = deal?.MPS_Config_JSON;
           if (raw) {
             try {
@@ -194,7 +194,7 @@ export default function KalkulationPage() {
         })
         .catch(() => { /* ignore */ });
     }
-  }, [activeCalc, allCalcs.length, activeProjectId, ZOHO, dealId]);
+  }, [activeCalc, allCalcs.length, activeProjectId, isZohoAvailable, dealId]);
 
   // ===== COMPUTED VALUES =====
   const residualValue = form.old_net_value * 0.03;
@@ -288,12 +288,10 @@ export default function KalkulationPage() {
   };
 
   const saveToZoho = async () => {
-    if (!ZOHO?.CRM?.API || !dealId) return;
+    if (!isZohoAvailable() || !dealId) return;
     try {
-      await ZOHO.CRM.API.updateRecord({
-        Entity: 'Deals', RecordID: dealId,
-        APIData: { id: dealId, MPS_Config_JSON: JSON.stringify(buildPayload().config_json) },
-        Trigger: [],
+      await zohoAPI.updateRecord('Deals', {
+        id: dealId, MPS_Config_JSON: JSON.stringify(buildPayload().config_json),
       });
     } catch { /* non-critical */ }
   };
@@ -310,16 +308,14 @@ export default function KalkulationPage() {
     const ok = await saveToSupabase();
     if (!ok) { setCreating(false); return; }
     await saveToZoho();
-    if (!ZOHO?.CRM?.FUNCTIONS || !dealId) { setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' }); setCreating(false); return; }
+    if (!isZohoAvailable() || !dealId) { setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' }); setCreating(false); return; }
     try {
       const mpsPayload = {
         ...buildPayload(), hardwareEkTotal,
         serviceMonthly: mischklick.totalServiceRate, abloeseTotal, hwMonthly, totalRate,
         volumes: { bw: mischklick.totalSwVolume, color: mischklick.totalColorVolume },
       };
-      await ZOHO.CRM.FUNCTIONS.execute('createMpsEstimateAdvanced', {
-        arguments: JSON.stringify({ potentialId: dealId, mpsFullData: mpsPayload }),
-      });
+      await zohoAPI.executeFunction('createMpsEstimateAdvanced', { potentialId: dealId, mpsFullData: mpsPayload });
       setStatusMsg({ type: 'success', text: 'Angebot erstellt' });
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: 'Angebotsfehler: ' + (err?.message || 'Unbekannt') });

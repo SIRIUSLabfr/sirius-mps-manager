@@ -28,7 +28,7 @@ interface ZohoProduct {
 }
 
 export default function NewSollDeviceDialog({ open, onOpenChange, projectId, locations, onCreated, nextDeviceNumber }: Props) {
-  const { ZOHO } = useZoho();
+  const { isZohoAvailable } = useZoho();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     soll_manufacturer: '',
@@ -48,16 +48,13 @@ export default function NewSollDeviceDialog({ open, onOpenChange, projectId, loc
   const [showProducts, setShowProducts] = useState(false);
 
   const handleSearchZoho = async () => {
-    if (!ZOHO || !searchTerm.trim()) return;
+    if (!isZohoAvailable() || !searchTerm.trim()) return;
     setSearching(true);
     setShowProducts(true);
     try {
-      const resp = await ZOHO.CRM.API.searchRecord({
-        Entity: 'Products',
-        Type: 'word',
-        Query: searchTerm,
-      });
-      setProducts(resp?.data || []);
+      const { zohoAPI } = await import('@/lib/zohoAPI');
+      const data = await zohoAPI.searchRecord('Products', searchTerm);
+      setProducts(data || []);
     } catch {
       setProducts([]);
     } finally {
@@ -118,7 +115,7 @@ export default function NewSollDeviceDialog({ open, onOpenChange, projectId, loc
 
         <div className="space-y-4">
           {/* Zoho Product Search */}
-          {ZOHO && (
+          {isZohoAvailable() && (
             <div className="space-y-2">
               <Label className="text-xs font-heading">Aus Zoho Products suchen</Label>
               <div className="flex gap-2">
