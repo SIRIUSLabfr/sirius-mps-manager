@@ -4,13 +4,8 @@ import { useZoho } from '@/hooks/useZoho';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { supabase } from '@/integrations/supabase/client';
 import NewProjectDialog from '@/components/projects/NewProjectDialog';
+import { zohoAPI } from '@/lib/zohoAPI';
 
-/**
- * Handles Zoho Deal-ID entry logic:
- * - Deal-ID matched → navigate to project
- * - Deal-ID not matched → show new project dialog
- * - No Deal-ID → do nothing (Ebene 1 overview)
- */
 export default function ZohoEntryRouter() {
   const { dealId, isReady, isZohoAvailable } = useZoho();
   const { setActiveProjectId } = useActiveProject();
@@ -26,7 +21,6 @@ export default function ZohoEntryRouter() {
       return;
     }
 
-    // Look up project by zoho_deal_id
     const lookupProject = async () => {
       const { data } = await supabase
         .from('projects')
@@ -35,22 +29,16 @@ export default function ZohoEntryRouter() {
         .maybeSingle();
 
       if (data) {
-        // Project found → navigate directly
         setActiveProjectId(data.id);
         navigate(`/projekt/${data.id}`, { replace: true });
       } else {
-        // No project → pre-fill from Zoho (only if SDK available in iframe)
         let preFill: any = { deal_id: dealId };
         if (isZohoAvailable()) {
-          try {
-            const ZOHO = (window as any).ZOHO;
-            const resp = await ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: dealId });
-            const deal = resp.data?.[0];
-            if (deal) {
-              preFill.customer_name = deal.Account_Name?.name || deal.Deal_Name || '';
-              preFill.contact_name = deal.Contact_Name?.name || '';
-            }
-          } catch { /* ignore */ }
+          const deal = await zohoAPI.getRecord('Deals', dealId);
+          if (deal) {
+            preFill.customer_name = deal.Account_Name?.name || deal.Deal_Name || '';
+            preFill.contact_name = deal.Contact_Name?.name || '';
+          }
         }
         setZohoPreFill(preFill);
         setDialogOpen(true);
