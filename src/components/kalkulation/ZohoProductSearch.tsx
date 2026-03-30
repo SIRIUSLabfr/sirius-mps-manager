@@ -70,18 +70,14 @@ export default function ZohoProductSearch({
 
   const search = useCallback(
     async (q: string) => {
-      if (!ZOHO?.CRM?.API || q.length < 2) {
+      if (!isZohoAvailable() || q.length < 2) {
         setResults([]);
         return;
       }
       setLoading(true);
       try {
-        const resp = await ZOHO.CRM.API.searchRecord({
-          Entity: 'Products',
-          Type: 'word',
-          Query: q,
-        });
-        const records: any[] = resp?.data || [];
+        const { zohoAPI } = await import('@/lib/zohoAPI');
+        const records: any[] = await zohoAPI.searchRecord('Products', q) || [];
         const filtered = records.filter((r: any) => {
           const cat = r.Product_Category || r.Produktkategorie || '';
           return categories.length === 0 || categories.some((c) => cat.includes(c));
@@ -94,7 +90,7 @@ export default function ZohoProductSearch({
         setLoading(false);
       }
     },
-    [ZOHO, categories]
+    [isZohoAvailable, categories]
   );
 
   const handleInputChange = (val: string) => {

@@ -115,7 +115,7 @@ export default function NewSollDeviceDialog({ open, onOpenChange, projectId, loc
 
         <div className="space-y-4">
           {/* Zoho Product Search */}
-          {ZOHO && (
+          {isZohoAvailable() && (
             <div className="space-y-2">
               <Label className="text-xs font-heading">Aus Zoho Products suchen</Label>
               <div className="flex gap-2">
