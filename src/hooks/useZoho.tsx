@@ -21,7 +21,9 @@ const ZohoCtx = createContext<ZohoContextType>({
 });
 
 export const ZohoProvider = ({ children }: { children: ReactNode }) => {
-  const [dealId, setDealId] = useState<string | null>(null);
+  const [dealId, setDealId] = useState<string | null>(() => {
+    return sessionStorage.getItem('zoho_deal_id') || null;
+  });
   const [zohoUser, setZohoUser] = useState<ZohoUser | null>(null);
   const [isReady, setIsReady] = useState(false);
 
