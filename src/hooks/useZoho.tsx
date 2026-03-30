@@ -43,8 +43,8 @@ export const ZohoProvider = ({ children }: { children: ReactNode }) => {
       }).catch(() => {});
     };
 
-    if (urlDealId) {
-      setDealId(urlDealId);
+    if (storedDealId) {
+      setDealId(storedDealId);
       setIsReady(true);
       initZohoSDK();
       return;
