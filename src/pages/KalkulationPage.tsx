@@ -287,12 +287,10 @@ export default function KalkulationPage() {
   };
 
   const saveToZoho = async () => {
-    if (!ZOHO?.CRM?.API || !dealId) return;
+    if (!isZohoAvailable() || !dealId) return;
     try {
-      await ZOHO.CRM.API.updateRecord({
-        Entity: 'Deals', RecordID: dealId,
-        APIData: { id: dealId, MPS_Config_JSON: JSON.stringify(buildPayload().config_json) },
-        Trigger: [],
+      await zohoAPI.updateRecord('Deals', {
+        id: dealId, MPS_Config_JSON: JSON.stringify(buildPayload().config_json),
       });
     } catch { /* non-critical */ }
   };
