@@ -12,17 +12,19 @@ export interface ZohoSyncState {
  * Modules call syncToZoho(dealId, fields) to push data silently.
  */
 export function useZohoSync() {
-  const { ZOHO } = useZoho();
+  const { isZohoAvailable } = useZoho();
   const [syncState, setSyncState] = useState<ZohoSyncState>({
     lastSync: null,
     status: 'idle',
   });
 
   const syncToZoho = useCallback(async (dealId: string | null, fieldUpdates: Record<string, any>) => {
-    if (!dealId || !ZOHO?.CRM) return;
+    if (!dealId || !isZohoAvailable()) return;
+    const ZOHO = (window as any).ZOHO;
     setSyncState(prev => ({ ...prev, status: 'syncing', errorMessage: undefined }));
     try {
-      await ZOHO.CRM.API.updateRecord({
+      const Z = (window as any).ZOHO;
+      await Z.CRM.API.updateRecord({
         Entity: 'Deals',
         APIData: { id: dealId, ...fieldUpdates },
         Trigger: ['workflow'],
@@ -31,7 +33,7 @@ export function useZohoSync() {
     } catch (err: any) {
       setSyncState({ lastSync: null, status: 'error', errorMessage: err?.message || 'Sync fehlgeschlagen' });
     }
-  }, [ZOHO]);
+  }, [isZohoAvailable]);
 
   const syncCalcData = useCallback(async (dealId: string | null, calcData: {
     totalRate?: number;

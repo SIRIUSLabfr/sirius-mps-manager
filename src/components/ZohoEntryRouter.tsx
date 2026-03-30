@@ -12,7 +12,7 @@ import NewProjectDialog from '@/components/projects/NewProjectDialog';
  * - No Deal-ID → do nothing (Ebene 1 overview)
  */
 export default function ZohoEntryRouter() {
-  const { dealId, isReady, ZOHO } = useZoho();
+  const { dealId, isReady, isZohoAvailable } = useZoho();
   const { setActiveProjectId } = useActiveProject();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -39,10 +39,11 @@ export default function ZohoEntryRouter() {
         setActiveProjectId(data.id);
         navigate(`/projekt/${data.id}`, { replace: true });
       } else {
-        // No project → pre-fill from Zoho and show dialog
+        // No project → pre-fill from Zoho (only if SDK available in iframe)
         let preFill: any = { deal_id: dealId };
-        if (ZOHO?.CRM) {
+        if (isZohoAvailable()) {
           try {
+            const ZOHO = (window as any).ZOHO;
             const resp = await ZOHO.CRM.API.getRecord({ Entity: 'Deals', RecordID: dealId });
             const deal = resp.data?.[0];
             if (deal) {
@@ -58,7 +59,7 @@ export default function ZohoEntryRouter() {
     };
 
     lookupProject();
-  }, [isReady, dealId, handled, ZOHO, navigate, setActiveProjectId]);
+  }, [isReady, dealId, handled, isZohoAvailable, navigate, setActiveProjectId]);
 
   return (
     <NewProjectDialog
