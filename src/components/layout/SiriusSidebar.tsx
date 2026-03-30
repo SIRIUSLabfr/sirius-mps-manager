@@ -126,6 +126,7 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
   );
 
   const handleBackToOverview = () => {
+    sessionStorage.removeItem('zoho_deal_id');
     setActiveProjectId(null);
     navigate('/projekte');
     onMobileClose?.();
