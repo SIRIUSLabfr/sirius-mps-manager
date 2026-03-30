@@ -12,14 +12,15 @@ export interface ZohoSyncState {
  * Modules call syncToZoho(dealId, fields) to push data silently.
  */
 export function useZohoSync() {
-  const { ZOHO } = useZoho();
+  const { isZohoAvailable } = useZoho();
   const [syncState, setSyncState] = useState<ZohoSyncState>({
     lastSync: null,
     status: 'idle',
   });
 
   const syncToZoho = useCallback(async (dealId: string | null, fieldUpdates: Record<string, any>) => {
-    if (!dealId || !ZOHO?.CRM) return;
+    if (!dealId || !isZohoAvailable()) return;
+    const ZOHO = (window as any).ZOHO;
     setSyncState(prev => ({ ...prev, status: 'syncing', errorMessage: undefined }));
     try {
       await ZOHO.CRM.API.updateRecord({
