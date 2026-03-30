@@ -40,10 +40,10 @@ interface TopbarProps {
 
 export default function Topbar({ onMenuToggle }: TopbarProps) {
   const location = useLocation();
-  const { zohoUser, ZOHO } = useZoho();
+  const { zohoUser, isZohoAvailable } = useZoho();
   const { activeProjectId } = useActiveProject();
   const { data: project } = useProject(activeProjectId);
-  const isZohoAvailable = !!ZOHO?.embeddedApp;
+  const zohoConnected = isZohoAvailable();
 
   // Build breadcrumb
   let currentRoute = routeNames[location.pathname] || '';

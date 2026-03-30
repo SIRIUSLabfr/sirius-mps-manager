@@ -28,7 +28,7 @@ interface ZohoProduct {
 }
 
 export default function NewSollDeviceDialog({ open, onOpenChange, projectId, locations, onCreated, nextDeviceNumber }: Props) {
-  const { ZOHO } = useZoho();
+  const { isZohoAvailable } = useZoho();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     soll_manufacturer: '',
