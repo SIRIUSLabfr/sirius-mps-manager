@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useZoho } from '@/hooks/useZoho';
+import { zohoAPI } from '@/lib/zohoAPI';
 import { toast } from 'sonner';
 import { Send, StickyNote, Loader2 } from 'lucide-react';
 import type { ConceptConfig } from '@/hooks/useConceptData';
@@ -15,14 +16,14 @@ interface Props {
 }
 
 export default function ZohoConceptActions({ config, project, devices, calculation }: Props) {
-  const { dealId, ZOHO, isReady } = useZoho();
+  const { dealId, isReady, isZohoAvailable } = useZoho();
   const [pushing, setPushing] = useState(false);
   const [noting, setNoting] = useState(false);
 
   const sollDevices = devices.filter(d => d.soll_model);
   const customerName = config.overrides.customer_name || project.customer_name;
 
-  if (!isReady || !dealId || !ZOHO?.CRM) return null;
+  if (!isReady || !dealId || !isZohoAvailable()) return null;
 
   const handlePushToZoho = async () => {
     if (!calculation) {
@@ -31,21 +32,14 @@ export default function ZohoConceptActions({ config, project, devices, calculati
     }
     setPushing(true);
     try {
-      const updateData = {
+      await zohoAPI.updateRecord('Deals', {
         id: dealId,
         MPS_Monthly_Rate: calculation.total_monthly_rate || 0,
         MPS_Device_Count: sollDevices.length,
         MPS_Term_Months: calculation.term_months || 60,
         MPS_Finance_Type: calculation.finance_type === 'leasing' ? 'Leasing' : 'Miete',
         MPS_Config_JSON: JSON.stringify(calculation.config_json),
-      };
-
-      await ZOHO.CRM.API.updateRecord({
-        Entity: 'Deals',
-        APIData: updateData,
-        Trigger: ['workflow'],
-      });
-
+      }, ['workflow']);
       toast.success('Daten erfolgreich an Zoho übergeben');
     } catch (err: any) {
       console.error('Zoho push error:', err);
@@ -84,13 +78,7 @@ export default function ZohoConceptActions({ config, project, devices, calculati
         blocks.push(config.texts.abschluss);
       }
 
-      await ZOHO.CRM.API.addNotes({
-        Entity: 'Deals',
-        RecordID: dealId,
-        Title: `MPS Konzept – ${customerName}`,
-        Note_Content: blocks.join('\n'),
-      });
-
+      await zohoAPI.addNotes('Deals', dealId, `MPS Konzept – ${customerName}`, blocks.join('\n'));
       toast.success('Konzept als Notiz an Zoho Deal angehängt');
     } catch (err: any) {
       console.error('Zoho note error:', err);

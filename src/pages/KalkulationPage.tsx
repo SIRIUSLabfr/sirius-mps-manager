@@ -307,16 +307,14 @@ export default function KalkulationPage() {
     const ok = await saveToSupabase();
     if (!ok) { setCreating(false); return; }
     await saveToZoho();
-    if (!ZOHO?.CRM?.FUNCTIONS || !dealId) { setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' }); setCreating(false); return; }
+    if (!isZohoAvailable() || !dealId) { setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' }); setCreating(false); return; }
     try {
       const mpsPayload = {
         ...buildPayload(), hardwareEkTotal,
         serviceMonthly: mischklick.totalServiceRate, abloeseTotal, hwMonthly, totalRate,
         volumes: { bw: mischklick.totalSwVolume, color: mischklick.totalColorVolume },
       };
-      await ZOHO.CRM.FUNCTIONS.execute('createMpsEstimateAdvanced', {
-        arguments: JSON.stringify({ potentialId: dealId, mpsFullData: mpsPayload }),
-      });
+      await zohoAPI.executeFunction('createMpsEstimateAdvanced', { potentialId: dealId, mpsFullData: mpsPayload });
       setStatusMsg({ type: 'success', text: 'Angebot erstellt' });
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: 'Angebotsfehler: ' + (err?.message || 'Unbekannt') });
