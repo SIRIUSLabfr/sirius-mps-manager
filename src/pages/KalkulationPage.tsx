@@ -83,7 +83,7 @@ const defaultState: CalcState = {
 export default function KalkulationPage() {
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const { activeProjectId, setActiveProjectId } = useActiveProject();
-  const { dealId, isZohoAvailable } = useZoho();
+  const { dealId } = useZoho();
   const queryClient = useQueryClient();
 
   useEffect(() => {
