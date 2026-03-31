@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { CalendarIcon, Package, Printer, Check } from 'lucide-react';
+import { CalendarIcon, Package, Printer, Check, Loader2, LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useZoho } from '@/hooks/useZoho';
+import { Badge } from '@/components/ui/badge';
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -33,10 +34,17 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
   const { setActiveProjectId } = useActiveProject();
   const { dealId } = useZoho();
   const [selectedType, setSelectedType] = useState<ProjectType>(defaultType);
+  const [isLoadingDeal, setIsLoadingDeal] = useState(false);
+  const [dealLoaded, setDealLoaded] = useState(false);
+  const [dealLoadError, setDealLoadError] = useState(false);
 
   // Reset to defaultType when dialog opens
   useEffect(() => {
-    if (open) setSelectedType(defaultType);
+    if (open) {
+      setSelectedType(defaultType);
+      setDealLoaded(false);
+      setDealLoadError(false);
+    }
   }, [open, defaultType]);
 
   // MPS Project form
@@ -63,11 +71,92 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
 
   const [loading, setLoading] = useState(false);
 
-  // Pre-fill from zoho props
+  // Resolve the effective deal ID from props or context
+  const effectiveDealId = zohoPreFill?.deal_id || dealId;
+
+  // Load deal data from Zoho when dialog opens with a deal_id
+  useEffect(() => {
+    if (!open || !effectiveDealId || dealLoaded) return;
+
+    const loadDealData = async () => {
+      setIsLoadingDeal(true);
+      setDealLoadError(false);
+      try {
+        const response = await fetch('/.netlify/functions/zoho-api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ endpoint: `Deals/${effectiveDealId}`, method: 'GET' }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const deal = result?.data?.[0];
+          if (deal) {
+            const customerName = deal.Account_Name?.name || (typeof deal.Account_Name === 'string' ? deal.Account_Name : '') || deal.Deal_Name || '';
+            const contactName = deal.Contact_Name?.name || (typeof deal.Contact_Name === 'string' ? deal.Contact_Name : '') || '';
+            const dealNumber = deal.Deal_Number ? String(deal.Deal_Number) : '';
+            const description = deal.Description || '';
+            const closingDate = deal.Closing_Date ? new Date(deal.Closing_Date) : undefined;
+            const shippingAddress = [deal.Shipping_Street, deal.Shipping_City].filter(Boolean).join(', ');
+
+            // Pre-fill MPS form
+            setForm(f => ({
+              ...f,
+              customer_name: customerName || f.customer_name,
+              project_number: dealNumber || f.project_number,
+              project_name: deal.Deal_Name || f.project_name,
+              zoho_deal_id: effectiveDealId,
+            }));
+            if (closingDate && !isNaN(closingDate.getTime())) {
+              setRolloutEnd(closingDate);
+            }
+
+            // Pre-fill daily form
+            setDailyForm(f => ({
+              ...f,
+              customer_name: customerName || f.customer_name,
+              contact_name: contactName || f.contact_name,
+              project_number: dealNumber || f.project_number,
+              delivery_address: shippingAddress || f.delivery_address,
+              note: description || f.note,
+            }));
+            if (closingDate && !isNaN(closingDate.getTime())) {
+              setDeliveryDate(closingDate);
+            }
+
+            setDealLoaded(true);
+          }
+        } else if (response.status === 401) {
+          console.log('Zoho nicht verbunden, Felder bleiben leer');
+          setDealLoadError(true);
+        }
+      } catch (e) {
+        console.warn('Deal-Daten konnten nicht geladen werden:', e);
+        setDealLoadError(true);
+      } finally {
+        setIsLoadingDeal(false);
+      }
+    };
+
+    // Set zoho_deal_id immediately
+    setForm(f => ({ ...f, zoho_deal_id: effectiveDealId }));
+    loadDealData();
+  }, [open, effectiveDealId, dealLoaded]);
+
+  // Pre-fill from zoho props (fallback if API call fails)
   useEffect(() => {
     if (zohoPreFill && open) {
-      setForm(f => ({ ...f, customer_name: zohoPreFill.customer_name || '', zoho_deal_id: zohoPreFill.deal_id || '' }));
-      setDailyForm(f => ({ ...f, customer_name: zohoPreFill.customer_name || '', contact_name: zohoPreFill.contact_name || '' }));
+      if (zohoPreFill.customer_name) {
+        setForm(f => ({ ...f, customer_name: f.customer_name || zohoPreFill.customer_name || '' }));
+        setDailyForm(f => ({ ...f, customer_name: f.customer_name || zohoPreFill.customer_name || '' }));
+      }
+      if (zohoPreFill.contact_name) {
+        setDailyForm(f => ({ ...f, contact_name: f.contact_name || zohoPreFill.contact_name || '' }));
+      }
+      if (zohoPreFill.deal_id) {
+        setForm(f => ({ ...f, zoho_deal_id: zohoPreFill.deal_id || '' }));
+      }
     }
   }, [zohoPreFill, open]);
 
@@ -143,6 +232,27 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
             {showTypeSelection ? 'Neuer Vorgang' : selectedType === 'project' ? 'Neues MPS-Projekt' : 'Neuer Tagesgeschäft-Auftrag'}
           </DialogTitle>
         </DialogHeader>
+
+        {/* Zoho Deal info */}
+        {effectiveDealId && (
+          <div className="space-y-1">
+            <Badge variant="outline" className="text-xs gap-1 font-normal">
+              <LinkIcon className="h-3 w-3" />
+              Zoho Deal: {effectiveDealId}
+            </Badge>
+            {isLoadingDeal && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Lade Deal-Daten aus Zoho...
+              </div>
+            )}
+            {dealLoadError && !isLoadingDeal && (
+              <p className="text-xs text-muted-foreground">
+                Deal-Daten konnten nicht geladen werden. Bitte manuell ausfüllen.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Type selection */}
         {showTypeSelection && (
