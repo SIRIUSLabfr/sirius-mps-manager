@@ -622,9 +622,15 @@ export default function KalkulationPage() {
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   Zwischenspeichern
                 </Button>
-                <Button className="flex-1 gap-2 font-heading shadow-lg" style={{ backgroundColor: '#00A3E0' }} onClick={handleCreateEstimate} disabled={creating}>
+                <Button
+                  className="flex-1 gap-2 font-heading shadow-lg"
+                  style={{ backgroundColor: isZohoConnected ? '#00A3E0' : undefined }}
+                  variant={isZohoConnected ? 'default' : 'outline'}
+                  onClick={handleCreateEstimate}
+                  disabled={creating}
+                >
                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                  Angebot erstellen
+                  {creating ? 'Wird erstellt…' : isZohoConnected ? 'Angebot erstellen' : 'Zoho verbinden für Angebot'}
                 </Button>
               </div>
               {statusMsg && (
