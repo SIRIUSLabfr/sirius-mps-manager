@@ -25,7 +25,33 @@ const ZohoCtx = createContext<ZohoContextType>({
 
 const checkZohoSDK = (): boolean => {
   try {
-    return window.self !== window.top && !!(window as any).ZOHO?.embeddedApp;
+    const isInIframe = window.self !== window.top;
+    if (!isInIframe) return false;
+
+    const ZOHO = (window as any).ZOHO;
+    if (!ZOHO?.embeddedApp) return false;
+
+    // Prüfe ob init eine echte Funktion ist (nicht ein Proxy/Mock)
+    if (typeof ZOHO.embeddedApp.init !== 'function') return false;
+    if (typeof ZOHO.embeddedApp.on !== 'function') return false;
+
+    // Prüfe ob wir im Zoho-iframe sind (nicht Lovable-Preview o.ä.)
+    // Zoho setzt ein spezielles __widgetHost oder die Parent-Referenz hat zoho im Origin
+    try {
+      const parentOrigin = document.referrer || '';
+      const isZohoParent = parentOrigin.includes('zoho') || parentOrigin.includes('zohostatic');
+      // Zusätzlich: Zoho SDK setzt intern __widgetHost
+      const hasWidgetHost = !!(ZOHO as any).__widgetHost || !!(ZOHO.embeddedApp as any).__widgetHost;
+      
+      if (!isZohoParent && !hasWidgetHost) {
+        console.log('[Zoho] iframe erkannt, aber KEIN Zoho-Kontext (document.referrer:', parentOrigin, ')');
+        return false;
+      }
+    } catch {
+      // Bei Cross-Origin-Fehlern: Sicherheitshalber als Zoho behandeln
+    }
+
+    return true;
   } catch {
     return false;
   }
