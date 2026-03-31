@@ -76,7 +76,7 @@ export default function KalkSummary({
             {fmt(totalRate)} €
           </p>
           <p className="text-[10px] text-white/50">
-            {financeType === 'leasing' ? 'Leasing (Bank)' : 'Miete (Eigen)'} · {termMonths} Monate
+            {financeType === 'leasing' ? 'Leasing (Bank)' : financeType === 'eigenmiete' ? 'Eigenmiete (SIRIUS)' : financeType === 'kauf_wv' ? 'Kauf + WV' : financeType === 'all_in' ? 'All-In-Vertrag' : 'Miete (Eigen)'} · {termMonths} Monate
           </p>
         </CardContent>
       </Card>
@@ -126,8 +126,8 @@ export default function KalkSummary({
             Aufschlüsselung
           </p>
           <Row
-            label={financeType === 'leasing' ? 'Hardware Rate (Leasing)' : 'Hardware Rate (Miete)'}
-            value={`${fmt(hwMonthly)} € / Mon.`}
+            label={financeType === 'leasing' || financeType === 'all_in' ? 'Hardware Rate (Leasing)' : financeType === 'kauf_wv' ? 'Hardware Kaufpreis' : 'Hardware Rate (Miete)'}
+            value={financeType === 'kauf_wv' ? `${fmt(investTotal)} €` : `${fmt(hwMonthly)} € / Mon.`}
           />
           <Row label="Service Rate (alle Klicks)" value={`${fmt(mischklick.totalServiceRate)} € / Mon.`} />
           <Separator />

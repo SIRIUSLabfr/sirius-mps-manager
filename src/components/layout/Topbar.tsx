@@ -1,8 +1,9 @@
 import { useLocation } from 'react-router-dom';
-import { User, Menu } from 'lucide-react';
+import { User, Menu, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useProject } from '@/hooks/useProjectData';
+import { useZoho } from '@/hooks/useZoho';
 
 const routeNames: Record<string, string> = {
   '/projekte': 'MPS-Projekte',
@@ -38,6 +39,7 @@ export default function Topbar({ onMenuToggle }: TopbarProps) {
   const location = useLocation();
   const { activeProjectId } = useActiveProject();
   const { data: project } = useProject(activeProjectId);
+  const { isZohoConnected, zohoUser, connectZoho } = useZoho();
 
   // Build breadcrumb
   let currentRoute = routeNames[location.pathname] || '';
@@ -70,6 +72,21 @@ export default function Topbar({ onMenuToggle }: TopbarProps) {
 
       {/* Right */}
       <div className="flex items-center gap-3 shrink-0">
+        {/* Zoho connection status */}
+        {isZohoConnected ? (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            <span className="hidden sm:inline truncate max-w-[140px]">
+              {zohoUser?.full_name || 'Zoho verbunden'}
+            </span>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={connectZoho}>
+            <Zap className="h-3 w-3" />
+            <span className="hidden sm:inline">Mit Zoho verbinden</span>
+          </Button>
+        )}
+
         <div className="flex items-center gap-2 text-sm font-body">
           <User className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-muted-foreground hidden sm:inline">SIRIUS MPS</span>
