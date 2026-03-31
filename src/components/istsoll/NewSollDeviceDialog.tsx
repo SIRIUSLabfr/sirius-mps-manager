@@ -18,16 +18,7 @@ interface Props {
   nextDeviceNumber: number;
 }
 
-interface ZohoProduct {
-  id: string;
-  Product_Name: string;
-  Product_Category?: string;
-  Unit_Price?: number;
-  Manufacturer?: string;
-}
-
 export default function NewSollDeviceDialog({ open, onOpenChange, projectId, locations, onCreated, nextDeviceNumber }: Props) {
-  const { isZohoAvailable } = useZoho();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     soll_manufacturer: '',
@@ -39,37 +30,6 @@ export default function NewSollDeviceDialog({ open, onOpenChange, projectId, loc
     soll_room: '',
     location_id: '',
   });
-
-  // Zoho product search
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [products, setProducts] = useState<ZohoProduct[]>([]);
-  const [showProducts, setShowProducts] = useState(false);
-
-  const handleSearchZoho = async () => {
-    if (!isZohoAvailable() || !searchTerm.trim()) return;
-    setSearching(true);
-    setShowProducts(true);
-    try {
-      const { zohoAPI } = await import('@/lib/zohoAPI');
-      const data = await zohoAPI.searchRecord('Products', searchTerm);
-      setProducts(data || []);
-    } catch {
-      setProducts([]);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const handleSelectProduct = (p: ZohoProduct) => {
-    setForm(prev => ({
-      ...prev,
-      soll_manufacturer: p.Manufacturer || prev.soll_manufacturer,
-      soll_model: p.Product_Name || prev.soll_model,
-    }));
-    setShowProducts(false);
-    setSearchTerm('');
-  };
 
   const handleSave = async () => {
     if (!form.soll_manufacturer && !form.soll_model) {
