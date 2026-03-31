@@ -73,46 +73,6 @@ export default function NewSollDeviceDialog({ open, onOpenChange, projectId, loc
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Zoho Product Search */}
-          {isZohoAvailable() && (
-            <div className="space-y-2">
-              <Label className="text-xs font-heading">Aus Zoho Products suchen</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Produktname suchen..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSearchZoho()}
-                  className="text-sm"
-                />
-                <Button variant="outline" size="icon" onClick={handleSearchZoho} disabled={searching}>
-                  {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                </Button>
-              </div>
-              {showProducts && (
-                <div className="border border-border rounded-lg max-h-40 overflow-y-auto bg-card">
-                  {products.length === 0 ? (
-                    <p className="text-xs text-muted-foreground p-3">Keine Ergebnisse</p>
-                  ) : products.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => handleSelectProduct(p)}
-                      className="w-full text-left px-3 py-2 hover:bg-muted/50 flex items-center gap-2 border-b border-border/50 last:border-0"
-                    >
-                      <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{p.Product_Name}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {[p.Manufacturer, p.Product_Category, p.Unit_Price ? `${p.Unit_Price.toLocaleString('de-DE')} €` : null].filter(Boolean).join(' · ')}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Hersteller</Label>

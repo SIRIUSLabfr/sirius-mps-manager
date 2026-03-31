@@ -1,12 +1,8 @@
 import { useLocation } from 'react-router-dom';
-import { User, Wifi, WifiOff, Menu, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useZoho } from '@/hooks/useZoho';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useProject } from '@/hooks/useProjectData';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
 
 const routeNames: Record<string, string> = {
   '/projekte': 'MPS-Projekte',
@@ -40,10 +36,8 @@ interface TopbarProps {
 
 export default function Topbar({ onMenuToggle }: TopbarProps) {
   const location = useLocation();
-  const { zohoUser, isZohoAvailable } = useZoho();
   const { activeProjectId } = useActiveProject();
   const { data: project } = useProject(activeProjectId);
-  const zohoConnected = isZohoAvailable();
 
   // Build breadcrumb
   let currentRoute = routeNames[location.pathname] || '';
@@ -74,37 +68,11 @@ export default function Topbar({ onMenuToggle }: TopbarProps) {
         </nav>
       </div>
 
-      {/* Right: Zoho sync status + user */}
+      {/* Right */}
       <div className="flex items-center gap-3 shrink-0">
-        {isZohoAvailable && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1.5 text-xs text-secondary cursor-default">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline font-heading">Zoho verbunden</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p className="text-xs">Automatischer Sync aktiv. Daten werden bei Änderungen automatisch nach Zoho geschrieben.</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
-
         <div className="flex items-center gap-2 text-sm font-body">
-          {isZohoAvailable ? (
-            <>
-              <Wifi className="h-3.5 w-3.5 text-secondary" />
-              <User className="h-3.5 w-3.5 text-muted-foreground hidden sm:block" />
-              <span className="text-foreground hidden sm:inline">{zohoUser?.full_name || 'Laden...'}</span>
-            </>
-          ) : (
-            <>
-              <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-muted-foreground hidden sm:inline">Offline / Dev Mode</span>
-            </>
-          )}
+          <User className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground hidden sm:inline">SIRIUS MPS</span>
         </div>
       </div>
     </header>
