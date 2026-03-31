@@ -31,7 +31,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { setActiveProjectId } = useActiveProject();
-  const { dealId, isZohoAvailable } = useZoho();
+  const { dealId } = useZoho();
   const [selectedType, setSelectedType] = useState<ProjectType>(defaultType);
 
   // Reset to defaultType when dialog opens
