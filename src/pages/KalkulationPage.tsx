@@ -169,32 +169,8 @@ export default function KalkulationPage() {
             ? cfg.service
             : { items: [] },
       });
-    } else if (allCalcs.length === 0 && activeProjectId && isZohoAvailable() && dealId) {
-      zohoAPI.getRecord('Deals', dealId)
-        .then((deal: any) => {
-          const raw = deal?.MPS_Config_JSON;
-          if (raw) {
-            try {
-              const cfg = typeof raw === 'string' ? JSON.parse(raw) : raw;
-              setForm((prev) => ({
-                ...prev,
-                ...cfg,
-                deviceGroups: cfg.deviceGroups?.length
-                  ? cfg.deviceGroups.map((g: any) => ({ ...g, page_prices: g.page_prices || createEmptyPagePrices() }))
-                  : [createEmptyGroup()],
-                service: cfg.mix_service_items
-                  ? { items: cfg.mix_service_items }
-                  : cfg.service?.items
-                    ? cfg.service
-                    : { items: [] },
-              }));
-              toast.info('Daten aus Zoho Deal importiert');
-            } catch { /* ignore */ }
-          }
-        })
-        .catch(() => { /* ignore */ });
     }
-  }, [activeCalc, allCalcs.length, activeProjectId, isZohoAvailable, dealId]);
+  }, [activeCalc, allCalcs.length, activeProjectId]);
 
   // ===== COMPUTED VALUES =====
   const residualValue = form.old_net_value * 0.03;
