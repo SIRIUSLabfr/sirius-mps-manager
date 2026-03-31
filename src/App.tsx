@@ -28,6 +28,41 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+/** Root "/" prüft ob eine deal_id im sessionStorage steckt und leitet entsprechend weiter */
+function RootRedirect() {
+  const navigate = useNavigate();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    const dealId = sessionStorage.getItem('zoho_deal_id');
+    if (!dealId) {
+      navigate('/projekte', { replace: true });
+      setChecked(true);
+      return;
+    }
+
+    // Projekt in Supabase suchen
+    import("@/integrations/supabase/client").then(async ({ supabase }) => {
+      const { data } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('zoho_deal_id', dealId)
+        .maybeSingle();
+
+      if (data) {
+        navigate(`/projekt/${data.id}`, { replace: true });
+      } else {
+        // ZohoEntryRouter handled den Dialog
+        navigate('/projekte', { replace: true });
+      }
+      setChecked(true);
+    });
+  }, [navigate]);
+
+  if (!checked) return null;
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
