@@ -170,9 +170,6 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
         {selectedType === 'project' && (
           <div className="space-y-4 py-2">
             <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={loadFromZoho} disabled={loading} className="font-heading text-xs">
-                {loading ? 'Laden...' : 'Aus Zoho Deal laden'}
-              </Button>
               {!defaultType && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedType(null)} className="text-xs">← Zurück</Button>
               )}
