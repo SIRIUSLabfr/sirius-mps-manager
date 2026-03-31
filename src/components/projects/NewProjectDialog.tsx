@@ -233,6 +233,27 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
           </DialogTitle>
         </DialogHeader>
 
+        {/* Zoho Deal info */}
+        {effectiveDealId && (
+          <div className="space-y-1">
+            <Badge variant="outline" className="text-xs gap-1 font-normal">
+              <LinkIcon className="h-3 w-3" />
+              Zoho Deal: {effectiveDealId}
+            </Badge>
+            {isLoadingDeal && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Lade Deal-Daten aus Zoho...
+              </div>
+            )}
+            {dealLoadError && !isLoadingDeal && (
+              <p className="text-xs text-muted-foreground">
+                Deal-Daten konnten nicht geladen werden. Bitte manuell ausfüllen.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Type selection */}
         {showTypeSelection && (
           <div className="grid grid-cols-2 gap-4 py-4">
