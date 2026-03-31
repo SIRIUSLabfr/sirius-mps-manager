@@ -178,9 +178,11 @@ export default function KalkulationPage() {
   const hardwareEkTotal = form.deviceGroups.reduce((s, g) => s + calcGroupEk(g), 0);
   const investTotal = hardwareEkTotal + form.margin_total + abloeseTotal;
   const hwMonthly =
-    form.finance_type === 'leasing'
+    form.finance_type === 'leasing' || form.finance_type === 'all_in'
       ? investTotal * form.leasing_factor
-      : form.term_months > 0 ? investTotal / form.term_months : 0;
+      : form.finance_type === 'kauf_wv'
+        ? 0
+        : form.term_months > 0 ? investTotal / form.term_months : 0;
 
   const groupPageData = useMemo(() => {
     let swCost = 0, swVol = 0, colorCost = 0, colorVol = 0;
