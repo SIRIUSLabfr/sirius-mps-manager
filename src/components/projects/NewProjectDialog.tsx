@@ -130,34 +130,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
     setDeliveryDate(undefined);
   };
 
-  const loadFromZoho = async () => {
-    if (!isZohoAvailable()) { toast.error('Zoho CRM nicht verfügbar (App läuft nicht im Zoho-iframe)'); return; }
-    const id = dealId;
-    if (!id) { toast.error('Keine Deal-ID verfügbar'); return; }
-    setLoading(true);
-    try {
-      const { zohoAPI } = await import('@/lib/zohoAPI');
-      const deal = await zohoAPI.getRecord('Deals', id);
-      if (deal) {
-        const customerName = deal.Account_Name?.name || deal.Deal_Name || '';
-        const contactName = deal.Contact_Name?.name || '';
-        setForm(prev => ({
-          ...prev,
-          customer_name: customerName,
-          project_name: deal.Deal_Name || '',
-          zoho_deal_id: id,
-        }));
-        setDailyForm(prev => ({
-          ...prev,
-          customer_name: customerName,
-          contact_name: contactName,
-        }));
-        toast.success('Daten aus Zoho Deal geladen');
-      }
-    } catch (err: any) {
-      console.warn('Zoho API Fehler:', err);
-    } finally { setLoading(false); }
-  };
+  // loadFromZoho entfernt – SDK nicht mehr verfügbar
 
   const canSubmit = selectedType === 'project' ? !!form.customer_name : !!dailyForm.customer_name;
   const showTypeSelection = !defaultType && !selectedType;
