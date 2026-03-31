@@ -38,7 +38,7 @@ const App = () => (
             <Routes>
               <Route element={<DashboardLayout />}>
                 {/* Ebene 1: Overview */}
-                <Route path="/" element={<Navigate to="/projekte" replace />} />
+                <Route path="/" element={<RootRedirect />} />
                 <Route path="/projekte" element={<ProjectListPage />} />
                 <Route path="/tagesgeschaeft" element={<TagesgeschaeftListPage />} />
                 <Route path="/sop" element={<SopPage />} />
