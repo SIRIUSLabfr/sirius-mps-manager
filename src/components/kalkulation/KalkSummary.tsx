@@ -76,7 +76,7 @@ export default function KalkSummary({
             {fmt(totalRate)} €
           </p>
           <p className="text-[10px] text-white/50">
-            {financeType === 'leasing' ? 'Leasing (Bank)' : 'Miete (Eigen)'} · {termMonths} Monate
+            {financeType === 'leasing' ? 'Leasing (Bank)' : financeType === 'eigenmiete' ? 'Eigenmiete (SIRIUS)' : financeType === 'kauf_wv' ? 'Kauf + WV' : financeType === 'all_in' ? 'All-In-Vertrag' : 'Miete (Eigen)'} · {termMonths} Monate
           </p>
         </CardContent>
       </Card>
