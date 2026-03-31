@@ -565,7 +565,7 @@ export default function KalkulationPage() {
               </div>
               {numField('Laufzeit (Monate)', 'term_months', { step: '1' })}
               {numField('Marge (Hardware Gesamt) €', 'margin_total', { suffix: '€', step: '50' })}
-              {form.finance_type === 'leasing' && numField('Leasingfaktor', 'leasing_factor', { step: '0.0001' })}
+              {(form.finance_type === 'leasing' || form.finance_type === 'all_in') && numField('Leasingfaktor', 'leasing_factor', { step: '0.0001' })}
               <DateField label="Vertragsstart" value={form.contract_start} onChange={(d) => setForm((f) => ({ ...f, contract_start: d }))} />
               <DateField label="Lieferung" value={form.delivery_date} onChange={(d) => setForm((f) => ({ ...f, delivery_date: d }))} />
             </CardContent>
