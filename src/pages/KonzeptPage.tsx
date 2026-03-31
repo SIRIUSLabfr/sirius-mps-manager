@@ -262,7 +262,7 @@ export default function KonzeptPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-heading font-bold text-foreground">Konzept</h1>
         <div className="flex gap-2 flex-wrap">
-          <ZohoConceptActions config={config} project={project} devices={devices} calculation={calculation} />
+          <ZohoConceptActions />
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setPreviewOpen(!previewOpen)}>
             <Eye className="h-4 w-4" /> {previewOpen ? 'Ausblenden' : 'Vorschau'}
           </Button>

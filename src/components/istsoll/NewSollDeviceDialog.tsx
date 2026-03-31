@@ -4,10 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useZoho } from '@/hooks/useZoho';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, Loader2, Package } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 interface Props {
@@ -19,16 +18,7 @@ interface Props {
   nextDeviceNumber: number;
 }
 
-interface ZohoProduct {
-  id: string;
-  Product_Name: string;
-  Product_Category?: string;
-  Unit_Price?: number;
-  Manufacturer?: string;
-}
-
 export default function NewSollDeviceDialog({ open, onOpenChange, projectId, locations, onCreated, nextDeviceNumber }: Props) {
-  const { isZohoAvailable } = useZoho();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     soll_manufacturer: '',
@@ -40,37 +30,6 @@ export default function NewSollDeviceDialog({ open, onOpenChange, projectId, loc
     soll_room: '',
     location_id: '',
   });
-
-  // Zoho product search
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [products, setProducts] = useState<ZohoProduct[]>([]);
-  const [showProducts, setShowProducts] = useState(false);
-
-  const handleSearchZoho = async () => {
-    if (!isZohoAvailable() || !searchTerm.trim()) return;
-    setSearching(true);
-    setShowProducts(true);
-    try {
-      const { zohoAPI } = await import('@/lib/zohoAPI');
-      const data = await zohoAPI.searchRecord('Products', searchTerm);
-      setProducts(data || []);
-    } catch {
-      setProducts([]);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const handleSelectProduct = (p: ZohoProduct) => {
-    setForm(prev => ({
-      ...prev,
-      soll_manufacturer: p.Manufacturer || prev.soll_manufacturer,
-      soll_model: p.Product_Name || prev.soll_model,
-    }));
-    setShowProducts(false);
-    setSearchTerm('');
-  };
 
   const handleSave = async () => {
     if (!form.soll_manufacturer && !form.soll_model) {
@@ -114,46 +73,6 @@ export default function NewSollDeviceDialog({ open, onOpenChange, projectId, loc
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Zoho Product Search */}
-          {isZohoAvailable() && (
-            <div className="space-y-2">
-              <Label className="text-xs font-heading">Aus Zoho Products suchen</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Produktname suchen..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSearchZoho()}
-                  className="text-sm"
-                />
-                <Button variant="outline" size="icon" onClick={handleSearchZoho} disabled={searching}>
-                  {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                </Button>
-              </div>
-              {showProducts && (
-                <div className="border border-border rounded-lg max-h-40 overflow-y-auto bg-card">
-                  {products.length === 0 ? (
-                    <p className="text-xs text-muted-foreground p-3">Keine Ergebnisse</p>
-                  ) : products.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => handleSelectProduct(p)}
-                      className="w-full text-left px-3 py-2 hover:bg-muted/50 flex items-center gap-2 border-b border-border/50 last:border-0"
-                    >
-                      <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{p.Product_Name}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {[p.Manufacturer, p.Product_Category, p.Unit_Price ? `${p.Unit_Price.toLocaleString('de-DE')} €` : null].filter(Boolean).join(' · ')}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Hersteller</Label>

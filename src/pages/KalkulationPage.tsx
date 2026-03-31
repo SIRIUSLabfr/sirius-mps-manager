@@ -83,7 +83,7 @@ const defaultState: CalcState = {
 export default function KalkulationPage() {
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const { activeProjectId, setActiveProjectId } = useActiveProject();
-  const { dealId, isZohoAvailable } = useZoho();
+  const { dealId } = useZoho();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -169,32 +169,8 @@ export default function KalkulationPage() {
             ? cfg.service
             : { items: [] },
       });
-    } else if (allCalcs.length === 0 && activeProjectId && isZohoAvailable() && dealId) {
-      zohoAPI.getRecord('Deals', dealId)
-        .then((deal: any) => {
-          const raw = deal?.MPS_Config_JSON;
-          if (raw) {
-            try {
-              const cfg = typeof raw === 'string' ? JSON.parse(raw) : raw;
-              setForm((prev) => ({
-                ...prev,
-                ...cfg,
-                deviceGroups: cfg.deviceGroups?.length
-                  ? cfg.deviceGroups.map((g: any) => ({ ...g, page_prices: g.page_prices || createEmptyPagePrices() }))
-                  : [createEmptyGroup()],
-                service: cfg.mix_service_items
-                  ? { items: cfg.mix_service_items }
-                  : cfg.service?.items
-                    ? cfg.service
-                    : { items: [] },
-              }));
-              toast.info('Daten aus Zoho Deal importiert');
-            } catch { /* ignore */ }
-          }
-        })
-        .catch(() => { /* ignore */ });
     }
-  }, [activeCalc, allCalcs.length, activeProjectId, isZohoAvailable, dealId]);
+  }, [activeCalc, allCalcs.length, activeProjectId]);
 
   // ===== COMPUTED VALUES =====
   const residualValue = form.old_net_value * 0.03;
@@ -287,14 +263,8 @@ export default function KalkulationPage() {
     return true;
   };
 
-  const saveToZoho = async () => {
-    if (!isZohoAvailable() || !dealId) return;
-    try {
-      await zohoAPI.updateRecord('Deals', {
-        id: dealId, MPS_Config_JSON: JSON.stringify(buildPayload().config_json),
-      });
-    } catch { /* non-critical */ }
-  };
+  // saveToZoho entfernt – SDK nicht mehr verfügbar
+  const saveToZoho = async () => {};
 
   const handleSave = async () => {
     setSaving(true); setStatusMsg(null);
@@ -308,18 +278,8 @@ export default function KalkulationPage() {
     const ok = await saveToSupabase();
     if (!ok) { setCreating(false); return; }
     await saveToZoho();
-    if (!isZohoAvailable() || !dealId) { setStatusMsg({ type: 'error', text: 'Zoho nicht verfügbar' }); setCreating(false); return; }
-    try {
-      const mpsPayload = {
-        ...buildPayload(), hardwareEkTotal,
-        serviceMonthly: mischklick.totalServiceRate, abloeseTotal, hwMonthly, totalRate,
-        volumes: { bw: mischklick.totalSwVolume, color: mischklick.totalColorVolume },
-      };
-      await zohoAPI.executeFunction('createMpsEstimateAdvanced', { potentialId: dealId, mpsFullData: mpsPayload });
-      setStatusMsg({ type: 'success', text: 'Angebot erstellt' });
-    } catch (err: any) {
-      setStatusMsg({ type: 'error', text: 'Angebotsfehler: ' + (err?.message || 'Unbekannt') });
-    }
+    // Angebotserstellung über Zoho entfernt – wird später über REST API umgesetzt
+    setStatusMsg({ type: 'error', text: 'Angebotserstellung noch nicht verfügbar (Zoho SDK entfernt)' });
     setCreating(false);
   };
 

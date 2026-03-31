@@ -31,7 +31,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { setActiveProjectId } = useActiveProject();
-  const { dealId, isZohoAvailable } = useZoho();
+  const { dealId } = useZoho();
   const [selectedType, setSelectedType] = useState<ProjectType>(defaultType);
 
   // Reset to defaultType when dialog opens
@@ -130,34 +130,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
     setDeliveryDate(undefined);
   };
 
-  const loadFromZoho = async () => {
-    if (!isZohoAvailable()) { toast.error('Zoho CRM nicht verfügbar (App läuft nicht im Zoho-iframe)'); return; }
-    const id = dealId;
-    if (!id) { toast.error('Keine Deal-ID verfügbar'); return; }
-    setLoading(true);
-    try {
-      const { zohoAPI } = await import('@/lib/zohoAPI');
-      const deal = await zohoAPI.getRecord('Deals', id);
-      if (deal) {
-        const customerName = deal.Account_Name?.name || deal.Deal_Name || '';
-        const contactName = deal.Contact_Name?.name || '';
-        setForm(prev => ({
-          ...prev,
-          customer_name: customerName,
-          project_name: deal.Deal_Name || '',
-          zoho_deal_id: id,
-        }));
-        setDailyForm(prev => ({
-          ...prev,
-          customer_name: customerName,
-          contact_name: contactName,
-        }));
-        toast.success('Daten aus Zoho Deal geladen');
-      }
-    } catch (err: any) {
-      console.warn('Zoho API Fehler:', err);
-    } finally { setLoading(false); }
-  };
+  // loadFromZoho entfernt – SDK nicht mehr verfügbar
 
   const canSubmit = selectedType === 'project' ? !!form.customer_name : !!dailyForm.customer_name;
   const showTypeSelection = !defaultType && !selectedType;
@@ -197,9 +170,6 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
         {selectedType === 'project' && (
           <div className="space-y-4 py-2">
             <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={loadFromZoho} disabled={loading} className="font-heading text-xs">
-                {loading ? 'Laden...' : 'Aus Zoho Deal laden'}
-              </Button>
               {!defaultType && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedType(null)} className="text-xs">← Zurück</Button>
               )}
@@ -259,9 +229,6 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
         {selectedType === 'daily' && (
           <div className="space-y-4 py-2">
             <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={loadFromZoho} disabled={loading} className="font-heading text-xs">
-                {loading ? 'Laden...' : 'Aus Zoho Deal laden'}
-              </Button>
               {!defaultType && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedType(null)} className="text-xs">← Zurück</Button>
               )}
