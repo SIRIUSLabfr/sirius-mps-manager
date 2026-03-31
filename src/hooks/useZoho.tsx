@@ -19,6 +19,12 @@ const ZohoCtx = createContext<ZohoContextType>({
 
 export const ZohoProvider = ({ children }: { children: ReactNode }) => {
   const [dealId] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('deal_id') || params.get('dealId') || params.get('entityId');
+    if (urlId) {
+      sessionStorage.setItem('zoho_deal_id', urlId);
+      return urlId;
+    }
     return sessionStorage.getItem('zoho_deal_id') || null;
   });
 
