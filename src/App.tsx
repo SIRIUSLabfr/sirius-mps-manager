@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ZohoProvider } from "@/hooks/useZoho";
 import { ActiveProjectProvider } from "@/hooks/useActiveProject";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import ZohoEntryRouter from "@/components/ZohoEntryRouter";
+import NewProjectDialog from "@/components/projects/NewProjectDialog";
 import ProjectListPage from "./pages/ProjectListPage";
 import TagesgeschaeftListPage from "./pages/TagesgeschaeftListPage";
 import ProjectDashboardPage from "./pages/ProjectDashboardPage";
