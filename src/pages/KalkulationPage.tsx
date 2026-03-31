@@ -263,23 +263,114 @@ export default function KalkulationPage() {
     return true;
   };
 
-  // saveToZoho entfernt – SDK nicht mehr verfügbar
-  const saveToZoho = async () => {};
+  const { isZohoConnected, connectZoho } = useZoho();
 
   const handleSave = async () => {
     setSaving(true); setStatusMsg(null);
     const ok = await saveToSupabase();
-    if (ok) { await saveToZoho(); setStatusMsg({ type: 'success', text: 'Erfolgreich gespeichert' }); }
+    if (ok) {
+      // Write-back to Zoho if connected
+      if (isZohoConnected && dealId) {
+        try {
+          await zohoClient.updateDeal(dealId, {
+            MPS_Monatliche_Rate: totalRate,
+            MPS_Geraeteanzahl: form.deviceGroups.reduce((s, g) => s + g.mainQuantity, 0),
+            MPS_Laufzeit_Monate: form.term_months,
+            MPS_Finanzierungsart: form.finance_type,
+          });
+        } catch (e) {
+          console.warn('Zoho Write-Back fehlgeschlagen:', e);
+        }
+      }
+      setStatusMsg({ type: 'success', text: 'Erfolgreich gespeichert' });
+    }
     setSaving(false);
   };
 
   const handleCreateEstimate = async () => {
+    if (!isZohoConnected) {
+      connectZoho();
+      return;
+    }
+    if (!dealId) {
+      setStatusMsg({ type: 'error', text: 'Keine Deal-ID vorhanden. App mit ?deal_id=... öffnen.' });
+      return;
+    }
     setCreating(true); setStatusMsg(null);
     const ok = await saveToSupabase();
     if (!ok) { setCreating(false); return; }
-    await saveToZoho();
-    // Angebotserstellung über Zoho entfernt – wird später über REST API umgesetzt
-    setStatusMsg({ type: 'error', text: 'Angebotserstellung noch nicht verfügbar (Zoho SDK entfernt)' });
+
+    try {
+      const payload = buildPayload();
+      const cfg = payload.config_json as any;
+      const c = cfg.calculated;
+      const groups = cfg.device_groups || [];
+
+      const fmt2 = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const fmt4d = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
+      // Build line items
+      const lineItems: any[] = [];
+      groups.forEach((group: any) => {
+        lineItems.push({ Product_Description: `── STANDORT: ${group.label || 'Unbenannt'} ──`, quantity: 0, list_price: 0, Discount: 0, net_total: 0 });
+        if (group.mainDevice?.name) {
+          lineItems.push({ product: group.mainDevice.id && !group.mainDevice.id.startsWith('manual-') ? { id: group.mainDevice.id } : undefined, Product_Description: group.mainDevice.name, quantity: group.mainQuantity || 1, list_price: group.mainDevice.price || 0, Discount: 0 });
+        }
+        (group.accessories || []).forEach((acc: any) => {
+          if (acc.product?.name) {
+            lineItems.push({ product: acc.product.id && !acc.product.id.startsWith('manual-') ? { id: acc.product.id } : undefined, Product_Description: acc.product.name, quantity: acc.quantity || 1, list_price: acc.product.price || 0, Discount: 0 });
+          }
+        });
+        const pp = group.page_prices;
+        if (pp?.bw) lineItems.push({ Product_Description: `Seitenpreis S/W (${pp.bw.volume?.toLocaleString('de-DE')} S/M)`, quantity: pp.bw.volume || 0, list_price: pp.bw.price || 0, Discount: 0 });
+        if (pp?.color) lineItems.push({ Product_Description: `Seitenpreis Farbe (${pp.color.volume?.toLocaleString('de-DE')} S/M)`, quantity: pp.color.volume || 0, list_price: pp.color.price || 0, Discount: 0 });
+      });
+
+      // Summary description
+      const financeLabels: Record<string, string> = { leasing: 'Leasing (Bank)', miete: 'Miete (Eigen)', eigenmiete: 'Eigenmiete (SIRIUS)', kauf_wv: 'Kauf + Wartungsvertrag', all_in: 'All-In-Vertrag' };
+      const summaryLines = [
+        'ZUSAMMENFASSUNG',
+        `Gesamtvolumen S/W: ${c.total_volume_bw?.toLocaleString('de-DE')} S/M`,
+        `Gesamtvolumen Farbe: ${c.total_volume_color?.toLocaleString('de-DE')} S/M`,
+        `Mischklick S/W: ${fmt4d(c.mischklick_bw || 0)} €`,
+        `Mischklick Farbe: ${fmt4d(c.mischklick_color || 0)} €`,
+        `Vertragsart: ${financeLabels[form.finance_type] || form.finance_type}`,
+        `Laufzeit: ${form.term_months} Monate`,
+        `Monatliche Rate: ${fmt2(c.total_rate || 0)} €`,
+      ];
+
+      const quotePayload = {
+        data: [{
+          Subject: `MPS Kostenvoranschlag`,
+          Deal_Name: { id: dealId },
+          Valid_Till: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+          Description: summaryLines.join('\n'),
+          Terms_and_Conditions: `Laufzeit: ${form.term_months} Monate ab Lieferung. Preise zzgl. MwSt.`,
+          Quoted_Items: lineItems,
+        }],
+      };
+
+      const result = await zohoClient.createQuote(quotePayload);
+      if (result?.data?.[0]?.status === 'success') {
+        toast.success('Kostenvoranschlag in Zoho CRM erstellt!');
+        // Update deal fields
+        await zohoClient.updateDeal(dealId, {
+          MPS_Monatliche_Rate: c.total_rate,
+          MPS_Geraeteanzahl: groups.reduce((s: number, g: any) => s + (g.mainQuantity || 1), 0),
+          MPS_Laufzeit_Monate: form.term_months,
+          MPS_Finanzierungsart: form.finance_type,
+          MPS_Volumen_SW: c.total_volume_bw,
+          MPS_Volumen_Farbe: c.total_volume_color,
+          MPS_Mischklick_SW: c.mischklick_bw,
+          MPS_Mischklick_Farbe: c.mischklick_color,
+        });
+        setStatusMsg({ type: 'success', text: 'Kostenvoranschlag erstellt!' });
+      } else {
+        setStatusMsg({ type: 'error', text: 'Fehler beim Erstellen: ' + JSON.stringify(result) });
+      }
+    } catch (e: any) {
+      setStatusMsg({ type: 'error', text: 'Fehler: ' + (e.message || e) });
+    }
     setCreating(false);
   };
 
