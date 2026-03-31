@@ -4,10 +4,9 @@ import { useZoho } from '@/hooks/useZoho';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { supabase } from '@/integrations/supabase/client';
 import NewProjectDialog from '@/components/projects/NewProjectDialog';
-import { zohoAPI } from '@/lib/zohoAPI';
 
 export default function ZohoEntryRouter() {
-  const { dealId, isReady, isZohoAvailable } = useZoho();
+  const { dealId, isReady } = useZoho();
   const { setActiveProjectId } = useActiveProject();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -32,22 +31,14 @@ export default function ZohoEntryRouter() {
         setActiveProjectId(data.id);
         navigate(`/projekt/${data.id}`, { replace: true });
       } else {
-        let preFill: any = { deal_id: dealId };
-        if (isZohoAvailable()) {
-          const deal = await zohoAPI.getRecord('Deals', dealId);
-          if (deal) {
-            preFill.customer_name = deal.Account_Name?.name || deal.Deal_Name || '';
-            preFill.contact_name = deal.Contact_Name?.name || '';
-          }
-        }
-        setZohoPreFill(preFill);
+        setZohoPreFill({ deal_id: dealId });
         setDialogOpen(true);
       }
       setHandled(true);
     };
 
     lookupProject();
-  }, [isReady, dealId, handled, isZohoAvailable, navigate, setActiveProjectId]);
+  }, [isReady, dealId, handled, navigate, setActiveProjectId]);
 
   return (
     <NewProjectDialog

@@ -1,143 +1,28 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { zohoAPI } from '@/lib/zohoAPI';
-
-interface ZohoUser {
-  id: string;
-  full_name: string;
-  email: string;
-}
+import { createContext, useContext, useState, ReactNode } from 'react';
 
 interface ZohoContextType {
   dealId: string | null;
-  zohoUser: ZohoUser | null;
   isReady: boolean;
-  isZohoConnected: boolean;
-  isZohoAvailable: () => boolean;
 }
 
 const ZohoCtx = createContext<ZohoContextType>({
   dealId: null,
-  zohoUser: null,
   isReady: false,
-  isZohoConnected: false,
-  isZohoAvailable: () => false,
 });
 
-const checkZohoSDK = (): boolean => {
-  try {
-    const isInIframe = window.self !== window.top;
-    if (!isInIframe) return false;
-
-    const ZOHO = (window as any).ZOHO;
-    if (!ZOHO?.embeddedApp) return false;
-
-    // Prüfe ob init eine echte Funktion ist (nicht ein Proxy/Mock)
-    if (typeof ZOHO.embeddedApp.init !== 'function') return false;
-    if (typeof ZOHO.embeddedApp.on !== 'function') return false;
-
-    // Prüfe ob wir im Zoho-iframe sind (nicht Lovable-Preview o.ä.)
-    // Zoho setzt ein spezielles __widgetHost oder die Parent-Referenz hat zoho im Origin
-    try {
-      const parentOrigin = document.referrer || '';
-      const isZohoParent = parentOrigin.includes('zoho') || parentOrigin.includes('zohostatic');
-      // Zusätzlich: Zoho SDK setzt intern __widgetHost
-      const hasWidgetHost = !!(ZOHO as any).__widgetHost || !!(ZOHO.embeddedApp as any).__widgetHost;
-      
-      if (!isZohoParent && !hasWidgetHost) {
-        console.log('[Zoho] iframe erkannt, aber KEIN Zoho-Kontext (document.referrer:', parentOrigin, ')');
-        return false;
-      }
-    } catch {
-      // Bei Cross-Origin-Fehlern: Sicherheitshalber als Zoho behandeln
-    }
-
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 export const ZohoProvider = ({ children }: { children: ReactNode }) => {
-  const [dealId, setDealId] = useState<string | null>(
-    sessionStorage.getItem('zoho_deal_id')
-  );
-  const [zohoUser, setZohoUser] = useState<ZohoUser | null>(null);
-  const [isReady, setIsReady] = useState(false);
-  const [isZohoConnected, setIsZohoConnected] = useState(false);
-
-  const checkAvailable = (): boolean => {
-    try {
-      const isInIframe = window.self !== window.top;
-      const Z = (window as any).ZOHO;
-      return isInIframe && !!Z?.CRM?.API;
-    } catch { return false; }
-  };
-
-  useEffect(() => {
-    const ZOHO = (window as any).ZOHO;
-    const sdkAvailable = checkZohoSDK();
-
-    console.log('[Zoho] SDK check:', { sdkAvailable, hasZOHO: !!ZOHO, inIframe: (() => { try { return window.self !== window.top; } catch { return false; } })() });
-
-    if (sdkAvailable) {
-      console.log('[Zoho] SDK verfügbar, initialisiere...');
-
-      // WICHTIG: Zuerst Listener registrieren, DANN init()
-      ZOHO.embeddedApp.on("PageLoad", function(data: any) {
-        console.log('[Zoho] PageLoad Event:', JSON.stringify(data));
-
-        if (data) {
-          const entityId = data.EntityId || data.entityId || data.entity_id;
-          if (entityId) {
-            const id = Array.isArray(entityId) ? entityId[0] : String(entityId);
-            console.log('[Zoho] Deal-ID erkannt:', id);
-            setDealId(id);
-            sessionStorage.setItem('zoho_deal_id', id);
-          }
-        }
-        setIsReady(true);
-      });
-
-      // DANN init aufrufen
-      ZOHO.embeddedApp.init()
-        .then(async function() {
-          console.log('[Zoho] SDK init erfolgreich');
-          setIsZohoConnected(true);
-
-          const user = await zohoAPI.getCurrentUser();
-          if (user) {
-            console.log('[Zoho] User:', user.full_name);
-            setZohoUser({ id: user.id, full_name: user.full_name, email: user.email });
-          }
-
-          try {
-            ZOHO.CRM.UI.Resize({ height: "100%", width: "100%" }).catch(() => {});
-          } catch {}
-        })
-        .catch(function(err: any) {
-          console.warn('[Zoho] SDK init Fehler:', err);
-          setIsReady(true);
-        });
-
-      // Timeout falls PageLoad nie feuert
-      setTimeout(() => {
-        setIsReady(prev => {
-          if (!prev) {
-            console.warn('[Zoho] PageLoad Timeout - setze ready ohne Deal-ID');
-            return true;
-          }
-          return prev;
-        });
-      }, 5000);
-
-    } else {
-      console.log('[Zoho] Kein SDK, nutze URL-Parameter. Deal-ID:', sessionStorage.getItem('zoho_deal_id'));
-      setIsReady(true);
+  const [dealId] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('deal_id') || params.get('dealId') || params.get('entityId');
+    if (urlId) {
+      sessionStorage.setItem('zoho_deal_id', urlId);
+      return urlId;
     }
-  }, []);
+    return sessionStorage.getItem('zoho_deal_id') || null;
+  });
 
   return (
-    <ZohoCtx.Provider value={{ dealId, zohoUser, isReady, isZohoConnected, isZohoAvailable: checkAvailable }}>
+    <ZohoCtx.Provider value={{ dealId, isReady: true }}>
       {children}
     </ZohoCtx.Provider>
   );
