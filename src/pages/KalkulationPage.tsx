@@ -557,7 +557,9 @@ export default function KalkulationPage() {
                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="leasing">Leasing (Bank)</SelectItem>
-                    <SelectItem value="miete">Miete (Eigen)</SelectItem>
+                    <SelectItem value="eigenmiete">Eigenmiete (SIRIUS)</SelectItem>
+                    <SelectItem value="kauf_wv">Kauf + Wartungsvertrag</SelectItem>
+                    <SelectItem value="all_in">All-In-Vertrag</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
