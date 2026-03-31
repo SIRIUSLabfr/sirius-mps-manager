@@ -263,14 +263,8 @@ export default function KalkulationPage() {
     return true;
   };
 
-  const saveToZoho = async () => {
-    if (!isZohoAvailable() || !dealId) return;
-    try {
-      await zohoAPI.updateRecord('Deals', {
-        id: dealId, MPS_Config_JSON: JSON.stringify(buildPayload().config_json),
-      });
-    } catch { /* non-critical */ }
-  };
+  // saveToZoho entfernt – SDK nicht mehr verfügbar
+  const saveToZoho = async () => {};
 
   const handleSave = async () => {
     setSaving(true); setStatusMsg(null);
