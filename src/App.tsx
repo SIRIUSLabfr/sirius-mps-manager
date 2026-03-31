@@ -1,11 +1,13 @@
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ZohoProvider } from "@/hooks/useZoho";
-import { ActiveProjectProvider } from "@/hooks/useActiveProject";
+import { ZohoProvider, useZoho } from "@/hooks/useZoho";
+import { ActiveProjectProvider, useActiveProject } from "@/hooks/useActiveProject";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import ZohoEntryRouter from "@/components/ZohoEntryRouter";
+import NewProjectDialog from "@/components/projects/NewProjectDialog";
 import ProjectListPage from "./pages/ProjectListPage";
 import TagesgeschaeftListPage from "./pages/TagesgeschaeftListPage";
 import ProjectDashboardPage from "./pages/ProjectDashboardPage";
@@ -27,6 +29,58 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function RootRedirect() {
+  const { dealId } = useZoho();
+  const { setActiveProjectId } = useActiveProject();
+  const navigate = useNavigate();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [zohoPreFill, setZohoPreFill] = useState<{ deal_id?: string }>({});
+  const [resolved, setResolved] = useState(false);
+
+  useEffect(() => {
+    if (resolved) return;
+    if (!dealId) {
+      setResolved(true);
+      return;
+    }
+
+    const lookup = async () => {
+      const { data } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('zoho_deal_id', dealId)
+        .maybeSingle();
+
+      if (data) {
+        setActiveProjectId(data.id);
+        navigate(`/projekt/${data.id}`, { replace: true });
+      } else {
+        setZohoPreFill({ deal_id: dealId });
+        setDialogOpen(true);
+      }
+      setResolved(true);
+    };
+
+    lookup();
+  }, [dealId, resolved, navigate, setActiveProjectId]);
+
+  if (!resolved && dealId) {
+    return null; // wait for lookup
+  }
+
+  if (!dealId && resolved) {
+    return <Navigate to="/projekte" replace />;
+  }
+
+  return (
+    <NewProjectDialog
+      open={dialogOpen}
+      onOpenChange={setDialogOpen}
+      zohoPreFill={zohoPreFill}
+    />
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -34,11 +88,10 @@ const App = () => (
         <ActiveProjectProvider>
           <Toaster position="bottom-right" />
           <BrowserRouter>
-            <ZohoEntryRouter />
             <Routes>
               <Route element={<DashboardLayout />}>
                 {/* Ebene 1: Overview */}
-                <Route path="/" element={<Navigate to="/projekte" replace />} />
+                <Route path="/" element={<RootRedirect />} />
                 <Route path="/projekte" element={<ProjectListPage />} />
                 <Route path="/tagesgeschaeft" element={<TagesgeschaeftListPage />} />
                 <Route path="/sop" element={<SopPage />} />

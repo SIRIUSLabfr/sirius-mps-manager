@@ -7,6 +7,13 @@
     <meta name="description" content="SIRIUS MPS Manager - Managed Print Services Dashboard" />
   </head>
   <body>
+    <script>
+      var params = new URLSearchParams(window.location.search);
+      var dealId = params.get('deal_id') || params.get('dealId') || params.get('entityId');
+      if (dealId) {
+        sessionStorage.setItem('zoho_deal_id', dealId);
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
