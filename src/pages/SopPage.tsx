@@ -102,6 +102,11 @@ export default function SopPage() {
     return u?.short_code || u?.full_name || undefined;
   }, [users]);
 
+  const getCustomerName = useCallback((projectId: string) => {
+    const p = projects?.find(p => p.id === projectId);
+    return p?.customer_name || '';
+  }, [projects]);
+
   // Build project color map (only active non-daily projects)
   const { projectColorMap, legendProjects } = useMemo(() => {
     if (!projects || !sopOrders) return { projectColorMap: {} as Record<string, string>, legendProjects: [] as typeof projects };
