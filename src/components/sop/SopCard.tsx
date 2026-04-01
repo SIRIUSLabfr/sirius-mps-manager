@@ -8,11 +8,11 @@ import type { Tables } from '@/integrations/supabase/types';
 interface Props {
   sop: Tables<'sop_orders'>;
   technicianName?: string;
-  projectType?: string;
+  projectColor?: string;
   onClick: () => void;
 }
 
-export default function SopCard({ sop, technicianName, projectType, onClick }: Props) {
+export default function SopCard({ sop, technicianName, projectColor, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sop.id });
 
   const style = {
@@ -25,53 +25,58 @@ export default function SopCard({ sop, technicianName, projectType, onClick }: P
       ref={setNodeRef}
       style={style}
       className={cn(
-        'bg-card border border-border rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow group',
+        'border border-border rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow group',
         isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/30'
       )}
       onClick={onClick}
     >
-      <div className="flex items-start gap-2">
-        <button {...attributes} {...listeners} className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing shrink-0">
-          <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <div>
-            <p className="font-heading font-bold text-sm leading-tight truncate">{sop.model || '–'}</p>
-            <p className="text-[11px] text-muted-foreground">{sop.manufacturer || ''}</p>
+      {/* Colored left accent bar */}
+      <div className="flex gap-2">
+        {projectColor && (
+          <div className="w-1 rounded-full shrink-0" style={{ backgroundColor: projectColor }} />
+        )}
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-start gap-1.5">
+            <button {...attributes} {...listeners} className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing shrink-0">
+              <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+            <div className="flex-1 min-w-0">
+              {/* Line 1: Manufacturer + Model */}
+              <p className="text-xs text-muted-foreground truncate">
+                {[sop.manufacturer, sop.model].filter(Boolean).join(' · ') || '–'}
+              </p>
+
+              {/* Line 2: Device ID (larger) */}
+              {(sop.device_internal_id || sop.serial_number || sop.ow_number) && (
+                <p className="text-sm font-heading font-bold truncate leading-tight">
+                  {sop.device_internal_id || sop.serial_number || sop.ow_number}
+                </p>
+              )}
+
+              {/* Line 3: Room */}
+              {(sop.room || sop.floor) && (
+                <p className="text-[11px] text-muted-foreground truncate">
+                  📍 {[sop.floor, sop.room].filter(Boolean).join(' / ')}
+                </p>
+              )}
+            </div>
           </div>
 
-          {sop.serial_number && (
-            <p className="text-[10px] text-muted-foreground font-mono truncate">SN: {sop.serial_number}</p>
-          )}
-
-          {sop.delivery_address && (
-            <p className="text-[10px] text-muted-foreground truncate">📍 {sop.delivery_address}</p>
-          )}
-
+          {/* Line 4: Dates + Technician */}
           <div className="flex items-center gap-2 flex-wrap">
-            {projectType && (
-              <span className={cn(
-                'text-[9px] font-heading font-bold px-1.5 py-0.5 rounded',
-                projectType === 'daily'
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'bg-primary/10 text-primary'
-              )}>
-                {projectType === 'daily' ? '🖨️ Tagesgeschäft' : '📦 Projekt'}
-              </span>
-            )}
             {sop.delivery_date && (
               <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-body">
-                {format(new Date(sop.delivery_date), 'dd.MM.yyyy')}
+                📦 {format(new Date(sop.delivery_date), 'dd.MM.')}
+              </span>
+            )}
+            {sop.end_check_date && (
+              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-body">
+                ✅ {format(new Date(sop.end_check_date), 'dd.MM.')}
               </span>
             )}
             {technicianName && (
-              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-heading font-bold">
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-heading font-bold ml-auto">
                 {technicianName}
-              </span>
-            )}
-            {sop.ow_number && (
-              <span className="text-[10px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded font-mono">
-                {sop.ow_number}
               </span>
             )}
           </div>

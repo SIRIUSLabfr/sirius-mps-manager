@@ -10,11 +10,11 @@ interface Props {
   color: string;
   items: Tables<'sop_orders'>[];
   getUserName: (id: string | null) => string | undefined;
-  getProjectType?: (projectId: string) => string;
+  getProjectColor: (projectId: string) => string | undefined;
   onCardClick: (sop: Tables<'sop_orders'>) => void;
 }
 
-export default function KanbanColumn({ id, title, color, items, getUserName, getProjectType, onCardClick }: Props) {
+export default function KanbanColumn({ id, title, color, items, getUserName, getProjectColor, onCardClick }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
@@ -36,7 +36,7 @@ export default function KanbanColumn({ id, title, color, items, getUserName, get
               key={sop.id}
               sop={sop}
               technicianName={getUserName(sop.technician)}
-              projectType={getProjectType?.(sop.project_id)}
+              projectColor={getProjectColor(sop.project_id)}
               onClick={() => onCardClick(sop)}
             />
           ))}

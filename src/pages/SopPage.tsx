@@ -27,7 +27,13 @@ const COLUMNS = [
   { id: 'in_progress', title: 'In Bearbeitung', color: 'bg-amber-50' },
   { id: 'prepared', title: 'Vorgerichtet', color: 'bg-emerald-50' },
   { id: 'delivered', title: 'Ausgeliefert', color: 'bg-sky-50' },
-  { id: 'checked', title: 'Endkontrolle OK', color: 'bg-emerald-100' },
+];
+
+// Stable palette for project colors
+const PROJECT_COLORS = [
+  '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6',
+  '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#06b6d4',
+  '#a855f7', '#84cc16', '#e11d48', '#0ea5e9', '#d946ef',
 ];
 
 function useAllSopOrders() {
@@ -39,7 +45,7 @@ function useAllSopOrders() {
       const { data, error } = await supabase
         .from('sop_orders')
         .select('*')
-        .order('created_at');
+        .order('end_check_date', { ascending: true, nullsFirst: false });
       if (error) throw error;
       return data;
     },
@@ -62,7 +68,7 @@ function useAllProjects() {
   return useQuery({
     queryKey: ['projects_all'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('projects').select('id, customer_name, project_name, project_number, project_type').order('customer_name');
+      const { data, error } = await supabase.from('projects').select('id, customer_name, project_name, project_number, project_type, status').order('customer_name');
       if (error) throw error;
       return data;
     },
@@ -96,11 +102,29 @@ export default function SopPage() {
     return u?.short_code || u?.full_name || undefined;
   }, [users]);
 
-  const getProjectLabel = useCallback((projectId: string) => {
-    const p = projects?.find(p => p.id === projectId);
-    if (!p) return '';
-    return p.project_name || p.customer_name || p.project_number || '';
-  }, [projects]);
+  // Build project color map (only active non-daily projects)
+  const { projectColorMap, legendProjects } = useMemo(() => {
+    if (!projects || !sopOrders) return { projectColorMap: {} as Record<string, string>, legendProjects: [] as typeof projects };
+    
+    const activeProjects = projects.filter(p => 
+      p.project_type !== 'daily' && p.status !== 'completed' && p.status !== 'abgeschlossen'
+    );
+    
+    // Only include projects that have SOP orders
+    const projectIdsWithSops = new Set(sopOrders.map(s => s.project_id));
+    const relevantProjects = activeProjects.filter(p => projectIdsWithSops.has(p.id));
+    
+    const colorMap: Record<string, string> = {};
+    relevantProjects.forEach((p, i) => {
+      colorMap[p.id] = PROJECT_COLORS[i % PROJECT_COLORS.length];
+    });
+    
+    return { projectColorMap: colorMap, legendProjects: relevantProjects };
+  }, [projects, sopOrders]);
+
+  const getProjectColor = useCallback((projectId: string) => {
+    return projectColorMap[projectId];
+  }, [projectColorMap]);
 
   // Filter SOP orders
   const filteredOrders = useMemo(() => {
@@ -108,7 +132,7 @@ export default function SopPage() {
     return sopOrders.filter(sop => {
       if (search) {
         const s = search.toLowerCase();
-        if (![sop.model, sop.manufacturer, sop.serial_number, sop.ow_number].some(f => f?.toLowerCase().includes(s))) return false;
+        if (![sop.model, sop.manufacturer, sop.serial_number, sop.ow_number, sop.device_internal_id].some(f => f?.toLowerCase().includes(s))) return false;
       }
       if (filterTechnician !== 'all' && sop.technician !== filterTechnician) return false;
       if (filterProject !== 'all' && sop.project_id !== filterProject) return false;
@@ -123,13 +147,24 @@ export default function SopPage() {
     });
   }, [sopOrders, search, filterTechnician, filterProject, filterType, dateFrom, dateTo, projects]);
 
-  // Group by status
+  // Group by status, sort by end_check_date
   const columnData = useMemo(() => {
     const map: Record<string, Tables<'sop_orders'>[]> = {};
     COLUMNS.forEach(c => { map[c.id] = []; });
     filteredOrders.forEach(sop => {
       const col = map[sop.preparation_status] ? sop.preparation_status : 'pending';
       map[col].push(sop);
+    });
+    // Sort each column by end_check_date
+    Object.keys(map).forEach(key => {
+      map[key].sort((a, b) => {
+        const da = a.end_check_date || '';
+        const db = b.end_check_date || '';
+        if (!da && !db) return 0;
+        if (!da) return 1;
+        if (!db) return -1;
+        return da.localeCompare(db);
+      });
     });
     return map;
   }, [filteredOrders]);
@@ -189,7 +224,7 @@ export default function SopPage() {
       <div className="flex flex-wrap gap-3 items-center print:hidden">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Modell, SN, OW..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm h-9" />
+          <Input placeholder="Modell, SN, OW, ID..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm h-9" />
         </div>
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-44 h-9 text-xs"><SelectValue placeholder="Auftragstyp" /></SelectTrigger>
@@ -246,6 +281,28 @@ export default function SopPage() {
         )}
       </div>
 
+      {/* Project Legend */}
+      {legendProjects && legendProjects.length > 0 && (
+        <div className="flex flex-wrap gap-2 items-center print:hidden">
+          <span className="text-[10px] text-muted-foreground font-heading uppercase tracking-wide">Projekte:</span>
+          {legendProjects.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setFilterProject(filterProject === p.id ? 'all' : p.id)}
+              className={cn(
+                'flex items-center gap-1.5 text-[11px] font-heading px-2 py-0.5 rounded-full border transition-all',
+                filterProject === p.id
+                  ? 'border-foreground/30 bg-foreground/5 font-bold'
+                  : 'border-border hover:border-foreground/20'
+              )}
+            >
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: projectColorMap[p.id] }} />
+              {p.project_name || p.customer_name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Kanban Board */}
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4 print:flex-col print:overflow-visible">
@@ -257,10 +314,7 @@ export default function SopPage() {
               color={col.color}
               items={columnData[col.id] || []}
               getUserName={getUserName}
-              getProjectType={(projectId: string) => {
-                const proj = projects?.find(p => p.id === projectId);
-                return (proj as any)?.project_type || 'project';
-              }}
+              getProjectColor={getProjectColor}
               onCardClick={(sop) => { setSelectedSop(sop); setSheetOpen(true); }}
             />
           ))}
@@ -268,7 +322,7 @@ export default function SopPage() {
         <DragOverlay dropAnimation={{ duration: 200, easing: 'ease-out' }}>
           {activeSop ? (
             <div className="rotate-[2deg] scale-105 shadow-xl opacity-90">
-              <SopCard sop={activeSop} technicianName={getUserName(activeSop.technician)} onClick={() => {}} />
+              <SopCard sop={activeSop} technicianName={getUserName(activeSop.technician)} projectColor={getProjectColor(activeSop.project_id)} onClick={() => {}} />
             </div>
           ) : null}
         </DragOverlay>
