@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import {
   ClipboardList, Building2, Database, RefreshCw, Calculator, FileText,
   BarChart3, Wrench, Truck, Monitor, CheckSquare, Calendar,
-  Star, Users, Settings, X, List, ArrowLeft, Package, Printer,
+  Star, Settings, X, List, ArrowLeft, Package, Printer,
   AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ import { useSopOrders } from '@/hooks/useSopData';
 import { useLocations } from '@/hooks/useRolloutData';
 import { useChecklists } from '@/hooks/useChecklistData';
 import { supabase } from '@/integrations/supabase/client';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface NavItem {
   title: string;
