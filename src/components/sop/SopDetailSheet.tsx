@@ -66,7 +66,7 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
             {sop.manufacturer} {sop.model}
           </SheetTitle>
           <p className="text-xs text-muted-foreground">
-            {sop.ow_number ? `OW: ${sop.ow_number}` : 'Keine OW-Nummer'} · Erstellt: {format(new Date(sop.created_at), 'dd.MM.yyyy')}
+            {sop.ow_number ? `Auftragsnr: ${sop.ow_number}` : 'Keine Auftragsnummer'} · Erstellt: {format(new Date(sop.created_at), 'dd.MM.yyyy')}
           </p>
         </SheetHeader>
 
