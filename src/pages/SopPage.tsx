@@ -251,9 +251,9 @@ export default function SopPage() {
           </SelectContent>
         </Select>
         <Select value={filterTechnician} onValueChange={setFilterTechnician}>
-          <SelectTrigger className="w-40 h-9 text-xs"><SelectValue placeholder="Techniker" /></SelectTrigger>
+          <SelectTrigger className="w-40 h-9 text-xs"><SelectValue placeholder="Mitarbeiter" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">Alle Techniker</SelectItem>
+            <SelectItem value="all" className="text-xs">Alle Mitarbeiter</SelectItem>
             {users?.map(u => <SelectItem key={u.id} value={u.id} className="text-xs">{u.short_code || u.full_name}</SelectItem>)}
           </SelectContent>
         </Select>

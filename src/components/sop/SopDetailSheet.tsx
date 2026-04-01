@@ -66,7 +66,7 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
             {sop.manufacturer} {sop.model}
           </SheetTitle>
           <p className="text-xs text-muted-foreground">
-            {sop.ow_number ? `OW: ${sop.ow_number}` : 'Keine OW-Nummer'} · Erstellt: {format(new Date(sop.created_at), 'dd.MM.yyyy')}
+            {sop.ow_number ? `Auftragsnr: ${sop.ow_number}` : 'Keine Auftragsnummer'} · Erstellt: {format(new Date(sop.created_at), 'dd.MM.yyyy')}
           </p>
         </SheetHeader>
 
@@ -75,7 +75,7 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
           <div>
             <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground mb-3">Auftragsdaten</h3>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="OW-Nummer" field="ow_number" value={sop.ow_number} />
+              <Field label="Auftragsnummer" field="ow_number" value={sop.ow_number} />
               <Field label="Ersteller" field="creator" value={sop.creator} />
               <Field label="Liefertermin" field="delivery_date" value={sop.delivery_date} type="date" />
               <Field label="Lieferzeit" field="delivery_time" value={sop.delivery_time as string | null} type="time" />
@@ -134,7 +134,7 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">Techniker</Label>
+                <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">Mitarbeiter</Label>
                 <Select defaultValue={sop.technician || ''} onValueChange={v => save('technician', v || null)}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Nicht zugewiesen" /></SelectTrigger>
                   <SelectContent>
