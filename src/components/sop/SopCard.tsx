@@ -13,7 +13,7 @@ interface Props {
   onClick: () => void;
 }
 
-export default function SopCard({ sop, technicianName, projectColor, onClick }: Props) {
+export default function SopCard({ sop, technicianName, projectColor, customerName, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sop.id });
 
   const style = {
