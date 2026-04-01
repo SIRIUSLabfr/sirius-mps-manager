@@ -66,6 +66,7 @@ const dailyPhase1: NavItem[] = [
 ];
 const dailyPhase2: NavItem[] = [
   { title: 'Kalkulation', path: '/projekt/:id/kalkulation', icon: Calculator, requiresProject: true },
+  { title: 'Angebot', path: '/projekt/:id/angebot', icon: ScrollText, requiresProject: true },
   { title: 'Geräteliste', path: '/projekt/:id/geraete', icon: List, requiresProject: true },
 ];
 const dailyPhase3: NavItem[] = [
