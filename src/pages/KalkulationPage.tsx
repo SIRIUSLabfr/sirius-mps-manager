@@ -623,6 +623,12 @@ export default function KalkulationPage() {
               financeType={form.finance_type} termMonths={form.term_months} leasingFactor={form.leasing_factor}
               hardwareEkTotal={hardwareEkTotal} marginTotal={form.margin_total} abloeseTotal={abloeseTotal}
               hwMonthly={hwMonthly} totalRate={totalRate} mischklick={mischklick}
+              folgeseitenpreisSw={form.folgeseitenpreis_sw}
+              folgeseitenpreisFarbe={form.folgeseitenpreis_farbe}
+              onFolgeseitenpreisChange={(field, value) => setForm(f => ({
+                ...f,
+                [field === 'sw' ? 'folgeseitenpreis_sw' : 'folgeseitenpreis_farbe']: value,
+              }))}
             />
             <div className="space-y-2">
               <div className="flex gap-2">
