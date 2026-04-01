@@ -100,6 +100,7 @@ const App = () => (
                 <Route path="/tagesgeschaeft" element={<TagesgeschaeftListPage />} />
                 <Route path="/sop" element={<SopPage />} />
                 <Route path="/kalender" element={<KalenderPage />} />
+                <Route path="/abwicklung" element={<AbwicklungOverviewPage />} />
                 <Route path="/team" element={<TeamPage />} />
                 <Route path="/einstellungen" element={<TeamPage />} />
 
