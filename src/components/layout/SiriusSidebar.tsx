@@ -1,17 +1,20 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import OopsiesBanner from '@/components/OopsiesBanner';
+import { useMemo } from 'react';
 import {
   ClipboardList, Building2, Database, RefreshCw, Calculator, FileText,
   BarChart3, Wrench, Truck, Monitor, CheckSquare, Calendar,
   Star, Users, Settings, X, List, ArrowLeft, Package, Printer,
+  AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { useActiveProject } from '@/hooks/useActiveProject';
-import { useProject, useProjectDevices } from '@/hooks/useProjectData';
+import { useProject, useProjectDevices, useProjects } from '@/hooks/useProjectData';
 import { useSopOrders } from '@/hooks/useSopData';
 import { useLocations } from '@/hooks/useRolloutData';
 import { useChecklists } from '@/hooks/useChecklistData';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NavItem {
   title: string;
@@ -86,6 +89,38 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
   const hasProject = !!activeProjectId;
   const projectType = (project as any)?.project_type || 'project';
   const isDaily = projectType === 'daily';
+
+  // oopsies count
+  const { data: allProjects } = useProjects();
+  const activeNonCompleted = useMemo(() => {
+    if (!allProjects) return [];
+    return allProjects.filter(p => p.status !== 'completed');
+  }, [allProjects]);
+  const activeIds = useMemo(() => activeNonCompleted.map(p => p.id), [activeNonCompleted]);
+  const { data: allSopsForOopsies } = useQuery({
+    queryKey: ['oopsies_sidebar', activeIds],
+    queryFn: async () => {
+      if (activeIds.length === 0) return [];
+      const { data, error } = await supabase.from('sop_orders').select('project_id, delivery_date, preparation_status, end_check_date').in('project_id', activeIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: activeIds.length > 0,
+  });
+  const oopsiesCount = useMemo(() => {
+    if (!allSopsForOopsies) return 0;
+    const today = new Date().toISOString().split('T')[0];
+    const twoMonthsAgo = new Date();
+    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+    const twoMonthsAgoStr = twoMonthsAgo.toISOString().split('T')[0];
+    let count = 0;
+    for (const project of activeNonCompleted) {
+      const sops = allSopsForOopsies.filter(s => s.project_id === project.id);
+      if (sops.some(s => s.delivery_date && s.delivery_date < today && (s.preparation_status === 'pending' || s.preparation_status === 'in_progress'))) count++;
+      if (sops.some(s => s.delivery_date && s.delivery_date < twoMonthsAgoStr)) count++;
+    }
+    return count;
+  }, [allSopsForOopsies, activeNonCompleted]);
 
   const totalDevices = devices?.length || 0;
   const checkedDevices = devices?.filter(d => d.preparation_status === 'checked').length || 0;
@@ -272,15 +307,36 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
         {/* ── EBENE 1: Overview (no project selected) ── */}
         {!hasProject && (
           <>
-            <div className="px-4 pt-3 pb-1">
-              <OopsiesBanner projectType="all" />
-            </div>
-
             <div className="mb-1">
               <div className="px-5 pt-2 pb-1">
                 <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">Übersicht</span>
               </div>
-              <ul className="space-y-0.5">{overviewItems.map(renderItem)}</ul>
+              <ul className="space-y-0.5">
+                <li>
+                  <Link
+                    to="/oopsies"
+                    onClick={() => onMobileClose?.()}
+                    className={cn(
+                      'flex items-center gap-3 px-5 py-2 text-[13px] rounded-md transition-colors relative',
+                      location.pathname === '/oopsies' && 'bg-[hsl(216,80%,24%/0.35)] text-sidebar-primary-foreground font-semibold border-l-[3px] border-secondary [&_svg]:text-secondary',
+                      location.pathname !== '/oopsies' && 'text-sidebar-foreground hover:bg-[hsl(0,0%,100%/0.05)] hover:text-[hsl(0,0%,100%/0.85)]',
+                    )}
+                  >
+                    {oopsiesCount > 0 ? (
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+                    )}
+                    <span className="font-body flex-1 truncate">oopsies</span>
+                    {oopsiesCount > 0 && (
+                      <span className="text-[10px] font-heading font-bold bg-yellow-500 text-yellow-950 px-[7px] py-[2px] rounded-[10px] min-w-[20px] text-center">
+                        {oopsiesCount}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+                {overviewItems.map(renderItem)}
+              </ul>
             </div>
 
             {phaseDivider()}

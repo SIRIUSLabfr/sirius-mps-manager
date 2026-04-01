@@ -26,6 +26,7 @@ import KonzeptPage from "./pages/KonzeptPage";
 import TeamPage from "./pages/TeamPage";
 import StandortePage from "./pages/StandortePage";
 import NotFound from "./pages/NotFound";
+import OopsiesPage from "./pages/OopsiesPage";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +94,7 @@ const App = () => (
                 {/* Ebene 1: Overview */}
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/projekte" element={<ProjectListPage />} />
+                <Route path="/oopsies" element={<OopsiesPage />} />
                 <Route path="/tagesgeschaeft" element={<TagesgeschaeftListPage />} />
                 <Route path="/sop" element={<SopPage />} />
                 <Route path="/kalender" element={<KalenderPage />} />
