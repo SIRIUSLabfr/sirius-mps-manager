@@ -1,6 +1,6 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
-  ClipboardList, Building2, Download, RefreshCw, Calculator, FileText,
+  ClipboardList, Building2, Database, RefreshCw, Calculator, FileText,
   BarChart3, Wrench, Truck, Monitor, CheckSquare, Calendar,
   Star, Users, Settings, X, List, ArrowLeft, Package, Printer,
 } from 'lucide-react';
@@ -37,7 +37,7 @@ const bottomNav: NavItem[] = [
 // ── EBENE 2: MPS project phases ──
 const phase1Items: NavItem[] = [
   { title: 'Standorte & Raumpläne', path: '/projekt/:id/standorte', icon: Building2, requiresProject: true },
-  { title: 'Projektdaten', path: '/projekt/:id/daten', icon: Download, requiresProject: true },
+  { title: 'Projektdaten', path: '/projekt/:id/daten', icon: Database, requiresProject: true },
 ];
 const phase2Items: NavItem[] = [
   { title: 'IST/SOLL Vergleich', path: '/projekt/:id/ist-soll', icon: RefreshCw, requiresProject: true },

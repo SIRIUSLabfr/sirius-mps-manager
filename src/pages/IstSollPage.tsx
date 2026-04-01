@@ -13,12 +13,10 @@ import FileUploadZone from '@/components/import/FileUploadZone';
 import DataPreview from '@/components/import/DataPreview';
 import ColumnMapping from '@/components/import/ColumnMapping';
 import ComparisonView from '@/components/istsoll/ComparisonView';
-import NewSollDeviceDialog from '@/components/istsoll/NewSollDeviceDialog';
-import SollBulkImportDialog from '@/components/istsoll/SollBulkImportDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Upload, AlertTriangle, CheckCircle2, Plus, FileUp, ArrowLeftRight } from 'lucide-react';
+import { Upload, AlertTriangle, CheckCircle2, ArrowLeftRight } from 'lucide-react';
 
 export default function IstSollPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -35,8 +33,8 @@ export default function IstSollPage() {
   const [importing, setImporting] = useState(false);
   const [importStep, setImportStep] = useState<'upload' | 'preview' | 'mapping' | 'done'>('upload');
 
-  const [showSollDialog, setShowSollDialog] = useState(false);
-  const [showBulkImport, setShowBulkImport] = useState(false);
+
+
 
   useEffect(() => {
     if (projectId) setActiveProjectId(projectId);
@@ -159,24 +157,8 @@ export default function IstSollPage() {
         ))}
       </div>
 
-      {/* SOLL Actions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-heading text-base flex items-center gap-2">
-              <Plus className="h-4 w-4" /> SOLL-Geräte anlegen
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs font-heading" onClick={() => setShowBulkImport(true)}>
-                <FileUp className="h-3.5 w-3.5" /> Bulk Import
-              </Button>
-              <Button size="sm" className="gap-1.5 text-xs font-heading" onClick={() => setShowSollDialog(true)}>
-                <Plus className="h-3.5 w-3.5" /> SOLL-Gerät hinzufügen
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+
+
 
       {/* IST Import */}
       <Card>
@@ -247,23 +229,6 @@ export default function IstSollPage() {
         </CardContent>
       </Card>
 
-      {/* Dialogs */}
-      <NewSollDeviceDialog
-        open={showSollDialog}
-        onOpenChange={setShowSollDialog}
-        projectId={projectId!}
-        locations={locations || []}
-        onCreated={refreshDevices}
-        nextDeviceNumber={nextDeviceNumber}
-      />
-      <SollBulkImportDialog
-        open={showBulkImport}
-        onOpenChange={setShowBulkImport}
-        projectId={projectId!}
-        locations={locations || []}
-        existingDeviceCount={nextDeviceNumber - 1}
-        onImported={refreshDevices}
-      />
     </div>
   );
 }

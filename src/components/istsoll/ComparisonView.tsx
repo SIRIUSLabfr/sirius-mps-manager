@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowRight, Filter, Search, CheckSquare } from 'lucide-react';
+import { ArrowRight, Filter, Search, CheckSquare, Plus, Pencil, Check, X } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 const OPT_TYPES = [
@@ -33,7 +33,10 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
   const [filterManufacturer, setFilterManufacturer] = useState<string>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpt, setBulkOpt] = useState<string>('');
-
+  const [editingIst, setEditingIst] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ manufacturer: string; model: string; room: string }>({ manufacturer: '', model: '', room: '' });
+  const [addingIst, setAddingIst] = useState(false);
+  const [newIst, setNewIst] = useState<{ manufacturer: string; model: string; room: string; building: string }>({ manufacturer: '', model: '', room: '', building: '' });
   // Separate IST and SOLL devices
   const istDevices = useMemo(() => devices.filter(d => d.ist_manufacturer || d.ist_model || d.ist_serial), [devices]);
   const sollDevices = useMemo(() => devices.filter(d => (d.soll_manufacturer || d.soll_model) && !d.ist_manufacturer && !d.ist_model), [devices]);
@@ -142,6 +145,44 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
     }
   };
 
+  const handleAddIstDevice = async () => {
+    if (!newIst.manufacturer && !newIst.model) return;
+    const maxNum = devices.reduce((max, d) => Math.max(max, d.device_number || 0), 0);
+    const { error } = await supabase.from('devices').insert({
+      project_id: projectId,
+      device_number: maxNum + 1,
+      ist_manufacturer: newIst.manufacturer || null,
+      ist_model: newIst.model || null,
+      ist_room: newIst.room || null,
+      ist_building: newIst.building || null,
+      preparation_status: 'pending',
+      ist_source: 'manual',
+    });
+    if (error) toast.error('Fehler: ' + error.message);
+    else {
+      toast.success('IST-Gerät angelegt');
+      setNewIst({ manufacturer: '', model: '', room: '', building: '' });
+      setAddingIst(false);
+      onRefresh();
+    }
+  };
+
+  const startEditIst = (d: Tables<'devices'>) => {
+    setEditingIst(d.id);
+    setEditValues({ manufacturer: d.ist_manufacturer || '', model: d.ist_model || '', room: d.ist_room || '' });
+  };
+
+  const saveEditIst = async () => {
+    if (!editingIst) return;
+    const { error } = await supabase.from('devices').update({
+      ist_manufacturer: editValues.manufacturer || null,
+      ist_model: editValues.model || null,
+      ist_room: editValues.room || null,
+    }).eq('id', editingIst);
+    if (error) toast.error('Fehler');
+    else { onRefresh(); setEditingIst(null); }
+  };
+
   const getRowBg = (row: typeof allRows[0]) => {
     const opt = row.device.optimization_type;
     if (opt === 'Keep' || opt === 'Nicht im Projekt') return 'bg-muted/40 text-muted-foreground';
@@ -193,6 +234,9 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
             {manufacturers.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Button size="sm" variant="outline" className="h-9 text-xs gap-1.5" onClick={() => setAddingIst(true)}>
+          <Plus className="h-3.5 w-3.5" /> IST-Gerät manuell
+        </Button>
       </div>
 
       {/* Bulk actions */}
@@ -246,11 +290,41 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {filteredRows.length === 0 ? (
+              {/* Manual add row */}
+              {addingIst && (
+                <tr className="bg-primary/5">
+                  <td className="px-2 py-2" />
+                  <td className="px-2 py-1">
+                    <div className="flex gap-1">
+                      <Input placeholder="Hersteller" value={newIst.manufacturer} onChange={e => setNewIst(p => ({ ...p, manufacturer: e.target.value }))} className="h-7 text-xs" />
+                      <Input placeholder="Modell" value={newIst.model} onChange={e => setNewIst(p => ({ ...p, model: e.target.value }))} className="h-7 text-xs" />
+                    </div>
+                  </td>
+                  <td className="px-2 py-1">
+                    <Input placeholder="Gebäude" value={newIst.building} onChange={e => setNewIst(p => ({ ...p, building: e.target.value }))} className="h-7 text-xs" />
+                  </td>
+                  <td className="px-2 py-1 border-r border-border/50">
+                    <Input placeholder="Raum" value={newIst.room} onChange={e => setNewIst(p => ({ ...p, room: e.target.value }))} className="h-7 text-xs" />
+                  </td>
+                  <td colSpan={4} className="px-2 py-1 border-r border-border/50" />
+                  <td className="px-2 py-1">
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="default" className="h-7 text-xs px-2" onClick={handleAddIstDevice} disabled={!newIst.manufacturer && !newIst.model}>
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={() => setAddingIst(false)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {filteredRows.length === 0 && !addingIst ? (
                 <tr><td colSpan={9} className="text-center py-12 text-muted-foreground">Keine Geräte gefunden</td></tr>
               ) : filteredRows.map(row => {
                 const ist = row.istDevice;
                 const soll = row.sollDevice;
+                const isEditing = editingIst === row.device.id;
                 return (
                   <tr key={row.device.id} className={cn('transition-colors hover:bg-muted/20', getRowBg(row))}>
                     <td className="px-2 py-2">
@@ -258,16 +332,34 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
                     </td>
                     {/* IST */}
                     <td className="px-3 py-2">
-                      {ist ? (
-                        <div>
-                          <span className="font-medium">{ist.ist_manufacturer || '–'}</span>
-                          <span className="text-muted-foreground ml-1">{ist.ist_model || ''}</span>
+                      {isEditing ? (
+                        <div className="flex gap-1">
+                          <Input value={editValues.manufacturer} onChange={e => setEditValues(p => ({ ...p, manufacturer: e.target.value }))} className="h-7 text-xs" placeholder="Hersteller" />
+                          <Input value={editValues.model} onChange={e => setEditValues(p => ({ ...p, model: e.target.value }))} className="h-7 text-xs" placeholder="Modell" />
+                        </div>
+                      ) : ist ? (
+                        <div className="group/ist flex items-center gap-1">
+                          <div>
+                            <span className="font-medium">{ist.ist_manufacturer || '–'}</span>
+                            <span className="text-muted-foreground ml-1">{ist.ist_model || ''}</span>
+                          </div>
+                          <button className="opacity-0 group-hover/ist:opacity-100 transition-opacity" onClick={() => startEditIst(ist)}>
+                            <Pencil className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                          </button>
                         </div>
                       ) : <span className="text-muted-foreground italic">–</span>}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">{ist ? getLocationName(ist.location_id) : '–'}</td>
                     <td className="px-3 py-2 text-muted-foreground border-r border-border/50">
-                      {ist ? [ist.ist_floor, ist.ist_room].filter(Boolean).join(' / ') || '–' : '–'}
+                      {isEditing ? (
+                        <div className="flex gap-1">
+                          <Input value={editValues.room} onChange={e => setEditValues(p => ({ ...p, room: e.target.value }))} className="h-7 text-xs" placeholder="Raum" />
+                          <Button size="sm" variant="default" className="h-7 px-2" onClick={saveEditIst}><Check className="h-3 w-3" /></Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingIst(null)}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ) : ist ? (
+                        [ist.ist_floor, ist.ist_room].filter(Boolean).join(' / ') || '–'
+                      ) : '–'}
                     </td>
                     {/* Optimization */}
                     <td className="px-2 py-2 border-r border-border/50">
