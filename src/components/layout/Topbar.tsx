@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { User, Menu, Zap } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 import { Button } from '@/components/ui/button';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useProject } from '@/hooks/useProjectData';
@@ -22,6 +23,7 @@ const projectRouteNames: Record<string, string> = {
   '/ist-soll': 'IST/SOLL Vergleich',
   '/kalkulation': 'Kalkulation',
   '/konzept': 'Konzept',
+  '/angebot': 'Angebot',
   '/rolloutliste': 'Rolloutliste',
   '/sop': 'SOP / Vorrichten',
   '/logistik': 'Logistik',
@@ -86,6 +88,8 @@ export default function Topbar({ onMenuToggle }: TopbarProps) {
             <span className="hidden sm:inline">Mit Zoho verbinden</span>
           </Button>
         )}
+
+        <NotificationBell />
 
         <div className="flex items-center gap-2 text-sm font-body">
           <User className="h-3.5 w-3.5 text-muted-foreground" />

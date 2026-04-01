@@ -4,7 +4,7 @@ import {
   ClipboardList, Building2, Database, RefreshCw, Calculator, FileText,
   BarChart3, Wrench, Truck, Monitor, CheckSquare, Calendar,
   Star, Settings, X, List, ArrowLeft, Package, Printer,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -48,6 +48,7 @@ const phase2Items: NavItem[] = [
   { title: 'IST/SOLL Vergleich', path: '/projekt/:id/ist-soll', icon: RefreshCw, requiresProject: true },
   { title: 'Kalkulation', path: '/projekt/:id/kalkulation', icon: Calculator, requiresProject: true },
   { title: 'Konzept', path: '/projekt/:id/konzept', icon: FileText, requiresProject: true },
+  { title: 'Angebot', path: '/projekt/:id/angebot', icon: ScrollText, requiresProject: true },
 ];
 const phase3Items: NavItem[] = [
   { title: 'Rolloutliste', path: '/projekt/:id/rolloutliste', icon: BarChart3, requiresProject: true, badgeKey: 'devices' },
@@ -65,6 +66,7 @@ const dailyPhase1: NavItem[] = [
 ];
 const dailyPhase2: NavItem[] = [
   { title: 'Kalkulation', path: '/projekt/:id/kalkulation', icon: Calculator, requiresProject: true },
+  { title: 'Angebot', path: '/projekt/:id/angebot', icon: ScrollText, requiresProject: true },
   { title: 'Geräteliste', path: '/projekt/:id/geraete', icon: List, requiresProject: true },
 ];
 const dailyPhase3: NavItem[] = [

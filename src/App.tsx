@@ -23,6 +23,7 @@ import ChecklistenPage from "./pages/ChecklistenPage";
 import KalenderPage from "./pages/KalenderPage";
 import KalkulationPage from "./pages/KalkulationPage";
 import KonzeptPage from "./pages/KonzeptPage";
+import AngebotPage from "./pages/AngebotPage";
 import EinstellungenPage from "./pages/EinstellungenPage";
 import StandortePage from "./pages/StandortePage";
 import NotFound from "./pages/NotFound";
@@ -110,6 +111,7 @@ const App = () => (
                 <Route path="/projekt/:projectId/ist-soll" element={<IstSollPage />} />
                 <Route path="/projekt/:projectId/kalkulation" element={<KalkulationPage />} />
                 <Route path="/projekt/:projectId/konzept" element={<KonzeptPage />} />
+                <Route path="/projekt/:projectId/angebot" element={<AngebotPage />} />
                 <Route path="/projekt/:projectId/rolloutliste" element={<RolloutListPage />} />
                 <Route path="/projekt/:projectId/sop" element={<SopPage />} />
                 <Route path="/projekt/:projectId/logistik" element={<LogistikPage />} />

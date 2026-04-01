@@ -403,6 +403,56 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          created_at: string | null
+          document_type: string
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          notes: string | null
+          project_id: string
+          uploaded_by: string | null
+          version: number | null
+          zoho_attachment_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_type: string
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          uploaded_by?: string | null
+          version?: number | null
+          zoho_attachment_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_type?: string
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          uploaded_by?: string | null
+          version?: number | null
+          zoho_attachment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_imports: {
         Row: {
           column_mapping: Json | null
@@ -693,6 +743,57 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          link: string | null
+          message: string | null
+          project_id: string | null
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          message?: string | null
+          project_id?: string | null
+          read?: boolean | null
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          message?: string | null
+          project_id?: string | null
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_processing: {
         Row: {
           bank_interval: string | null
@@ -851,6 +952,8 @@ export type Database = {
           customer_number: string | null
           id: string
           logistics_notes: string | null
+          order_confirmed_at: string | null
+          order_confirmed_by: string | null
           organization_id: string | null
           project_lead: string | null
           project_name: string | null
@@ -858,6 +961,7 @@ export type Database = {
           project_type: string
           rollout_end: string | null
           rollout_start: string | null
+          signed_document_id: string | null
           status: string
           technicians: string[] | null
           updated_at: string
@@ -872,6 +976,8 @@ export type Database = {
           customer_number?: string | null
           id?: string
           logistics_notes?: string | null
+          order_confirmed_at?: string | null
+          order_confirmed_by?: string | null
           organization_id?: string | null
           project_lead?: string | null
           project_name?: string | null
@@ -879,6 +985,7 @@ export type Database = {
           project_type?: string
           rollout_end?: string | null
           rollout_start?: string | null
+          signed_document_id?: string | null
           status?: string
           technicians?: string[] | null
           updated_at?: string
@@ -893,6 +1000,8 @@ export type Database = {
           customer_number?: string | null
           id?: string
           logistics_notes?: string | null
+          order_confirmed_at?: string | null
+          order_confirmed_by?: string | null
           organization_id?: string | null
           project_lead?: string | null
           project_name?: string | null
@@ -900,6 +1009,7 @@ export type Database = {
           project_type?: string
           rollout_end?: string | null
           rollout_start?: string | null
+          signed_document_id?: string | null
           status?: string
           technicians?: string[] | null
           updated_at?: string
