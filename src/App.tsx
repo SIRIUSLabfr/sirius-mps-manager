@@ -23,7 +23,7 @@ import ChecklistenPage from "./pages/ChecklistenPage";
 import KalenderPage from "./pages/KalenderPage";
 import KalkulationPage from "./pages/KalkulationPage";
 import KonzeptPage from "./pages/KonzeptPage";
-import TeamPage from "./pages/TeamPage";
+import EinstellungenPage from "./pages/EinstellungenPage";
 import StandortePage from "./pages/StandortePage";
 import NotFound from "./pages/NotFound";
 import OopsiesPage from "./pages/OopsiesPage";
