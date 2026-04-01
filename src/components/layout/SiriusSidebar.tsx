@@ -55,6 +55,7 @@ const phase3Items: NavItem[] = [
   { title: 'IT / EDV', path: '/projekt/:id/it-edv', icon: Monitor, requiresProject: true },
   { title: 'Checklisten', path: '/projekt/:id/checklisten', icon: CheckSquare, requiresProject: true, badgeKey: 'checklists_open' },
   { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
+  { title: 'Abwicklung', path: '/projekt/:id/abwicklung', icon: ClipboardList, requiresProject: true },
 ];
 
 // ── EBENE 2: Daily phases ──
