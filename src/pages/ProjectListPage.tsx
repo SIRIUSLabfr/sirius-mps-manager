@@ -30,15 +30,70 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Abgeschlossen' },
 ];
 
+const PROJECT_STATUS_OPTIONS = [
+  { value: 'draft', label: 'Entwurf' },
+  { value: 'planning', label: 'Planung' },
+  { value: 'preparation', label: 'Vorbereitung' },
+  { value: 'rollout_active', label: 'Rollout aktiv' },
+  { value: 'completed', label: 'Abgeschlossen' },
+];
+
 export default function ProjectListPage() {
   const { data: projects, isLoading } = useProjects();
   const { setActiveProjectId } = useActiveProject();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => { setActiveProjectId(null); }, [setActiveProjectId]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [warningOpen, setWarningOpen] = useState(false);
+  const [warningMessages, setWarningMessages] = useState<string[]>([]);
+
+  const handleStatusChange = useCallback(async (projectId: string, newStatus: string) => {
+    if (newStatus === 'completed') {
+      // Validate: all SOPs delivered, all dates in the past
+      const { data: sops } = await supabase
+        .from('sop_orders')
+        .select('preparation_status, delivery_date, end_check_date')
+        .eq('project_id', projectId);
+
+      const warnings: string[] = [];
+      const today = new Date().toISOString().split('T')[0];
+
+      if (sops && sops.length > 0) {
+        const notDelivered = sops.filter(s => s.preparation_status !== 'delivered');
+        if (notDelivered.length > 0) {
+          warnings.push(`${notDelivered.length} Gerät(e) haben nicht den Status "Ausgeliefert".`);
+        }
+
+        const futureDelivery = sops.filter(s => s.delivery_date && s.delivery_date > today);
+        if (futureDelivery.length > 0) {
+          warnings.push(`${futureDelivery.length} Gerät(e) haben ein Lieferdatum in der Zukunft.`);
+        }
+
+        const futureEndCheck = sops.filter(s => s.end_check_date && s.end_check_date > today);
+        if (futureEndCheck.length > 0) {
+          warnings.push(`${futureEndCheck.length} Gerät(e) haben ein Endkontrolldatum in der Zukunft.`);
+        }
+      }
+
+      if (warnings.length > 0) {
+        setWarningMessages(warnings);
+        setWarningOpen(true);
+        return;
+      }
+    }
+
+    const { error } = await supabase.from('projects').update({ status: newStatus }).eq('id', projectId);
+    if (error) {
+      toast.error('Status konnte nicht geändert werden');
+    } else {
+      toast.success('Projektstatus aktualisiert');
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  }, [queryClient]);
 
   const filtered = useMemo(() => {
     if (!projects) return [];
