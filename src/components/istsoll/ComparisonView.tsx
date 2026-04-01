@@ -33,7 +33,10 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
   const [filterManufacturer, setFilterManufacturer] = useState<string>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpt, setBulkOpt] = useState<string>('');
-
+  const [editingIst, setEditingIst] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ manufacturer: string; model: string; room: string }>({ manufacturer: '', model: '', room: '' });
+  const [addingIst, setAddingIst] = useState(false);
+  const [newIst, setNewIst] = useState<{ manufacturer: string; model: string; room: string; building: string }>({ manufacturer: '', model: '', room: '', building: '' });
   // Separate IST and SOLL devices
   const istDevices = useMemo(() => devices.filter(d => d.ist_manufacturer || d.ist_model || d.ist_serial), [devices]);
   const sollDevices = useMemo(() => devices.filter(d => (d.soll_manufacturer || d.soll_model) && !d.ist_manufacturer && !d.ist_model), [devices]);
