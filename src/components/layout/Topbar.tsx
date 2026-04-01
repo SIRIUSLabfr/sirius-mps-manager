@@ -18,7 +18,7 @@ const projectRouteNames: Record<string, string> = {
   '': 'Dashboard',
   '/daily': 'Auftragsübersicht',
   '/standorte': 'Standorte & Raumpläne',
-  '/daten': 'IST-Daten Import',
+  '/daten': 'Projektdaten',
   '/ist-soll': 'IST/SOLL Vergleich',
   '/kalkulation': 'Kalkulation',
   '/konzept': 'Konzept',
