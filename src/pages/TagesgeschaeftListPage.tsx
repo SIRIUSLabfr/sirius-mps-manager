@@ -113,9 +113,11 @@ export default function TagesgeschaeftListPage() {
 
   return (
     <div className="space-y-6">
-      <OopsiesBanner projectType="daily" />
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-heading font-bold text-foreground">Tagesgeschäft</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-heading font-bold text-foreground">Tagesgeschäft</h1>
+          <OopsiesBanner projectType="daily" />
+        </div>
         <Button onClick={() => setDialogOpen(true)} className="gap-2 font-heading text-xs">
           <Plus className="h-4 w-4" />
           Neues Tagesgeschäft
