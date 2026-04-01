@@ -120,10 +120,11 @@ export default function ProjectListPage() {
         <OopsiesBanner projectType="project" />
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-heading font-bold text-foreground">MPS-Projekte</h1>
-        <Button onClick={() => setDialogOpen(true)} className="gap-2 font-heading text-xs">
-          <Plus className="h-4 w-4" />
-          Neues MPS-Projekt
-        </Button>
+          <Button onClick={() => setDialogOpen(true)} className="gap-2 font-heading text-xs">
+            <Plus className="h-4 w-4" />
+            Neues MPS-Projekt
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
