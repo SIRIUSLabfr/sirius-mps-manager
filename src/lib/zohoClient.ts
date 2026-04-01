@@ -46,6 +46,11 @@ export const zohoClient = {
     return result?.users?.[0] || null;
   },
 
+  getAllUsers: async () => {
+    const result = await zohoClient.api('users?type=AllUsers');
+    return result?.users || [];
+  },
+
   createQuote: async (payload: any) => {
     return zohoClient.api('Quotes', 'POST', payload);
   },
