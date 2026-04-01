@@ -80,6 +80,8 @@ const defaultState: CalcState = {
   delivery_date: null,
   deviceGroups: [createEmptyGroup()],
   service: { items: [] },
+  folgeseitenpreis_sw: 0,
+  folgeseitenpreis_farbe: 0,
 };
 
 export default function KalkulationPage() {
