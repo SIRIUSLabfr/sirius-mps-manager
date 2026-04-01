@@ -252,6 +252,8 @@ export default function KalkulationPage() {
         total_volume_color: mischklick.totalColorVolume,
         mischklick_bw: mischklick.mischklickSw,
         mischklick_color: mischklick.mischklickColor,
+        folgeseitenpreis_sw: form.folgeseitenpreis_sw,
+        folgeseitenpreis_farbe: form.folgeseitenpreis_farbe,
       },
     })),
   });
