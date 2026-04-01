@@ -166,7 +166,7 @@ export default function FloorPlanViewer({ location, projectId }: FloorPlanViewer
                   ref={imgRef}
                   className={cn(
                     'relative rounded-lg overflow-hidden border border-border bg-muted/30',
-                    draggingDeviceId && 'cursor-crosshair ring-2 ring-primary/30',
+                    (draggingDeviceId || movingPlacement) && 'cursor-crosshair ring-2 ring-primary/30',
                   )}
                   onClick={handleImageClick}
                 >
