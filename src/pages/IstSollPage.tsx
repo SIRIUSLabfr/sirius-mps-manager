@@ -157,24 +157,8 @@ export default function IstSollPage() {
         ))}
       </div>
 
-      {/* SOLL Actions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-heading text-base flex items-center gap-2">
-              <Plus className="h-4 w-4" /> SOLL-Geräte anlegen
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs font-heading" onClick={() => setShowBulkImport(true)}>
-                <FileUp className="h-3.5 w-3.5" /> Bulk Import
-              </Button>
-              <Button size="sm" className="gap-1.5 text-xs font-heading" onClick={() => setShowSollDialog(true)}>
-                <Plus className="h-3.5 w-3.5" /> SOLL-Gerät hinzufügen
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+
+
 
       {/* IST Import */}
       <Card>
