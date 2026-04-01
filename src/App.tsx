@@ -23,7 +23,7 @@ import ChecklistenPage from "./pages/ChecklistenPage";
 import KalenderPage from "./pages/KalenderPage";
 import KalkulationPage from "./pages/KalkulationPage";
 import KonzeptPage from "./pages/KonzeptPage";
-import TeamPage from "./pages/TeamPage";
+import EinstellungenPage from "./pages/EinstellungenPage";
 import StandortePage from "./pages/StandortePage";
 import NotFound from "./pages/NotFound";
 import OopsiesPage from "./pages/OopsiesPage";
@@ -101,8 +101,7 @@ const App = () => (
                 <Route path="/sop" element={<SopPage />} />
                 <Route path="/kalender" element={<KalenderPage />} />
                 <Route path="/abwicklung" element={<AbwicklungOverviewPage />} />
-                <Route path="/team" element={<TeamPage />} />
-                <Route path="/einstellungen" element={<TeamPage />} />
+                <Route path="/einstellungen" element={<EinstellungenPage />} />
 
                 {/* Ebene 2: Project-specific */}
                 <Route path="/projekt/:projectId" element={<ProjectDashboardPage />} />

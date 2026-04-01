@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import {
   ClipboardList, Building2, Database, RefreshCw, Calculator, FileText,
   BarChart3, Wrench, Truck, Monitor, CheckSquare, Calendar,
-  Star, Users, Settings, X, List, ArrowLeft, Package, Printer,
+  Star, Settings, X, List, ArrowLeft, Package, Printer,
   AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ import { useSopOrders } from '@/hooks/useSopData';
 import { useLocations } from '@/hooks/useRolloutData';
 import { useChecklists } from '@/hooks/useChecklistData';
 import { supabase } from '@/integrations/supabase/client';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface NavItem {
   title: string;
@@ -35,7 +36,6 @@ const globalItems: NavItem[] = [
   { title: 'Abwicklung', path: '/abwicklung', icon: ClipboardList },
 ];
 const bottomNav: NavItem[] = [
-  { title: 'Team', path: '/team', icon: Users },
   { title: 'Einstellungen', path: '/einstellungen', icon: Settings },
 ];
 
@@ -92,6 +92,7 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
   const hasProject = !!activeProjectId;
   const projectType = (project as any)?.project_type || 'project';
   const isDaily = projectType === 'daily';
+  const perms = usePermissions();
 
   // oopsies count
   const { data: allProjects } = useProjects();
@@ -268,40 +269,60 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
             {/* MPS Project nav */}
             {!isDaily && (
               <>
-                <div className="mb-1">
-                  {phaseHeader('Phase 1 · Analyse', phase1Status)}
-                  <ul className="space-y-0.5">{phase1Items.map(renderItem)}</ul>
-                </div>
-                {phaseDivider()}
-                <div className="mb-1">
-                  {phaseHeader('Phase 2 · Planung', phase2Status)}
-                  <ul className="space-y-0.5">{phase2Items.map(renderItem)}</ul>
-                </div>
-                {phaseDivider()}
-                <div className="mb-1">
-                  {phaseHeader('Phase 3 · Rollout', phase3Status)}
-                  <ul className="space-y-0.5">{phase3Items.map(renderItem)}</ul>
-                </div>
+                {perms.canSeePhase1 && (
+                  <>
+                    <div className="mb-1">
+                      {phaseHeader('Phase 1 · Analyse', phase1Status)}
+                      <ul className="space-y-0.5">{phase1Items.map(renderItem)}</ul>
+                    </div>
+                    {phaseDivider()}
+                  </>
+                )}
+                {perms.canSeePhase2 && (
+                  <>
+                    <div className="mb-1">
+                      {phaseHeader('Phase 2 · Planung', phase2Status)}
+                      <ul className="space-y-0.5">{phase2Items.map(renderItem)}</ul>
+                    </div>
+                    {phaseDivider()}
+                  </>
+                )}
+                {perms.canSeePhase3 && (
+                  <div className="mb-1">
+                    {phaseHeader('Phase 3 · Rollout', phase3Status)}
+                    <ul className="space-y-0.5">{phase3Items.map(renderItem)}</ul>
+                  </div>
+                )}
               </>
             )}
 
             {/* Daily nav */}
             {isDaily && (
               <>
-                <div className="mb-1">
-                  {phaseHeader('Auftrag')}
-                  <ul className="space-y-0.5">{dailyPhase1.map(renderItem)}</ul>
-                </div>
-                {phaseDivider()}
-                <div className="mb-1">
-                  {phaseHeader('Planung')}
-                  <ul className="space-y-0.5">{dailyPhase2.map(renderItem)}</ul>
-                </div>
-                {phaseDivider()}
-                <div className="mb-1">
-                  {phaseHeader('Ausführung')}
-                  <ul className="space-y-0.5">{dailyPhase3.map(renderItem)}</ul>
-                </div>
+                {perms.canSeePhase1 && (
+                  <>
+                    <div className="mb-1">
+                      {phaseHeader('Auftrag')}
+                      <ul className="space-y-0.5">{dailyPhase1.map(renderItem)}</ul>
+                    </div>
+                    {phaseDivider()}
+                  </>
+                )}
+                {perms.canSeePhase2 && (
+                  <>
+                    <div className="mb-1">
+                      {phaseHeader('Planung')}
+                      <ul className="space-y-0.5">{dailyPhase2.map(renderItem)}</ul>
+                    </div>
+                    {phaseDivider()}
+                  </>
+                )}
+                {perms.canSeePhase3 && (
+                  <div className="mb-1">
+                    {phaseHeader('Ausführung')}
+                    <ul className="space-y-0.5">{dailyPhase3.map(renderItem)}</ul>
+                  </div>
+                )}
               </>
             )}
           </>
