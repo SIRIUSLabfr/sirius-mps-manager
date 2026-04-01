@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { User, Menu, Zap } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 import { Button } from '@/components/ui/button';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useProject } from '@/hooks/useProjectData';
