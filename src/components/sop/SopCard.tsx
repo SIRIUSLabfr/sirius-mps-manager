@@ -9,6 +9,7 @@ interface Props {
   sop: Tables<'sop_orders'>;
   technicianName?: string;
   projectColor?: string;
+  customerName?: string;
   onClick: () => void;
 }
 
