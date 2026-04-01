@@ -134,7 +134,7 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">Techniker</Label>
+                <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">Mitarbeiter</Label>
                 <Select defaultValue={sop.technician || ''} onValueChange={v => save('technician', v || null)}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Nicht zugewiesen" /></SelectTrigger>
                   <SelectContent>
