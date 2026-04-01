@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowRight, Filter, Search, CheckSquare } from 'lucide-react';
+import { ArrowRight, Filter, Search, CheckSquare, Plus, Pencil, Check, X } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 const OPT_TYPES = [
