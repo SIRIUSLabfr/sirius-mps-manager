@@ -44,29 +44,46 @@ export default function EinstellungenPage() {
       for (const zu of zohoUsers) {
         if (!zu.email) continue;
 
+        const email = zu.email.toLowerCase();
+
         // Check if user already exists by email
         const { data: existing } = await supabase
           .from('users')
           .select('id, zoho_user_id')
-          .eq('email', zu.email.toLowerCase())
+          .eq('email', email)
           .maybeSingle();
 
-        const userData = {
-          email: zu.email.toLowerCase(),
-          full_name: zu.full_name || `${zu.first_name || ''} ${zu.last_name || ''}`.trim(),
-          zoho_user_id: zu.id,
-          role: (zu.role?.name || zu.profile?.name || 'user').toLowerCase(),
-        };
+        const fullName = zu.full_name || `${zu.first_name || ''} ${zu.last_name || ''}`.trim() || email;
+        const role = (zu.role?.name || zu.profile?.name || 'user').toLowerCase();
 
         if (existing) {
-          await supabase.from('users').update({
-            full_name: userData.full_name,
-            zoho_user_id: userData.zoho_user_id,
+          const { error } = await supabase.from('users').update({
+            full_name: fullName,
+            zoho_user_id: zu.id,
           }).eq('id', existing.id);
-          updated++;
+          if (error) console.error('Update error for', email, error);
+          else updated++;
         } else {
-          await supabase.from('users').insert(userData);
-          created++;
+          const { error } = await supabase.from('users').insert({
+            email,
+            full_name: fullName,
+            zoho_user_id: zu.id,
+            role,
+          });
+          if (error) {
+            console.error('Insert error for', email, error);
+            // If role is the problem, try without it
+            const { error: e2 } = await supabase.from('users').insert({
+              email,
+              full_name: fullName,
+              zoho_user_id: zu.id,
+              role: 'user',
+            });
+            if (e2) console.error('Insert retry error for', email, e2);
+            else created++;
+          } else {
+            created++;
+          }
         }
       }
 
