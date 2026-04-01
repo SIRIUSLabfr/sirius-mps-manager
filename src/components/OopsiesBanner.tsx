@@ -43,7 +43,7 @@ function useAllSopOrders(projectType: 'project' | 'daily' | 'all') {
   return { activeProjects, allSops: allSops || [] };
 }
 
-export default function OopsiesBanner({ projectType }: { projectType: 'project' | 'daily' }) {
+export default function OopsiesBanner({ projectType }: { projectType: 'project' | 'daily' | 'all' }) {
   const [expanded, setExpanded] = useState(false);
   const { activeProjects, allSops } = useAllSopOrders(projectType);
 
