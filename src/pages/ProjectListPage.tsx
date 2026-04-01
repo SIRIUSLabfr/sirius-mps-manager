@@ -116,6 +116,7 @@ export default function ProjectListPage() {
 
   return (
     <div className="space-y-6">
+      <OopsiesBanner projectType="project" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-heading font-bold text-foreground">MPS-Projekte</h1>
         <Button onClick={() => setDialogOpen(true)} className="gap-2 font-heading text-xs">
