@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, Printer } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjectData';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { formatDate } from '@/lib/constants';
@@ -14,9 +14,23 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Alle Status' },
+  { value: 'draft', label: 'Entwurf' },
+  { value: 'preparation', label: 'In Vorbereitung' },
+  { value: 'prepared', label: 'Vorgerichtet' },
+  { value: 'delivered', label: 'Ausgeliefert' },
+  { value: 'completed', label: 'Abgeschlossen' },
+];
+
+const DAILY_STATUS_OPTIONS = [
   { value: 'draft', label: 'Entwurf' },
   { value: 'preparation', label: 'In Vorbereitung' },
   { value: 'prepared', label: 'Vorgerichtet' },
@@ -28,11 +42,55 @@ export default function TagesgeschaeftListPage() {
   const { data: projects, isLoading } = useProjects();
   const { setActiveProjectId } = useActiveProject();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => { setActiveProjectId(null); }, [setActiveProjectId]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [warningOpen, setWarningOpen] = useState(false);
+  const [warningMessages, setWarningMessages] = useState<string[]>([]);
+
+  const handleStatusChange = useCallback(async (projectId: string, newStatus: string) => {
+    if (newStatus === 'completed') {
+      const { data: sops } = await supabase
+        .from('sop_orders')
+        .select('preparation_status, delivery_date, end_check_date')
+        .eq('project_id', projectId);
+
+      const warnings: string[] = [];
+      const today = new Date().toISOString().split('T')[0];
+
+      if (sops && sops.length > 0) {
+        const notDelivered = sops.filter(s => s.preparation_status !== 'delivered');
+        if (notDelivered.length > 0) {
+          warnings.push(`${notDelivered.length} Gerät(e) haben nicht den Status "Ausgeliefert".`);
+        }
+        const futureDelivery = sops.filter(s => s.delivery_date && s.delivery_date > today);
+        if (futureDelivery.length > 0) {
+          warnings.push(`${futureDelivery.length} Gerät(e) haben ein Lieferdatum in der Zukunft.`);
+        }
+        const futureEndCheck = sops.filter(s => s.end_check_date && s.end_check_date > today);
+        if (futureEndCheck.length > 0) {
+          warnings.push(`${futureEndCheck.length} Gerät(e) haben ein Endkontrolldatum in der Zukunft.`);
+        }
+      }
+
+      if (warnings.length > 0) {
+        setWarningMessages(warnings);
+        setWarningOpen(true);
+        return;
+      }
+    }
+
+    const { error } = await supabase.from('projects').update({ status: newStatus }).eq('id', projectId);
+    if (error) {
+      toast.error('Status konnte nicht geändert werden');
+    } else {
+      toast.success('Status aktualisiert');
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }
+  }, [queryClient]);
 
   const filtered = useMemo(() => {
     if (!projects) return [];
@@ -108,7 +166,18 @@ export default function TagesgeschaeftListPage() {
                 <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSelect(p)}>
                   <TableCell className="font-medium">{p.customer_name}</TableCell>
                   <TableCell className="text-muted-foreground">{p.project_number || '–'}</TableCell>
-                  <TableCell><StatusChip status={p.status} /></TableCell>
+                  <TableCell onClick={e => e.stopPropagation()}>
+                    <Select value={p.status} onValueChange={v => handleStatusChange(p.id, v)}>
+                      <SelectTrigger className="h-7 w-[150px] text-xs border-none bg-transparent hover:bg-muted/50 px-1">
+                        <StatusChip status={p.status} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DAILY_STATUS_OPTIONS.map(o => (
+                          <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{formatDate(p.rollout_start)}</TableCell>
                   <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">{p.logistics_notes || '–'}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">{formatDate(p.created_at)}</TableCell>
@@ -120,6 +189,30 @@ export default function TagesgeschaeftListPage() {
       </div>
 
       <NewProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} defaultType="daily" />
+
+      <AlertDialog open={warningOpen} onOpenChange={setWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Auftrag kann nicht abgeschlossen werden
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>Folgende Kriterien sind nicht erfüllt:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  {warningMessages.map((msg, i) => (
+                    <li key={i} className="text-sm">{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Verstanden</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
