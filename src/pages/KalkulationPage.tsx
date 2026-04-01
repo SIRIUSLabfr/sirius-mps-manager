@@ -172,6 +172,8 @@ export default function KalkulationPage() {
           : cfg.service?.items
             ? cfg.service
             : { items: [] },
+        folgeseitenpreis_sw: cfg.calculated?.folgeseitenpreis_sw ?? cfg.folgeseitenpreis_sw ?? 0,
+        folgeseitenpreis_farbe: cfg.calculated?.folgeseitenpreis_farbe ?? cfg.folgeseitenpreis_farbe ?? 0,
       });
     }
   }, [activeCalc, allCalcs.length, activeProjectId]);
