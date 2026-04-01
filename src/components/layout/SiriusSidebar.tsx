@@ -92,6 +92,7 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
   const hasProject = !!activeProjectId;
   const projectType = (project as any)?.project_type || 'project';
   const isDaily = projectType === 'daily';
+  const perms = usePermissions();
 
   // oopsies count
   const { data: allProjects } = useProjects();
