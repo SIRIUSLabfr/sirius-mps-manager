@@ -23,6 +23,7 @@ const projectRouteNames: Record<string, string> = {
   '/ist-soll': 'IST/SOLL Vergleich',
   '/kalkulation': 'Kalkulation',
   '/konzept': 'Konzept',
+  '/angebot': 'Angebot',
   '/rolloutliste': 'Rolloutliste',
   '/sop': 'SOP / Vorrichten',
   '/logistik': 'Logistik',
