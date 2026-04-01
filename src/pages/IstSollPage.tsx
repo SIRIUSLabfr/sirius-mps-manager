@@ -13,12 +13,10 @@ import FileUploadZone from '@/components/import/FileUploadZone';
 import DataPreview from '@/components/import/DataPreview';
 import ColumnMapping from '@/components/import/ColumnMapping';
 import ComparisonView from '@/components/istsoll/ComparisonView';
-import NewSollDeviceDialog from '@/components/istsoll/NewSollDeviceDialog';
-import SollBulkImportDialog from '@/components/istsoll/SollBulkImportDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Upload, AlertTriangle, CheckCircle2, Plus, FileUp, ArrowLeftRight } from 'lucide-react';
+import { Upload, AlertTriangle, CheckCircle2, ArrowLeftRight } from 'lucide-react';
 
 export default function IstSollPage() {
   const { projectId } = useParams<{ projectId: string }>();
