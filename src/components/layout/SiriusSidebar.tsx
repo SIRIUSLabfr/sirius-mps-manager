@@ -327,7 +327,7 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
                     ) : (
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
                     )}
-                    <span className="font-body flex-1 truncate">oopsies</span>
+                    <span className="font-body flex-1 truncate">oopsies...</span>
                     {oopsiesCount > 0 && (
                       <span className="text-[10px] font-heading font-bold bg-yellow-500 text-yellow-950 px-[7px] py-[2px] rounded-[10px] min-w-[20px] text-center">
                         {oopsiesCount}
