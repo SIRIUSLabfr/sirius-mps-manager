@@ -88,11 +88,11 @@ export default function KalkSummary({
         </CardContent>
       </Card>
 
-      {/* Volume & Mischklick box */}
+      {/* Volume & Folgeseitenpreis box */}
       <Card>
         <CardContent className="py-4 space-y-3">
           <p className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
-            Volumen & Mischklick
+            Volumen & Folgeseitenpreis
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center p-2 bg-muted/40 rounded-md">
@@ -111,16 +111,30 @@ export default function KalkSummary({
           <Separator />
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center p-2 rounded-md" style={{ backgroundColor: 'hsl(196 100% 44% / 0.08)' }}>
-              <p className="text-lg font-heading font-bold" style={{ color: '#00A3E0' }}>
-                {mischklick.totalSwVolume > 0 ? `${fmt4(mischklick.mischklickSw)} €` : '–'}
-              </p>
-              <p className="text-[10px] text-muted-foreground">Mischklick S/W</p>
+              <Input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={folgeseitenpreisSw || ''}
+                onChange={(e) => onFolgeseitenpreisChange('sw', parseFloat(e.target.value) || 0)}
+                className="h-8 text-center text-sm font-heading font-bold border-0 bg-transparent shadow-none px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                style={{ color: '#00A3E0' }}
+                placeholder="0,0000"
+              />
+              <p className="text-[10px] text-muted-foreground">Folgeseitenpreis S/W (€)</p>
             </div>
             <div className="text-center p-2 rounded-md" style={{ backgroundColor: 'hsl(196 100% 44% / 0.08)' }}>
-              <p className="text-lg font-heading font-bold" style={{ color: '#00A3E0' }}>
-                {mischklick.totalColorVolume > 0 ? `${fmt4(mischklick.mischklickColor)} €` : '–'}
-              </p>
-              <p className="text-[10px] text-muted-foreground">Mischklick Farbe</p>
+              <Input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={folgeseitenpreisFarbe || ''}
+                onChange={(e) => onFolgeseitenpreisChange('farbe', parseFloat(e.target.value) || 0)}
+                className="h-8 text-center text-sm font-heading font-bold border-0 bg-transparent shadow-none px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                style={{ color: '#00A3E0' }}
+                placeholder="0,0000"
+              />
+              <p className="text-[10px] text-muted-foreground">Folgeseitenpreis Farbe (€)</p>
             </div>
           </div>
         </CardContent>
