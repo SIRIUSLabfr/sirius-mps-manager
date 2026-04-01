@@ -289,7 +289,18 @@ export default function SopPage() {
       {/* Project Legend */}
       {legendProjects && legendProjects.length > 0 && (
         <div className="flex flex-wrap gap-2 items-center print:hidden">
-          <span className="text-[10px] text-muted-foreground font-heading uppercase tracking-wide">Projekte:</span>
+          <span className="text-[10px] text-muted-foreground font-heading uppercase tracking-wide">Filter:</span>
+          <button
+            onClick={() => setFilterType(filterType === 'daily' ? 'all' : 'daily')}
+            className={cn(
+              'flex items-center gap-1.5 text-[11px] font-heading px-2 py-0.5 rounded-full border transition-all',
+              filterType === 'daily'
+                ? 'border-orange-400 bg-orange-50 font-bold text-orange-700'
+                : 'border-border hover:border-foreground/20'
+            )}
+          >
+            🖨️ Tagesgeschäft
+          </button>
           {legendProjects.map(p => (
             <button
               key={p.id}
