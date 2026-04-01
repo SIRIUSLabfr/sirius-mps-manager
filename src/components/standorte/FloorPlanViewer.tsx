@@ -232,6 +232,17 @@ export default function FloorPlanViewer({ location, projectId }: FloorPlanViewer
                 </div>
 
                 {/* Unplaced devices */}
+                {movingPlacement && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-accent/20 border border-accent/40">
+                    <Move className="h-3.5 w-3.5 text-accent-foreground" />
+                    <p className="text-xs text-accent-foreground font-medium">
+                      Gerät wird verschoben – klicke auf die neue Position im Plan
+                    </p>
+                    <Button size="sm" variant="ghost" className="h-6 text-xs ml-auto" onClick={() => setMovingPlacement(null)}>
+                      Abbrechen
+                    </Button>
+                  </div>
+                )}
                 {unplacedDevices.length > 0 && (
                   <div>
                     <p className="text-xs font-heading uppercase tracking-wider text-muted-foreground mb-2">
