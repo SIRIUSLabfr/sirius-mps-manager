@@ -89,6 +89,38 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
   const projectType = (project as any)?.project_type || 'project';
   const isDaily = projectType === 'daily';
 
+  // oopsies count
+  const { data: allProjects } = useProjects();
+  const activeNonCompleted = useMemo(() => {
+    if (!allProjects) return [];
+    return allProjects.filter(p => p.status !== 'completed');
+  }, [allProjects]);
+  const activeIds = useMemo(() => activeNonCompleted.map(p => p.id), [activeNonCompleted]);
+  const { data: allSopsForOopsies } = useQuery({
+    queryKey: ['oopsies_sidebar', activeIds],
+    queryFn: async () => {
+      if (activeIds.length === 0) return [];
+      const { data, error } = await supabase.from('sop_orders').select('project_id, delivery_date, preparation_status, end_check_date').in('project_id', activeIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: activeIds.length > 0,
+  });
+  const oopsiesCount = useMemo(() => {
+    if (!allSopsForOopsies) return 0;
+    const today = new Date().toISOString().split('T')[0];
+    const twoMonthsAgo = new Date();
+    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+    const twoMonthsAgoStr = twoMonthsAgo.toISOString().split('T')[0];
+    let count = 0;
+    for (const project of activeNonCompleted) {
+      const sops = allSopsForOopsies.filter(s => s.project_id === project.id);
+      if (sops.some(s => s.delivery_date && s.delivery_date < today && (s.preparation_status === 'pending' || s.preparation_status === 'in_progress'))) count++;
+      if (sops.some(s => s.delivery_date && s.delivery_date < twoMonthsAgoStr)) count++;
+    }
+    return count;
+  }, [allSopsForOopsies, activeNonCompleted]);
+
   const totalDevices = devices?.length || 0;
   const checkedDevices = devices?.filter(d => d.preparation_status === 'checked').length || 0;
   const pendingSops = sopOrders?.filter(s => s.preparation_status === 'pending').length || 0;
