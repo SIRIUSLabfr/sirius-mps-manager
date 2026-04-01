@@ -33,8 +33,8 @@ export default function IstSollPage() {
   const [importing, setImporting] = useState(false);
   const [importStep, setImportStep] = useState<'upload' | 'preview' | 'mapping' | 'done'>('upload');
 
-  const [showSollDialog, setShowSollDialog] = useState(false);
-  const [showBulkImport, setShowBulkImport] = useState(false);
+
+
 
   useEffect(() => {
     if (projectId) setActiveProjectId(projectId);
