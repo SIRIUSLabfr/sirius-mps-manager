@@ -38,6 +38,7 @@ export default function KanbanColumn({ id, title, color, items, getUserName, get
               sop={sop}
               technicianName={getUserName(sop.technician)}
               projectColor={getProjectColor(sop.project_id)}
+              customerName={getCustomerName(sop.project_id)}
               onClick={() => onCardClick(sop)}
             />
           ))}
