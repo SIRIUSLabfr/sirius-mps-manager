@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
 
 interface MischklickData {
   totalSwCost: number;
@@ -21,6 +22,9 @@ interface KalkSummaryProps {
   hwMonthly: number;
   totalRate: number;
   mischklick: MischklickData;
+  folgeseitenpreisSw: number;
+  folgeseitenpreisFarbe: number;
+  onFolgeseitenpreisChange: (field: 'sw' | 'farbe', value: number) => void;
 }
 
 const fmt = (v: number) =>
