@@ -290,11 +290,41 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {filteredRows.length === 0 ? (
+              {/* Manual add row */}
+              {addingIst && (
+                <tr className="bg-primary/5">
+                  <td className="px-2 py-2" />
+                  <td className="px-2 py-1">
+                    <div className="flex gap-1">
+                      <Input placeholder="Hersteller" value={newIst.manufacturer} onChange={e => setNewIst(p => ({ ...p, manufacturer: e.target.value }))} className="h-7 text-xs" />
+                      <Input placeholder="Modell" value={newIst.model} onChange={e => setNewIst(p => ({ ...p, model: e.target.value }))} className="h-7 text-xs" />
+                    </div>
+                  </td>
+                  <td className="px-2 py-1">
+                    <Input placeholder="Gebäude" value={newIst.building} onChange={e => setNewIst(p => ({ ...p, building: e.target.value }))} className="h-7 text-xs" />
+                  </td>
+                  <td className="px-2 py-1 border-r border-border/50">
+                    <Input placeholder="Raum" value={newIst.room} onChange={e => setNewIst(p => ({ ...p, room: e.target.value }))} className="h-7 text-xs" />
+                  </td>
+                  <td colSpan={4} className="px-2 py-1 border-r border-border/50" />
+                  <td className="px-2 py-1">
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="default" className="h-7 text-xs px-2" onClick={handleAddIstDevice} disabled={!newIst.manufacturer && !newIst.model}>
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={() => setAddingIst(false)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {filteredRows.length === 0 && !addingIst ? (
                 <tr><td colSpan={9} className="text-center py-12 text-muted-foreground">Keine Geräte gefunden</td></tr>
               ) : filteredRows.map(row => {
                 const ist = row.istDevice;
                 const soll = row.sollDevice;
+                const isEditing = editingIst === row.device.id;
                 return (
                   <tr key={row.device.id} className={cn('transition-colors hover:bg-muted/20', getRowBg(row))}>
                     <td className="px-2 py-2">
@@ -302,16 +332,34 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
                     </td>
                     {/* IST */}
                     <td className="px-3 py-2">
-                      {ist ? (
-                        <div>
-                          <span className="font-medium">{ist.ist_manufacturer || '–'}</span>
-                          <span className="text-muted-foreground ml-1">{ist.ist_model || ''}</span>
+                      {isEditing ? (
+                        <div className="flex gap-1">
+                          <Input value={editValues.manufacturer} onChange={e => setEditValues(p => ({ ...p, manufacturer: e.target.value }))} className="h-7 text-xs" placeholder="Hersteller" />
+                          <Input value={editValues.model} onChange={e => setEditValues(p => ({ ...p, model: e.target.value }))} className="h-7 text-xs" placeholder="Modell" />
+                        </div>
+                      ) : ist ? (
+                        <div className="group/ist flex items-center gap-1">
+                          <div>
+                            <span className="font-medium">{ist.ist_manufacturer || '–'}</span>
+                            <span className="text-muted-foreground ml-1">{ist.ist_model || ''}</span>
+                          </div>
+                          <button className="opacity-0 group-hover/ist:opacity-100 transition-opacity" onClick={() => startEditIst(ist)}>
+                            <Pencil className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                          </button>
                         </div>
                       ) : <span className="text-muted-foreground italic">–</span>}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">{ist ? getLocationName(ist.location_id) : '–'}</td>
                     <td className="px-3 py-2 text-muted-foreground border-r border-border/50">
-                      {ist ? [ist.ist_floor, ist.ist_room].filter(Boolean).join(' / ') || '–' : '–'}
+                      {isEditing ? (
+                        <div className="flex gap-1">
+                          <Input value={editValues.room} onChange={e => setEditValues(p => ({ ...p, room: e.target.value }))} className="h-7 text-xs" placeholder="Raum" />
+                          <Button size="sm" variant="default" className="h-7 px-2" onClick={saveEditIst}><Check className="h-3 w-3" /></Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingIst(null)}><X className="h-3 w-3" /></Button>
+                        </div>
+                      ) : ist ? (
+                        [ist.ist_floor, ist.ist_room].filter(Boolean).join(' / ') || '–'
+                      ) : '–'}
                     </td>
                     {/* Optimization */}
                     <td className="px-2 py-2 border-r border-border/50">
