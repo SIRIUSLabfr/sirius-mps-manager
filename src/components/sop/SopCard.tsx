@@ -9,10 +9,11 @@ interface Props {
   sop: Tables<'sop_orders'>;
   technicianName?: string;
   projectColor?: string;
+  customerName?: string;
   onClick: () => void;
 }
 
-export default function SopCard({ sop, technicianName, projectColor, onClick }: Props) {
+export default function SopCard({ sop, technicianName, projectColor, customerName, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sop.id });
 
   const style = {
@@ -41,12 +42,17 @@ export default function SopCard({ sop, technicianName, projectColor, onClick }: 
               <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
             <div className="flex-1 min-w-0">
+              {/* Line 0: Customer name */}
+              {customerName && (
+                <p className="text-[10px] text-muted-foreground truncate">{customerName}</p>
+              )}
+
               {/* Line 1: Manufacturer + Model */}
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-sm font-heading font-bold truncate leading-tight">
                 {[sop.manufacturer, sop.model].filter(Boolean).join(' · ') || '–'}
               </p>
 
-              {/* Line 2: Device ID (larger) */}
+              {/* Line 2: Device ID */}
               {(sop.device_internal_id || sop.serial_number || sop.ow_number) && (
                 <p className="text-sm font-heading font-bold truncate leading-tight">
                   {sop.device_internal_id || sop.serial_number || sop.ow_number}
