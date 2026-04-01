@@ -106,7 +106,7 @@ export default function OopsiesBanner({ projectType }: { projectType: 'project' 
         ) : (
           <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
         )}
-        <span className="font-heading font-medium text-xs text-foreground">
+        <span className="font-heading font-medium text-xs text-sidebar-primary-foreground">
           oopsies
         </span>
         {hasIssues && (
