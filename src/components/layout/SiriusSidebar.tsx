@@ -37,7 +37,7 @@ const bottomNav: NavItem[] = [
 // ── EBENE 2: MPS project phases ──
 const phase1Items: NavItem[] = [
   { title: 'Standorte & Raumpläne', path: '/projekt/:id/standorte', icon: Building2, requiresProject: true },
-  { title: 'Projektdaten', path: '/projekt/:id/daten', icon: Download, requiresProject: true },
+  { title: 'Projektdaten', path: '/projekt/:id/daten', icon: Database, requiresProject: true },
 ];
 const phase2Items: NavItem[] = [
   { title: 'IST/SOLL Vergleich', path: '/projekt/:id/ist-soll', icon: RefreshCw, requiresProject: true },

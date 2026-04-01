@@ -229,23 +229,6 @@ export default function IstSollPage() {
         </CardContent>
       </Card>
 
-      {/* Dialogs */}
-      <NewSollDeviceDialog
-        open={showSollDialog}
-        onOpenChange={setShowSollDialog}
-        projectId={projectId!}
-        locations={locations || []}
-        onCreated={refreshDevices}
-        nextDeviceNumber={nextDeviceNumber}
-      />
-      <SollBulkImportDialog
-        open={showBulkImport}
-        onOpenChange={setShowBulkImport}
-        projectId={projectId!}
-        locations={locations || []}
-        existingDeviceCount={nextDeviceNumber - 1}
-        onImported={refreshDevices}
-      />
     </div>
   );
 }
