@@ -32,6 +32,7 @@ const overviewItems: NavItem[] = [
 const globalItems: NavItem[] = [
   { title: 'SOP / Vorrichten', path: '/sop', icon: Wrench },
   { title: 'Kalender', path: '/kalender', icon: Calendar },
+  { title: 'Abwicklung', path: '/abwicklung', icon: ClipboardList },
 ];
 const bottomNav: NavItem[] = [
   { title: 'Team', path: '/team', icon: Users },
@@ -55,6 +56,7 @@ const phase3Items: NavItem[] = [
   { title: 'IT / EDV', path: '/projekt/:id/it-edv', icon: Monitor, requiresProject: true },
   { title: 'Checklisten', path: '/projekt/:id/checklisten', icon: CheckSquare, requiresProject: true, badgeKey: 'checklists_open' },
   { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
+  { title: 'Abwicklung', path: '/projekt/:id/abwicklung', icon: ClipboardList, requiresProject: true },
 ];
 
 // ── EBENE 2: Daily phases ──
@@ -68,6 +70,7 @@ const dailyPhase2: NavItem[] = [
 const dailyPhase3: NavItem[] = [
   { title: 'SOP / Vorrichten', path: '/projekt/:id/sop', icon: Wrench, requiresProject: true },
   { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
+  { title: 'Abwicklung', path: '/projekt/:id/abwicklung', icon: ClipboardList, requiresProject: true },
 ];
 
 type PhaseStatus = 'idle' | 'active' | 'done';

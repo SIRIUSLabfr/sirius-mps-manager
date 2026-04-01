@@ -693,6 +693,134 @@ export type Database = {
           },
         ]
       }
+      order_processing: {
+        Row: {
+          bank_interval: string | null
+          billing_city: string | null
+          billing_street: string | null
+          billing_zip: string | null
+          contract_end: string | null
+          contract_start: string | null
+          contract_type: string | null
+          counter_interval: string | null
+          created_at: string | null
+          device_id: string | null
+          factor: number | null
+          finance_type: string | null
+          free_start_phase: string | null
+          goods_value: number | null
+          id: string
+          leasing_contract_nr: string | null
+          leasing_share: number | null
+          maintenance_share: number | null
+          offer_order_nr: string | null
+          old_device_pickup: string | null
+          order_date: string | null
+          order_number: string | null
+          project_id: string
+          purchase_order: string | null
+          rate: number | null
+          request_nr: string | null
+          serial_number: string | null
+          signing_authority: string | null
+          site_conditions: string | null
+          status: string | null
+          steps: Json
+          subject: string | null
+          sx_contract_nr: string | null
+          takeover_date: string | null
+          term_months: number | null
+          updated_at: string | null
+          zoho_sales_order_id: string | null
+        }
+        Insert: {
+          bank_interval?: string | null
+          billing_city?: string | null
+          billing_street?: string | null
+          billing_zip?: string | null
+          contract_end?: string | null
+          contract_start?: string | null
+          contract_type?: string | null
+          counter_interval?: string | null
+          created_at?: string | null
+          device_id?: string | null
+          factor?: number | null
+          finance_type?: string | null
+          free_start_phase?: string | null
+          goods_value?: number | null
+          id?: string
+          leasing_contract_nr?: string | null
+          leasing_share?: number | null
+          maintenance_share?: number | null
+          offer_order_nr?: string | null
+          old_device_pickup?: string | null
+          order_date?: string | null
+          order_number?: string | null
+          project_id: string
+          purchase_order?: string | null
+          rate?: number | null
+          request_nr?: string | null
+          serial_number?: string | null
+          signing_authority?: string | null
+          site_conditions?: string | null
+          status?: string | null
+          steps?: Json
+          subject?: string | null
+          sx_contract_nr?: string | null
+          takeover_date?: string | null
+          term_months?: number | null
+          updated_at?: string | null
+          zoho_sales_order_id?: string | null
+        }
+        Update: {
+          bank_interval?: string | null
+          billing_city?: string | null
+          billing_street?: string | null
+          billing_zip?: string | null
+          contract_end?: string | null
+          contract_start?: string | null
+          contract_type?: string | null
+          counter_interval?: string | null
+          created_at?: string | null
+          device_id?: string | null
+          factor?: number | null
+          finance_type?: string | null
+          free_start_phase?: string | null
+          goods_value?: number | null
+          id?: string
+          leasing_contract_nr?: string | null
+          leasing_share?: number | null
+          maintenance_share?: number | null
+          offer_order_nr?: string | null
+          old_device_pickup?: string | null
+          order_date?: string | null
+          order_number?: string | null
+          project_id?: string
+          purchase_order?: string | null
+          rate?: number | null
+          request_nr?: string | null
+          serial_number?: string | null
+          signing_authority?: string | null
+          site_conditions?: string | null
+          status?: string | null
+          steps?: Json
+          subject?: string | null
+          sx_contract_nr?: string | null
+          takeover_date?: string | null
+          term_months?: number | null
+          updated_at?: string | null
+          zoho_sales_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_processing_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string

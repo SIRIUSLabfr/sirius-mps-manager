@@ -27,6 +27,8 @@ import TeamPage from "./pages/TeamPage";
 import StandortePage from "./pages/StandortePage";
 import NotFound from "./pages/NotFound";
 import OopsiesPage from "./pages/OopsiesPage";
+import AbwicklungPage from "./pages/AbwicklungPage";
+import AbwicklungOverviewPage from "./pages/AbwicklungOverviewPage";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +100,7 @@ const App = () => (
                 <Route path="/tagesgeschaeft" element={<TagesgeschaeftListPage />} />
                 <Route path="/sop" element={<SopPage />} />
                 <Route path="/kalender" element={<KalenderPage />} />
+                <Route path="/abwicklung" element={<AbwicklungOverviewPage />} />
                 <Route path="/team" element={<TeamPage />} />
                 <Route path="/einstellungen" element={<TeamPage />} />
 
@@ -116,6 +119,7 @@ const App = () => (
                 <Route path="/projekt/:projectId/kalender" element={<KalenderPage />} />
                 <Route path="/projekt/:projectId/geraete" element={<DailyGeraeteListePage />} />
                 <Route path="/projekt/:projectId/daily" element={<DailyDashboardPage />} />
+                <Route path="/projekt/:projectId/abwicklung" element={<AbwicklungPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
