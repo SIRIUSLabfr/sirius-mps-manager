@@ -1,17 +1,21 @@
 import { useMemo } from 'react';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjectData';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 interface OopsieMessage {
   projectId: string;
   customerName: string;
   projectType: string;
   message: string;
+  link: string;
 }
 
 export default function OopsiesPage() {
+  const navigate = useNavigate();
   const { data: projects } = useProjects();
 
   const activeProjects = useMemo(() => {
@@ -47,6 +51,7 @@ export default function OopsiesPage() {
       const pType = (project as any).project_type || 'project';
       const typeLabel = pType === 'daily' ? 'Tagesgeschäft' : 'MPS-Projekt';
 
+      // Rule 1: Delivery date passed, device still pending/in_progress
       const overdueNotStarted = projectSops.filter(s =>
         s.delivery_date && s.delivery_date < today &&
         (s.preparation_status === 'pending' || s.preparation_status === 'in_progress')
@@ -57,9 +62,11 @@ export default function OopsiesPage() {
           customerName: project.customer_name,
           projectType: typeLabel,
           message: `${overdueNotStarted.length} Gerät(e) – Lieferdatum überschritten, Status noch „${overdueNotStarted[0].preparation_status === 'pending' ? 'Ausstehend' : 'In Bearbeitung'}"`,
+          link: `/projekt/${project.id}/sop`,
         });
       }
 
+      // Rule 2: Delivery date exceeded by 2+ months, not completed
       const longOverdue = projectSops.filter(s =>
         s.delivery_date && s.delivery_date < twoMonthsAgoStr
       );
@@ -69,6 +76,7 @@ export default function OopsiesPage() {
           customerName: project.customer_name,
           projectType: typeLabel,
           message: `Lieferdatum um über 2 Monate überschritten – ${typeLabel} nicht abgeschlossen`,
+          link: pType === 'daily' ? '/tagesgeschaeft' : '/projekte',
         });
       }
     }
@@ -78,7 +86,7 @@ export default function OopsiesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-heading font-bold text-foreground">oopsies</h1>
+      <h1 className="text-2xl font-heading font-bold text-foreground">oopsies...</h1>
 
       {oopsies.length === 0 ? (
         <div className="flex items-center gap-3 rounded-lg border border-green-500/30 bg-green-500/5 p-6">
@@ -100,6 +108,15 @@ export default function OopsiesPage() {
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">{o.message}</p>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-1.5 text-xs"
+                onClick={() => navigate(o.link)}
+              >
+                Beheben
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
             </div>
           ))}
         </div>
