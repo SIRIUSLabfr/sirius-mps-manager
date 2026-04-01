@@ -1,25 +1,81 @@
 import { useUsers } from '@/hooks/useProjectData';
 import { usePermissions, DEPARTMENTS, type Department } from '@/hooks/usePermissions';
+import { useZoho } from '@/hooks/useZoho';
 import { supabase } from '@/integrations/supabase/client';
+import { zohoClient } from '@/lib/zohoClient';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Users, Settings, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Settings, Shield, RefreshCw, Cloud } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function EinstellungenPage() {
   const { data: users, isLoading } = useUsers();
   const { canManagePermissions, currentUser } = usePermissions();
+  const { isZohoConnected, connectZoho } = useZoho();
   const queryClient = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
 
   const updateUser = async (userId: string, field: string, value: string) => {
     const { error } = await supabase.from('users').update({ [field]: value }).eq('id', userId);
     if (error) toast.error('Speicherfehler: ' + error.message);
     else {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+    }
+  };
+
+  const syncZohoUsers = async () => {
+    setSyncing(true);
+    try {
+      const zohoUsers = await zohoClient.getAllUsers();
+      if (!zohoUsers?.length) {
+        toast.error('Keine Benutzer von Zoho erhalten');
+        return;
+      }
+
+      let created = 0;
+      let updated = 0;
+
+      for (const zu of zohoUsers) {
+        if (!zu.email) continue;
+
+        // Check if user already exists by email
+        const { data: existing } = await supabase
+          .from('users')
+          .select('id, zoho_user_id')
+          .eq('email', zu.email.toLowerCase())
+          .maybeSingle();
+
+        const userData = {
+          email: zu.email.toLowerCase(),
+          full_name: zu.full_name || `${zu.first_name || ''} ${zu.last_name || ''}`.trim(),
+          zoho_user_id: zu.id,
+          role: (zu.role?.name || zu.profile?.name || 'user').toLowerCase(),
+        };
+
+        if (existing) {
+          await supabase.from('users').update({
+            full_name: userData.full_name,
+            zoho_user_id: userData.zoho_user_id,
+          }).eq('id', existing.id);
+          updated++;
+        } else {
+          await supabase.from('users').insert(userData);
+          created++;
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success(`Zoho-Sync abgeschlossen: ${created} neu, ${updated} aktualisiert`);
+    } catch (e: any) {
+      toast.error('Sync-Fehler: ' + (e.message || 'Unbekannt'));
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -38,9 +94,30 @@ export default function EinstellungenPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Settings className="h-6 w-6 text-muted-foreground" />
-        <h1 className="text-2xl font-heading font-bold text-foreground">Einstellungen</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Settings className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-2xl font-heading font-bold text-foreground">Einstellungen</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          {isZohoConnected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={syncZohoUsers}
+              disabled={syncing}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Synchronisiere…' : 'Aus Zoho laden'}
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={connectZoho} className="gap-2">
+              <Cloud className="h-4 w-4" />
+              Mit Zoho verbinden
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -58,7 +135,12 @@ export default function EinstellungenPage() {
           ) : !users?.length ? (
             <div className="py-12 text-center">
               <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground">Noch keine Benutzer. Benutzer werden automatisch angelegt, wenn sie sich über Zoho anmelden.</p>
+              <p className="text-sm text-muted-foreground">
+                Noch keine Benutzer.
+                {isZohoConnected
+                  ? ' Klicke oben auf "Aus Zoho laden" um die Benutzer zu synchronisieren.'
+                  : ' Verbinde dich mit Zoho um Benutzer zu laden.'}
+              </p>
             </div>
           ) : (
             <div className="border border-border rounded-lg overflow-hidden">
