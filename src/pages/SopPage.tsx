@@ -339,7 +339,7 @@ export default function SopPage() {
         <DragOverlay dropAnimation={{ duration: 200, easing: 'ease-out' }}>
           {activeSop ? (
             <div className="rotate-[2deg] scale-105 shadow-xl opacity-90">
-              <SopCard sop={activeSop} technicianName={getUserName(activeSop.technician)} projectColor={getProjectColor(activeSop.project_id)} onClick={() => {}} />
+              <SopCard sop={activeSop} technicianName={getUserName(activeSop.technician)} projectColor={getProjectColor(activeSop.project_id)} customerName={getCustomerName(activeSop.project_id)} onClick={() => {}} />
             </div>
           ) : null}
         </DragOverlay>
