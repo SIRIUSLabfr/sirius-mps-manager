@@ -53,6 +53,8 @@ interface CalcState {
   delivery_date: string | null;
   deviceGroups: DeviceGroup[];
   service: ServiceConfig;
+  folgeseitenpreis_sw: number;
+  folgeseitenpreis_farbe: number;
 }
 
 const createEmptyPagePrices = (): PagePrices => ({ bw: null, color: null });
@@ -78,6 +80,8 @@ const defaultState: CalcState = {
   delivery_date: null,
   deviceGroups: [createEmptyGroup()],
   service: { items: [] },
+  folgeseitenpreis_sw: 0,
+  folgeseitenpreis_farbe: 0,
 };
 
 export default function KalkulationPage() {
@@ -168,6 +172,8 @@ export default function KalkulationPage() {
           : cfg.service?.items
             ? cfg.service
             : { items: [] },
+        folgeseitenpreis_sw: cfg.calculated?.folgeseitenpreis_sw ?? cfg.folgeseitenpreis_sw ?? 0,
+        folgeseitenpreis_farbe: cfg.calculated?.folgeseitenpreis_farbe ?? cfg.folgeseitenpreis_farbe ?? 0,
       });
     }
   }, [activeCalc, allCalcs.length, activeProjectId]);
@@ -246,6 +252,8 @@ export default function KalkulationPage() {
         total_volume_color: mischklick.totalColorVolume,
         mischklick_bw: mischklick.mischklickSw,
         mischklick_color: mischklick.mischklickColor,
+        folgeseitenpreis_sw: form.folgeseitenpreis_sw,
+        folgeseitenpreis_farbe: form.folgeseitenpreis_farbe,
       },
     })),
   });
@@ -617,6 +625,12 @@ export default function KalkulationPage() {
               financeType={form.finance_type} termMonths={form.term_months} leasingFactor={form.leasing_factor}
               hardwareEkTotal={hardwareEkTotal} marginTotal={form.margin_total} abloeseTotal={abloeseTotal}
               hwMonthly={hwMonthly} totalRate={totalRate} mischklick={mischklick}
+              folgeseitenpreisSw={form.folgeseitenpreis_sw}
+              folgeseitenpreisFarbe={form.folgeseitenpreis_farbe}
+              onFolgeseitenpreisChange={(field, value) => setForm(f => ({
+                ...f,
+                [field === 'sw' ? 'folgeseitenpreis_sw' : 'folgeseitenpreis_farbe']: value,
+              }))}
             />
             <div className="space-y-2">
               <div className="flex gap-2">
