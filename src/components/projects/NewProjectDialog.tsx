@@ -195,12 +195,20 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
       if (error) throw error;
       return data;
     },
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      // Auto-create order_processing entry
+      if (data?.id) {
+        const pt = selectedType || 'project';
+        await supabase.from('order_processing' as any).insert({
+          project_id: data.id,
+          steps: generateEmptySteps(pt),
+          status: 'offen',
+        } as any);
+      }
       toast.success(selectedType === 'project' ? 'Projekt erstellt' : 'Auftrag erstellt');
       onOpenChange(false);
       resetAll();
-      // Navigate to the new project
       if (data?.id) {
         setActiveProjectId(data.id);
         navigate(`/projekt/${data.id}`);
