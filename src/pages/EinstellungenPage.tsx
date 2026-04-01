@@ -30,6 +30,24 @@ export default function EinstellungenPage() {
   };
 
   const syncZohoUsers = async () => {
+    const ADMIN_EMAIL = 'f.schueler@sirius-gmbh.de';
+    const mapZohoRoleToAppRole = (zohoUser: any): 'admin' | 'project_lead' | 'technician' | 'viewer' => {
+      const email = String(zohoUser?.email || '').toLowerCase();
+      const source = [zohoUser?.role?.name, zohoUser?.profile?.name, zohoUser?.type]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      if (email === ADMIN_EMAIL || source.includes('admin')) return 'admin';
+      if (source.includes('lead') || source.includes('leiter') || source.includes('manager') || source.includes('owner')) {
+        return 'project_lead';
+      }
+      if (source.includes('tech') || source.includes('techn') || source.includes('service') || source.includes('support') || source.includes('ops')) {
+        return 'technician';
+      }
+      return 'viewer';
+    };
+
     setSyncing(true);
     try {
       const zohoUsers = await zohoClient.getAllUsers();
@@ -40,47 +58,73 @@ export default function EinstellungenPage() {
 
       let created = 0;
       let updated = 0;
+      let failed = 0;
 
       for (const zu of zohoUsers) {
         if (!zu.email) continue;
 
         const email = zu.email.toLowerCase();
+        const fullName = zu.full_name || `${zu.first_name || ''} ${zu.last_name || ''}`.trim() || email;
+        const role = mapZohoRoleToAppRole(zu);
+        const isAdminUser = email === ADMIN_EMAIL;
 
-        // Check if user already exists by email
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from('users')
-          .select('id, zoho_user_id')
+          .select('id, zoho_user_id, department')
           .eq('email', email)
           .maybeSingle();
 
-        const fullName = zu.full_name || `${zu.first_name || ''} ${zu.last_name || ''}`.trim() || email;
-        const role = (zu.role?.name || zu.profile?.name || 'user').toLowerCase();
+        if (existingError) {
+          failed++;
+          console.error('Lookup error for', email, existingError);
+          continue;
+        }
 
         if (existing) {
-          const { error } = await supabase.from('users').update({
+          const updateData: {
+            full_name: string;
+            zoho_user_id: string;
+            role: 'admin' | 'project_lead' | 'technician' | 'viewer';
+            department?: Department;
+          } = {
             full_name: fullName,
             zoho_user_id: zu.id,
-          }).eq('id', existing.id);
-          if (error) console.error('Update error for', email, error);
-          else updated++;
+            role,
+          };
+
+          if (isAdminUser) {
+            updateData.department = 'admin';
+          }
+
+          const { error } = await supabase.from('users').update(updateData).eq('id', existing.id);
+          if (error) {
+            failed++;
+            console.error('Update error for', email, error);
+          } else {
+            updated++;
+          }
         } else {
-          const { error } = await supabase.from('users').insert({
+          const insertData: {
+            email: string;
+            full_name: string;
+            zoho_user_id: string;
+            role: 'admin' | 'project_lead' | 'technician' | 'viewer';
+            department?: Department;
+          } = {
             email,
             full_name: fullName,
             zoho_user_id: zu.id,
             role,
-          });
+          };
+
+          if (isAdminUser) {
+            insertData.department = 'admin';
+          }
+
+          const { error } = await supabase.from('users').insert(insertData);
           if (error) {
+            failed++;
             console.error('Insert error for', email, error);
-            // If role is the problem, try without it
-            const { error: e2 } = await supabase.from('users').insert({
-              email,
-              full_name: fullName,
-              zoho_user_id: zu.id,
-              role: 'user',
-            });
-            if (e2) console.error('Insert retry error for', email, e2);
-            else created++;
           } else {
             created++;
           }
@@ -88,7 +132,11 @@ export default function EinstellungenPage() {
       }
 
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success(`Zoho-Sync abgeschlossen: ${created} neu, ${updated} aktualisiert`);
+      if (failed > 0) {
+        toast.error(`Zoho-Sync unvollständig: ${failed} Fehler, ${created} neu, ${updated} aktualisiert`);
+      } else {
+        toast.success(`Zoho-Sync abgeschlossen: ${created} neu, ${updated} aktualisiert`);
+      }
     } catch (e: any) {
       toast.error('Sync-Fehler: ' + (e.message || 'Unbekannt'));
     } finally {
