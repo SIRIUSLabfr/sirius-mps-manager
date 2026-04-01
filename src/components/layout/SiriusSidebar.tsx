@@ -32,6 +32,7 @@ const overviewItems: NavItem[] = [
 const globalItems: NavItem[] = [
   { title: 'SOP / Vorrichten', path: '/sop', icon: Wrench },
   { title: 'Kalender', path: '/kalender', icon: Calendar },
+  { title: 'Abwicklung', path: '/abwicklung', icon: ClipboardList },
 ];
 const bottomNav: NavItem[] = [
   { title: 'Team', path: '/team', icon: Users },
