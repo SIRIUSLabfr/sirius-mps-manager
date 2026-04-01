@@ -101,8 +101,7 @@ const App = () => (
                 <Route path="/sop" element={<SopPage />} />
                 <Route path="/kalender" element={<KalenderPage />} />
                 <Route path="/abwicklung" element={<AbwicklungOverviewPage />} />
-                <Route path="/team" element={<TeamPage />} />
-                <Route path="/einstellungen" element={<TeamPage />} />
+                <Route path="/einstellungen" element={<EinstellungenPage />} />
 
                 {/* Ebene 2: Project-specific */}
                 <Route path="/projekt/:projectId" element={<ProjectDashboardPage />} />

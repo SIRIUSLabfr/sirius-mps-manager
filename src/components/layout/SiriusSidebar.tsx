@@ -35,7 +35,6 @@ const globalItems: NavItem[] = [
   { title: 'Abwicklung', path: '/abwicklung', icon: ClipboardList },
 ];
 const bottomNav: NavItem[] = [
-  { title: 'Team', path: '/team', icon: Users },
   { title: 'Einstellungen', path: '/einstellungen', icon: Settings },
 ];
 
