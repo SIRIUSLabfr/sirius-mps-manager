@@ -40,9 +40,15 @@ export default async (req: Request) => {
   }
 
   const body = await req.json();
-  const { endpoint, method = 'GET', data } = body;
+  const { endpoint, method = 'GET', data, api = 'crm' } = body;
 
-  const zohoResponse = await fetch(`https://www.zohoapis.eu/crm/v7/${endpoint}`, {
+  const baseUrls: Record<string, string> = {
+    crm: 'https://www.zohoapis.eu/crm/v7',
+    directory: 'https://directory.zoho.eu/api/v1/scim',
+  };
+  const baseUrl = baseUrls[api] || baseUrls.crm;
+
+  const zohoResponse = await fetch(`${baseUrl}/${endpoint}`, {
     method,
     headers: {
       Authorization: `Zoho-oauthtoken ${tokens.access_token}`,
