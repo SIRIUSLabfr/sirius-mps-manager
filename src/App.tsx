@@ -26,6 +26,7 @@ import KonzeptPage from "./pages/KonzeptPage";
 import TeamPage from "./pages/TeamPage";
 import StandortePage from "./pages/StandortePage";
 import NotFound from "./pages/NotFound";
+import OopsiesPage from "./pages/OopsiesPage";
 
 const queryClient = new QueryClient();
 
