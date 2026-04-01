@@ -15,13 +15,6 @@ const STATUS_OPTIONS = [
   { value: 'in_progress', label: 'In Bearbeitung' },
   { value: 'prepared', label: 'Vorgerichtet' },
   { value: 'delivered', label: 'Ausgeliefert' },
-  { value: 'checked', label: 'Endkontrolle OK' },
-];
-
-const DELIVERY_STATUS_OPTIONS = [
-  { value: 'pending', label: 'Ausstehend' },
-  { value: 'in_transit', label: 'Unterwegs' },
-  { value: 'delivered', label: 'Ausgeliefert' },
 ];
 
 interface Props {
