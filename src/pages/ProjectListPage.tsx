@@ -168,7 +168,18 @@ export default function ProjectListPage() {
                 <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSelectProject(p)}>
                   <TableCell className="font-medium">{p.customer_name}</TableCell>
                   <TableCell className="text-muted-foreground">{p.project_number || '–'}</TableCell>
-                  <TableCell><StatusChip status={p.status} /></TableCell>
+                  <TableCell onClick={e => e.stopPropagation()}>
+                    <Select value={p.status} onValueChange={v => handleStatusChange(p.id, v)}>
+                      <SelectTrigger className="h-7 w-[150px] text-xs border-none bg-transparent hover:bg-muted/50 px-1">
+                        <StatusChip status={p.status} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROJECT_STATUS_OPTIONS.map(o => (
+                          <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {p.rollout_start || p.rollout_end ? `${formatDate(p.rollout_start)} – ${formatDate(p.rollout_end)}` : '–'}
                   </TableCell>
