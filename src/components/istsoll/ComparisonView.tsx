@@ -234,7 +234,9 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
             {manufacturers.map(m => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}
           </SelectContent>
         </Select>
-      </div>
+        <Button size="sm" variant="outline" className="h-9 text-xs gap-1.5" onClick={() => setAddingIst(true)}>
+          <Plus className="h-3.5 w-3.5" /> IST-Gerät manuell
+        </Button>
 
       {/* Bulk actions */}
       {selected.size > 0 && (
