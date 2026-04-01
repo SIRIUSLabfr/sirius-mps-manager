@@ -14,6 +14,7 @@ import { useProject, useProjectDevices, useProjects } from '@/hooks/useProjectDa
 import { useSopOrders } from '@/hooks/useSopData';
 import { useLocations } from '@/hooks/useRolloutData';
 import { useChecklists } from '@/hooks/useChecklistData';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NavItem {
   title: string;
