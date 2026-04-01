@@ -274,15 +274,36 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
         {/* ── EBENE 1: Overview (no project selected) ── */}
         {!hasProject && (
           <>
-            <div className="px-4 pt-3 pb-1">
-              <OopsiesBanner projectType="all" />
-            </div>
-
             <div className="mb-1">
               <div className="px-5 pt-2 pb-1">
                 <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">Übersicht</span>
               </div>
-              <ul className="space-y-0.5">{overviewItems.map(renderItem)}</ul>
+              <ul className="space-y-0.5">
+                <li>
+                  <Link
+                    to="/oopsies"
+                    onClick={() => onMobileClose?.()}
+                    className={cn(
+                      'flex items-center gap-3 px-5 py-2 text-[13px] rounded-md transition-colors relative',
+                      location.pathname === '/oopsies' && 'bg-[hsl(216,80%,24%/0.35)] text-sidebar-primary-foreground font-semibold border-l-[3px] border-secondary [&_svg]:text-secondary',
+                      location.pathname !== '/oopsies' && 'text-sidebar-foreground hover:bg-[hsl(0,0%,100%/0.05)] hover:text-[hsl(0,0%,100%/0.85)]',
+                    )}
+                  >
+                    {oopsiesCount > 0 ? (
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+                    )}
+                    <span className="font-body flex-1 truncate">oopsies</span>
+                    {oopsiesCount > 0 && (
+                      <span className="text-[10px] font-heading font-bold bg-yellow-500 text-yellow-950 px-[7px] py-[2px] rounded-[10px] min-w-[20px] text-center">
+                        {oopsiesCount}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+                {overviewItems.map(renderItem)}
+              </ul>
             </div>
 
             {phaseDivider()}
