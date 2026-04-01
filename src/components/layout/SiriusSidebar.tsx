@@ -4,7 +4,7 @@ import {
   ClipboardList, Building2, Database, RefreshCw, Calculator, FileText,
   BarChart3, Wrench, Truck, Monitor, CheckSquare, Calendar,
   Star, Settings, X, List, ArrowLeft, Package, Printer,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
