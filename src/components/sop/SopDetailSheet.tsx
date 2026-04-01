@@ -75,7 +75,7 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
           <div>
             <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground mb-3">Auftragsdaten</h3>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="OW-Nummer" field="ow_number" value={sop.ow_number} />
+              <Field label="Auftragsnummer" field="ow_number" value={sop.ow_number} />
               <Field label="Ersteller" field="creator" value={sop.creator} />
               <Field label="Liefertermin" field="delivery_date" value={sop.delivery_date} type="date" />
               <Field label="Lieferzeit" field="delivery_time" value={sop.delivery_time as string | null} type="time" />
