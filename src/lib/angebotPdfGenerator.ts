@@ -237,7 +237,7 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     })
     .from(container)
-    .outputPdf('blob');
+    .output('blob');
 
   document.body.removeChild(container);
   return blob;
