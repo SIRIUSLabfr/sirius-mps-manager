@@ -69,6 +69,7 @@ const dailyPhase2: NavItem[] = [
 const dailyPhase3: NavItem[] = [
   { title: 'SOP / Vorrichten', path: '/projekt/:id/sop', icon: Wrench, requiresProject: true },
   { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
+  { title: 'Abwicklung', path: '/projekt/:id/abwicklung', icon: ClipboardList, requiresProject: true },
 ];
 
 type PhaseStatus = 'idle' | 'active' | 'done';
