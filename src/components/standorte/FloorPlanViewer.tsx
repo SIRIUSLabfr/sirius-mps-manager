@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
-import { Upload, Trash2, Image as ImageIcon, Printer } from 'lucide-react';
+import { Upload, Trash2, Image as ImageIcon, Printer, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LocationNode, FloorPlan, DevicePlacement, useUploadFloorPlan, useDeleteFloorPlan, useFloorPlans, useDevicePlacements, useUpsertPlacement, useDeletePlacement } from '@/hooks/useLocationData';
@@ -27,6 +27,7 @@ export default function FloorPlanViewer({ location, projectId }: FloorPlanViewer
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLDivElement>(null);
   const [draggingDeviceId, setDraggingDeviceId] = useState<string | null>(null);
+  const [movingPlacement, setMovingPlacement] = useState<DevicePlacement | null>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
