@@ -48,6 +48,7 @@ const phase2Items: NavItem[] = [
   { title: 'IST/SOLL Vergleich', path: '/projekt/:id/ist-soll', icon: RefreshCw, requiresProject: true },
   { title: 'Kalkulation', path: '/projekt/:id/kalkulation', icon: Calculator, requiresProject: true },
   { title: 'Konzept', path: '/projekt/:id/konzept', icon: FileText, requiresProject: true },
+  { title: 'Angebot', path: '/projekt/:id/angebot', icon: ScrollText, requiresProject: true },
 ];
 const phase3Items: NavItem[] = [
   { title: 'Rolloutliste', path: '/projekt/:id/rolloutliste', icon: BarChart3, requiresProject: true, badgeKey: 'devices' },
