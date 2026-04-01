@@ -42,6 +42,9 @@ export default function KalkSummary({
   hwMonthly,
   totalRate,
   mischklick,
+  folgeseitenpreisSw,
+  folgeseitenpreisFarbe,
+  onFolgeseitenpreisChange,
 }: KalkSummaryProps) {
   const investTotal = hardwareEkTotal + marginTotal + abloeseTotal;
 
