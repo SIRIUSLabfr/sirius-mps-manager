@@ -53,6 +53,8 @@ interface CalcState {
   delivery_date: string | null;
   deviceGroups: DeviceGroup[];
   service: ServiceConfig;
+  folgeseitenpreis_sw: number;
+  folgeseitenpreis_farbe: number;
 }
 
 const createEmptyPagePrices = (): PagePrices => ({ bw: null, color: null });
