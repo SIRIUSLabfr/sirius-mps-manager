@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, AlertTriangle } from 'lucide-react';
-import OopsiesBanner from '@/components/OopsiesBanner';
 import { useProjects } from '@/hooks/useProjectData';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { formatDate } from '@/lib/constants';

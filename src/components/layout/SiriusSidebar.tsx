@@ -272,6 +272,10 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
         {/* ── EBENE 1: Overview (no project selected) ── */}
         {!hasProject && (
           <>
+            <div className="px-4 pt-3 pb-1">
+              <OopsiesBanner projectType="all" />
+            </div>
+
             <div className="mb-1">
               <div className="px-5 pt-2 pb-1">
                 <span className="text-[9px] font-heading font-bold uppercase tracking-[2px] text-sidebar-foreground/25">Übersicht</span>
