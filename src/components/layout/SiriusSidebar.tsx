@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { useActiveProject } from '@/hooks/useActiveProject';
-import { useProject, useProjectDevices } from '@/hooks/useProjectData';
+import { useProject, useProjectDevices, useProjects } from '@/hooks/useProjectData';
 import { useSopOrders } from '@/hooks/useSopData';
 import { useLocations } from '@/hooks/useRolloutData';
 import { useChecklists } from '@/hooks/useChecklistData';
