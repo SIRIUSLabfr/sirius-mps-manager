@@ -109,20 +109,11 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
             <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground mb-3">Status</h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">Vorbereitung</Label>
+                <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">Status</Label>
                 <Select defaultValue={sop.preparation_status} onValueChange={v => save('preparation_status', v)}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">Lieferung</Label>
-                <Select defaultValue={sop.delivery_status} onValueChange={v => save('delivery_status', v)}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DELIVERY_STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

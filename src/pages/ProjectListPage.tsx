@@ -192,6 +192,30 @@ export default function ProjectListPage() {
       </div>
 
       <NewProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} defaultType="project" />
+
+      <AlertDialog open={warningOpen} onOpenChange={setWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Projekt kann nicht abgeschlossen werden
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>Folgende Kriterien sind nicht erfüllt:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  {warningMessages.map((msg, i) => (
+                    <li key={i} className="text-sm">{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Verstanden</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
