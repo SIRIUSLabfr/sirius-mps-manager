@@ -91,37 +91,32 @@ export default function OopsiesBanner({ projectType }: { projectType: 'project' 
   const hasIssues = count > 0;
 
   return (
-    <div
-      className={`rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
-        hasIssues
-          ? 'border-yellow-500/50 bg-yellow-500/10'
-          : 'border-green-500/50 bg-green-500/10'
-      }`}
-      onClick={() => hasIssues && setExpanded(!expanded)}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {hasIssues ? (
-            <AlertTriangle className="h-5 w-5 text-yellow-500" />
-          ) : (
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-          )}
-          <span className="font-heading font-semibold text-sm text-foreground">
-            Oopsies
-          </span>
-          {hasIssues && (
-            <span className="bg-yellow-500 text-yellow-950 text-xs font-bold rounded-full h-5 min-w-[20px] flex items-center justify-center px-1.5">
-              {count}
-            </span>
-          )}
-        </div>
+    <div className="relative">
+      <div
+        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 cursor-pointer text-sm transition-colors ${
+          hasIssues
+            ? 'bg-yellow-500/15 border border-yellow-500/40'
+            : 'bg-green-500/15 border border-green-500/40'
+        }`}
+        onClick={() => hasIssues && setExpanded(!expanded)}
+      >
+        {hasIssues ? (
+          <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" />
+        ) : (
+          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+        )}
+        <span className="font-heading font-medium text-xs text-foreground">
+          oopsies
+        </span>
         {hasIssues && (
-          expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <span className="bg-yellow-500 text-yellow-950 text-[10px] font-bold rounded-full h-4 min-w-[16px] flex items-center justify-center px-1">
+            {count}
+          </span>
         )}
       </div>
 
       {expanded && hasIssues && (
-        <div className="mt-3 space-y-2">
+        <div className="absolute top-full left-0 mt-2 z-50 w-[400px] rounded-lg border border-border bg-popover p-3 shadow-lg space-y-2">
           {oopsies.map((o, i) => (
             <div key={i} className="flex items-start gap-2 text-sm">
               <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-yellow-500 shrink-0" />
