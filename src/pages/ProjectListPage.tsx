@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, AlertTriangle } from 'lucide-react';
-import OopsiesBanner from '@/components/OopsiesBanner';
 import { useProjects } from '@/hooks/useProjectData';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { formatDate } from '@/lib/constants';
@@ -116,15 +115,12 @@ export default function ProjectListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <OopsiesBanner projectType="project" />
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-heading font-bold text-foreground">MPS-Projekte</h1>
-          <Button onClick={() => setDialogOpen(true)} className="gap-2 font-heading text-xs">
-            <Plus className="h-4 w-4" />
-            Neues MPS-Projekt
-          </Button>
-        </div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-heading font-bold text-foreground">MPS-Projekte</h1>
+        <Button onClick={() => setDialogOpen(true)} className="gap-2 font-heading text-xs">
+          <Plus className="h-4 w-4" />
+          Neues MPS-Projekt
+        </Button>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">

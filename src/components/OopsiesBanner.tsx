@@ -12,14 +12,15 @@ interface OopsieMessage {
   severity: 'warning' | 'error';
 }
 
-function useAllSopOrders(projectType: 'project' | 'daily') {
+function useAllSopOrders(projectType: 'project' | 'daily' | 'all') {
   const { data: projects } = useProjects();
 
   const activeProjects = useMemo(() => {
     if (!projects) return [];
     return projects.filter(p => {
       const pType = (p as any).project_type || 'project';
-      return pType === projectType && p.status !== 'completed';
+      const matchesType = projectType === 'all' || pType === projectType;
+      return matchesType && p.status !== 'completed';
     });
   }, [projects, projectType]);
 
@@ -42,7 +43,7 @@ function useAllSopOrders(projectType: 'project' | 'daily') {
   return { activeProjects, allSops: allSops || [] };
 }
 
-export default function OopsiesBanner({ projectType }: { projectType: 'project' | 'daily' }) {
+export default function OopsiesBanner({ projectType }: { projectType: 'project' | 'daily' | 'all' }) {
   const [expanded, setExpanded] = useState(false);
   const { activeProjects, allSops } = useAllSopOrders(projectType);
 
