@@ -55,7 +55,7 @@ export default function SopCard({ sop, technicianName, projectColor, customerNam
               {/* Line 2: Device ID */}
               {(sop.device_internal_id || sop.serial_number || sop.ow_number) && (
                 <p className="text-sm font-heading font-bold truncate leading-tight">
-                  {sop.device_internal_id || sop.serial_number || sop.ow_number}
+                  ID: {sop.device_internal_id || sop.serial_number || sop.ow_number}
                 </p>
               )}
 
