@@ -145,6 +145,44 @@ export default function ComparisonView({ devices, locations, projectId, onRefres
     }
   };
 
+  const handleAddIstDevice = async () => {
+    if (!newIst.manufacturer && !newIst.model) return;
+    const maxNum = devices.reduce((max, d) => Math.max(max, d.device_number || 0), 0);
+    const { error } = await supabase.from('devices').insert({
+      project_id: projectId,
+      device_number: maxNum + 1,
+      ist_manufacturer: newIst.manufacturer || null,
+      ist_model: newIst.model || null,
+      ist_room: newIst.room || null,
+      ist_building: newIst.building || null,
+      preparation_status: 'pending',
+      ist_source: 'manual',
+    });
+    if (error) toast.error('Fehler: ' + error.message);
+    else {
+      toast.success('IST-Gerät angelegt');
+      setNewIst({ manufacturer: '', model: '', room: '', building: '' });
+      setAddingIst(false);
+      onRefresh();
+    }
+  };
+
+  const startEditIst = (d: Tables<'devices'>) => {
+    setEditingIst(d.id);
+    setEditValues({ manufacturer: d.ist_manufacturer || '', model: d.ist_model || '', room: d.ist_room || '' });
+  };
+
+  const saveEditIst = async () => {
+    if (!editingIst) return;
+    const { error } = await supabase.from('devices').update({
+      ist_manufacturer: editValues.manufacturer || null,
+      ist_model: editValues.model || null,
+      ist_room: editValues.room || null,
+    }).eq('id', editingIst);
+    if (error) toast.error('Fehler');
+    else { onRefresh(); setEditingIst(null); }
+  };
+
   const getRowBg = (row: typeof allRows[0]) => {
     const opt = row.device.optimization_type;
     if (opt === 'Keep' || opt === 'Nicht im Projekt') return 'bg-muted/40 text-muted-foreground';
