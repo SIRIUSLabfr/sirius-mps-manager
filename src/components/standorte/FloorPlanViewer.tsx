@@ -57,19 +57,36 @@ export default function FloorPlanViewer({ location, projectId }: FloorPlanViewer
   };
 
   const handleImageClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!activePlan || !draggingDeviceId || !imgRef.current) return;
+    if (!activePlan || !imgRef.current) return;
     const rect = imgRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const clampedX = Math.round(Math.max(0, Math.min(100, x)) * 100) / 100;
+    const clampedY = Math.round(Math.max(0, Math.min(100, y)) * 100) / 100;
 
-    upsertPlacement.mutate({
-      device_id: draggingDeviceId,
-      floor_plan_id: activePlan.id,
-      x_percent: Math.round(x * 100) / 100,
-      y_percent: Math.round(y * 100) / 100,
-    });
-    setDraggingDeviceId(null);
-  }, [activePlan, draggingDeviceId, upsertPlacement]);
+    if (movingPlacement) {
+      // Moving an existing placement
+      upsertPlacement.mutate({
+        device_id: movingPlacement.device_id,
+        floor_plan_id: activePlan.id,
+        x_percent: clampedX,
+        y_percent: clampedY,
+      });
+      setMovingPlacement(null);
+      return;
+    }
+
+    if (draggingDeviceId) {
+      // Placing a new device
+      upsertPlacement.mutate({
+        device_id: draggingDeviceId,
+        floor_plan_id: activePlan.id,
+        x_percent: clampedX,
+        y_percent: clampedY,
+      });
+      setDraggingDeviceId(null);
+    }
+  }, [activePlan, draggingDeviceId, movingPlacement, upsertPlacement]);
 
   // Unplaced devices for this project
   const placedDeviceIds = new Set(placements?.map(p => p.device_id) || []);
