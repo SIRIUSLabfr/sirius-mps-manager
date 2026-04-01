@@ -331,6 +331,7 @@ export default function SopPage() {
               items={columnData[col.id] || []}
               getUserName={getUserName}
               getProjectColor={getProjectColor}
+              getCustomerName={getCustomerName}
               onCardClick={(sop) => { setSelectedSop(sop); setSheetOpen(true); }}
             />
           ))}
