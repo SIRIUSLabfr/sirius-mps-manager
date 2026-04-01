@@ -180,25 +180,51 @@ export default function FloorPlanViewer({ location, projectId }: FloorPlanViewer
                   {placements?.map(p => {
                     const dev = devices?.find(d => d.id === p.device_id);
                     const label = p.label || dev?.soll_model || dev?.ist_model || 'Gerät';
+                    const isBeingMoved = movingPlacement?.id === p.id;
                     return (
                       <Tooltip key={p.id}>
                         <TooltipTrigger asChild>
-                          <button
-                            className="absolute w-6 h-6 -ml-3 -mt-3 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold shadow-lg border-2 border-primary-foreground/50 hover:scale-125 transition-transform z-10"
+                          <div
+                            className={cn(
+                              "absolute -ml-3 -mt-3 z-10 group",
+                              isBeingMoved && "opacity-40"
+                            )}
                             style={{ left: `${p.x_percent}%`, top: `${p.y_percent}%` }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm('Platzierung entfernen?')) {
-                                deletePlacement.mutate({ id: p.id, floorPlanId: activePlan.id });
-                              }
-                            }}
                           >
-                            <Printer className="h-3 w-3" />
-                          </button>
+                            <div className="relative">
+                              <button
+                                className={cn(
+                                  "w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold shadow-lg border-2 border-primary-foreground/50 hover:scale-110 transition-transform",
+                                  isBeingMoved && "ring-2 ring-accent"
+                                )}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Platzierung entfernen?')) {
+                                    deletePlacement.mutate({ id: p.id, floorPlanId: activePlan.id });
+                                  }
+                                }}
+                              >
+                                <Printer className="h-3 w-3" />
+                              </button>
+                              {/* Move handle */}
+                              <button
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent text-accent-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                title="Verschieben"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMovingPlacement(isBeingMoved ? null : p);
+                                  setDraggingDeviceId(null);
+                                }}
+                              >
+                                <Move className="h-2.5 w-2.5" />
+                              </button>
+                            </div>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="text-xs">
                           <p className="font-semibold">{label}</p>
                           {dev && <p className="text-muted-foreground">{dev.ist_building} {dev.ist_floor} {dev.ist_room}</p>}
+                          <p className="text-muted-foreground mt-0.5">Hover → <Move className="inline h-2.5 w-2.5" /> zum Verschieben</p>
                         </TooltipContent>
                       </Tooltip>
                     );
