@@ -359,7 +359,7 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], before: '.page-break' },
+      pagebreak: { mode: ['css', 'legacy'], before: '.page-break' } as any,
     })
     .from(container)
     .output('blob');
