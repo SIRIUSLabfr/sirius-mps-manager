@@ -59,7 +59,7 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         zusatz,
       });
 
-      const fileName = `Angebot_${projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `KV_${projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
 
       // Upload to storage
       const filePath = `${projectId}/angebote/${Date.now()}_${fileName}`;
