@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateInputString } from '@/components/ui/date-input';
 import type { Tables } from '@/integrations/supabase/types';
 
 const STATUS_OPTIONS = [
