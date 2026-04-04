@@ -37,10 +37,9 @@ export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isZohoConnected } = useZoho();
 
-  // TODO: Re-enable Zoho auth gate after testing
-  // if (!isZohoConnected) {
-  //   return <ZohoLoginGate />;
-  // }
+  if (!isZohoConnected) {
+    return <ZohoLoginGate />;
+  }
 
   return (
     <div className="min-h-screen flex">
