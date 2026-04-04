@@ -13,10 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DateInputString } from '@/components/ui/date-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Circle, MinusCircle, Plus, CalendarIcon, ClipboardList } from 'lucide-react';
+import { CheckCircle2, Circle, MinusCircle, Plus, ClipboardList } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 interface CheckItem {
