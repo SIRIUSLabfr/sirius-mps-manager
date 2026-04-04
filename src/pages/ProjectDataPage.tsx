@@ -6,14 +6,13 @@ import { useProject, useUsers } from '@/hooks/useProjectData';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { CalendarIcon, Plus, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DateInput } from '@/components/ui/date-input';
+import ZohoContactSearch from '@/components/ZohoContactSearch';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
@@ -23,6 +22,7 @@ interface CustomerContact {
   role: string;
   email: string;
   phone: string;
+  zoho_contact_id?: string;
 }
 
 export default function ProjectDataPage() {
@@ -114,8 +114,16 @@ export default function ProjectDataPage() {
     }
   };
 
-  const addContact = () => {
-    const updated = [...form.customer_contacts, { name: '', role: '', email: '', phone: '' }];
+  const addZohoContact = (contact: CustomerContact) => {
+    // Avoid duplicates by zoho_contact_id
+    const exists = form.customer_contacts.some(
+      c => c.zoho_contact_id && c.zoho_contact_id === contact.zoho_contact_id
+    );
+    if (exists) {
+      toast.info('Kontakt bereits hinzugefügt');
+      return;
+    }
+    const updated = [...form.customer_contacts, contact];
     updateField('customer_contacts', updated);
   };
 
@@ -166,31 +174,11 @@ export default function ProjectDataPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="font-heading text-xs">Rollout-Start</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !rolloutStart && 'text-muted-foreground')}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {rolloutStart ? format(rolloutStart, 'dd.MM.yyyy') : 'Datum wählen'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={rolloutStart} onSelect={d => updateDate('start', d)} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
+              <DateInput value={rolloutStart} onChange={d => updateDate('start', d)} />
             </div>
             <div className="space-y-2">
               <Label className="font-heading text-xs">Rollout-Ende</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !rolloutEnd && 'text-muted-foreground')}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {rolloutEnd ? format(rolloutEnd, 'dd.MM.yyyy') : 'Datum wählen'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={rolloutEnd} onSelect={d => updateDate('end', d)} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
+              <DateInput value={rolloutEnd} onChange={d => updateDate('end', d)} />
             </div>
           </div>
         </CardContent>
@@ -229,21 +217,17 @@ export default function ProjectDataPage() {
         <CardHeader>
           <CardTitle className="font-heading text-base flex items-center justify-between">
             Kundenseite – Ansprechpartner
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={addContact}
-              disabled={form.customer_contacts.length >= 4}
-              className="gap-1 font-heading text-xs"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Hinzufügen
-            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Zoho Contact Search */}
+          <div className="space-y-1">
+            <Label className="font-heading text-xs">Kontakt aus CRM hinzufügen</Label>
+            <ZohoContactSearch onSelect={addZohoContact} />
+          </div>
+
           {form.customer_contacts.length === 0 && (
-            <p className="text-sm text-muted-foreground">Noch keine Ansprechpartner. Klicke "Hinzufügen" um einen anzulegen.</p>
+            <p className="text-sm text-muted-foreground">Noch keine Ansprechpartner. Suche oben nach einem CRM-Kontakt.</p>
           )}
           {form.customer_contacts.map((c, i) => (
             <div key={i} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 items-end">

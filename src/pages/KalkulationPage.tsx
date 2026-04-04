@@ -17,10 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calculator, Save, Plus, CalendarIcon, FileText, Loader2, BookmarkPlus, Download, GitCompareArrows, Copy } from 'lucide-react';
+import { DateInputString } from '@/components/ui/date-input';
+import { Calculator, Save, Plus, FileText, Loader2, BookmarkPlus, Download, GitCompareArrows, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -443,17 +443,7 @@ export default function KalkulationPage() {
   const DateField = ({ label, value, onChange: onDateChange }: { label: string; value: string | null; onChange: (d: string | null) => void }) => (
     <div className="space-y-1">
       <Label className="text-xs font-heading">{label}</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className={cn('w-full justify-start text-left font-normal h-9 text-sm', !value && 'text-muted-foreground')}>
-            <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-            {value ? format(new Date(value), 'dd.MM.yyyy') : 'Datum wählen'}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={value ? new Date(value) : undefined} onSelect={(d) => onDateChange(d ? d.toISOString().split('T')[0] : null)} locale={de} className="p-3 pointer-events-auto" />
-        </PopoverContent>
-      </Popover>
+      <DateInputString value={value} onChange={onDateChange} size="sm" />
     </div>
   );
 

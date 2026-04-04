@@ -6,6 +6,7 @@ import { useOrderProcessing, useUpdateOrderProcessing, useUpsertOrderProcessing 
 import { STEP_GROUPS, getGroupsForType, countSteps, countGroupSteps, generateEmptySteps, STATUS_OPTIONS } from '@/lib/orderProcessingConfig';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
+import { DateInputString } from '@/components/ui/date-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -237,12 +238,20 @@ function ContractField({ label, value, onChange, type = 'text' }: {
   return (
     <div className="space-y-1">
       <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
-      <Input
-        type={type}
-        value={local}
-        onChange={e => handleChange(e.target.value)}
-        className="h-8 text-sm"
-      />
+      {type === 'date' ? (
+        <DateInputString
+          value={local || null}
+          onChange={v => { setLocal(v ?? ''); onChange(v ?? ''); }}
+          size="sm"
+        />
+      ) : (
+        <Input
+          type={type}
+          value={local}
+          onChange={e => handleChange(e.target.value)}
+          className="h-8 text-sm"
+        />
+      )}
     </div>
   );
 }

@@ -35,6 +35,10 @@ export const zohoClient = {
     return zohoClient.api(`Products/search?word=${encodeURIComponent(query)}`);
   },
 
+  searchContacts: async (query: string) => {
+    return zohoClient.api(`Contacts/search?word=${encodeURIComponent(query)}`);
+  },
+
   updateDeal: async (dealId: string, fields: Record<string, any>) => {
     return zohoClient.api('Deals', 'PUT', {
       data: [{ id: dealId, ...fields }],

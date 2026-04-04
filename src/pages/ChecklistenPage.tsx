@@ -13,10 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DateInputString } from '@/components/ui/date-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Circle, MinusCircle, Plus, CalendarIcon, ClipboardList } from 'lucide-react';
+import { CheckCircle2, Circle, MinusCircle, Plus, ClipboardList } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 interface CheckItem {
@@ -189,22 +189,11 @@ function ChecklistCard({ checklist, onUpdated }: { checklist: Tables<'checklists
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-1">
             <Label className="text-xs font-heading">Begehungsdatum</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn('w-full justify-start text-left text-sm h-9', !checklist.walkthrough_date && 'text-muted-foreground')}>
-                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                  {checklist.walkthrough_date ? format(new Date(checklist.walkthrough_date), 'dd.MM.yyyy') : 'Datum wählen'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={checklist.walkthrough_date ? new Date(checklist.walkthrough_date) : undefined}
-                  onSelect={d => saveChecklist({ walkthrough_date: d ? format(d, 'yyyy-MM-dd') : null })}
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInputString
+              value={checklist.walkthrough_date}
+              onChange={v => saveChecklist({ walkthrough_date: v })}
+              size="sm"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs font-heading">Teilnehmer</Label>

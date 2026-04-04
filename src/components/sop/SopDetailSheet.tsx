@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateInputString } from '@/components/ui/date-input';
 import type { Tables } from '@/integrations/supabase/types';
 
 const STATUS_OPTIONS = [
@@ -45,6 +46,8 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
       <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">{label}</Label>
       {type === 'textarea' ? (
         <Textarea defaultValue={value || ''} onChange={e => save(field, e.target.value)} className="text-sm min-h-[60px]" />
+      ) : type === 'date' ? (
+        <DateInputString value={value} onChange={v => save(field, v)} size="sm" />
       ) : (
         <Input defaultValue={value || ''} type={type} onChange={e => save(field, e.target.value)} className="text-sm h-8" />
       )}

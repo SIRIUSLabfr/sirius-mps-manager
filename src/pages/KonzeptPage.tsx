@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInputString } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
@@ -303,7 +304,7 @@ export default function KonzeptPage() {
             </div>
             <div>
               <Label className="text-xs">Datum</Label>
-              <Input type="date" value={config.overrides.date || ''} onChange={e => updateOverride('date', e.target.value)} className="h-8 text-sm" />
+              <DateInputString value={config.overrides.date || null} onChange={v => updateOverride('date', v || '')} size="sm" />
             </div>
             <div>
               <Label className="text-xs">Ansprechpartner Kunde</Label>
