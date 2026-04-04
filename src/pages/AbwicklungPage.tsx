@@ -238,12 +238,20 @@ function ContractField({ label, value, onChange, type = 'text' }: {
   return (
     <div className="space-y-1">
       <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
-      <Input
-        type={type}
-        value={local}
-        onChange={e => handleChange(e.target.value)}
-        className="h-8 text-sm"
-      />
+      {type === 'date' ? (
+        <DateInputString
+          value={local || null}
+          onChange={v => { setLocal(v ?? ''); onChange(v ?? ''); }}
+          size="sm"
+        />
+      ) : (
+        <Input
+          type={type}
+          value={local}
+          onChange={e => handleChange(e.target.value)}
+          className="h-8 text-sm"
+        />
+      )}
     </div>
   );
 }

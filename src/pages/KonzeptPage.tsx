@@ -303,7 +303,7 @@ export default function KonzeptPage() {
             </div>
             <div>
               <Label className="text-xs">Datum</Label>
-              <Input type="date" value={config.overrides.date || ''} onChange={e => updateOverride('date', e.target.value)} className="h-8 text-sm" />
+              <DateInputString value={config.overrides.date || null} onChange={v => updateOverride('date', v || '')} size="sm" />
             </div>
             <div>
               <Label className="text-xs">Ansprechpartner Kunde</Label>
