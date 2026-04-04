@@ -14,11 +14,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DateInputString } from '@/components/ui/date-input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Plus, Truck, CalendarIcon, ChevronDown, Trash2, Package } from 'lucide-react';
+import { Plus, Truck, ChevronDown, Trash2, Package } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 const VEHICLE_TYPES = ['Sprinter', 'Transporter', 'PKW'];
