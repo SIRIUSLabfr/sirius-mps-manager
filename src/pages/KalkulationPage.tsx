@@ -17,10 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calculator, Save, Plus, CalendarIcon, FileText, Loader2, BookmarkPlus, Download, GitCompareArrows, Copy } from 'lucide-react';
+import { DateInputString } from '@/components/ui/date-input';
+import { Calculator, Save, Plus, FileText, Loader2, BookmarkPlus, Download, GitCompareArrows, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
