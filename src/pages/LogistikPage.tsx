@@ -186,22 +186,11 @@ function DayCard({ day, expanded, onToggle, onDelete, devices, projectId, onUpda
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs font-heading">Datum</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn('w-full justify-start text-left text-sm h-9', !day.date && 'text-muted-foreground')}>
-                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                      {day.date ? format(new Date(day.date), 'dd.MM.yyyy') : 'Datum wählen'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={day.date ? new Date(day.date) : undefined}
-                      onSelect={d => save('date', d ? format(d, 'yyyy-MM-dd') : null)}
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateInputString
+                  value={day.date}
+                  onChange={v => save('date', v)}
+                  size="sm"
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-heading">Abfahrtszeit</Label>
