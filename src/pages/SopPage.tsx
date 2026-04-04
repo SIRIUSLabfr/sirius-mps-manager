@@ -257,28 +257,20 @@ export default function SopPage() {
             {users?.map(u => <SelectItem key={u.id} value={u.id} className="text-xs">{u.short_code || u.full_name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn('h-9 text-xs gap-1.5', dateFrom && 'text-foreground')}>
-              <CalendarIcon className="h-3.5 w-3.5" />
-              {dateFrom ? format(dateFrom, 'dd.MM.yyyy') : 'Von'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} className="p-3 pointer-events-auto" />
-          </PopoverContent>
-        </Popover>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn('h-9 text-xs gap-1.5', dateTo && 'text-foreground')}>
-              <CalendarIcon className="h-3.5 w-3.5" />
-              {dateTo ? format(dateTo, 'dd.MM.yyyy') : 'Bis'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={dateTo} onSelect={setDateTo} className="p-3 pointer-events-auto" />
-          </PopoverContent>
-        </Popover>
+        <DateInput
+          value={dateFrom}
+          onChange={setDateFrom}
+          placeholder="Von"
+          size="sm"
+          className="w-40"
+        />
+        <DateInput
+          value={dateTo}
+          onChange={setDateTo}
+          placeholder="Bis"
+          size="sm"
+          className="w-40"
+        />
         {(dateFrom || dateTo) && (
           <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
             <RefreshCw className="h-3 w-3 mr-1" /> Reset

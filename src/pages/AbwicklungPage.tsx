@@ -6,6 +6,7 @@ import { useOrderProcessing, useUpdateOrderProcessing, useUpsertOrderProcessing 
 import { STEP_GROUPS, getGroupsForType, countSteps, countGroupSteps, generateEmptySteps, STATUS_OPTIONS } from '@/lib/orderProcessingConfig';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
+import { DateInputString } from '@/components/ui/date-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
