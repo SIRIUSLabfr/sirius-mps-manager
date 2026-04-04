@@ -45,6 +45,8 @@ export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdat
       <Label className="text-[10px] font-heading uppercase tracking-wide text-muted-foreground">{label}</Label>
       {type === 'textarea' ? (
         <Textarea defaultValue={value || ''} onChange={e => save(field, e.target.value)} className="text-sm min-h-[60px]" />
+      ) : type === 'date' ? (
+        <DateInputString value={value} onChange={v => save(field, v)} size="sm" />
       ) : (
         <Input defaultValue={value || ''} type={type} onChange={e => save(field, e.target.value)} className="text-sm h-8" />
       )}
