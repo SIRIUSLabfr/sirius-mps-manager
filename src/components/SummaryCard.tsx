@@ -14,11 +14,11 @@ export default function SummaryCard({ label, value, color, total, showProgress, 
   const percent = total && total > 0 ? Math.round((value / total) * 100) : 0;
 
   return (
-    <div className={cn('bg-card rounded-lg border border-border p-5 relative overflow-hidden')}>
+    <div className={cn('bg-card rounded-lg border border-border p-3 sm:p-5 relative overflow-hidden')}>
       <div className={cn('absolute top-0 left-0 right-0 h-[3px]', color)} />
-      <p className="text-xs font-body text-muted-foreground uppercase tracking-wide mb-2">{label}</p>
+      <p className="text-[10px] sm:text-xs font-body text-muted-foreground uppercase tracking-wide mb-1 sm:mb-2">{label}</p>
       <p className={cn(
-        'text-3xl font-heading font-extrabold',
+        'text-xl sm:text-3xl font-heading font-extrabold',
         isAlert && value > 0 ? 'text-destructive' : 'text-foreground'
       )}>
         {value}

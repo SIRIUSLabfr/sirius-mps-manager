@@ -301,6 +301,51 @@ export default function RolloutListPage() {
   );
 }
 
+function MobileDeviceCard({ device: d, onUpdate }: {
+  device: Device;
+  onUpdate: (id: string, field: string, value: any) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const istModel = [d.ist_manufacturer, d.ist_model].filter(Boolean).join(' ') || '–';
+  const sollModel = [d.soll_manufacturer, d.soll_model].filter(Boolean).join(' ') || '–';
+
+  return (
+    <div className="bg-card rounded-lg border border-border p-3 text-xs">
+      <div className="flex items-start justify-between gap-2" onClick={() => setExpanded(!expanded)}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-heading font-bold text-foreground">#{d.device_number || '–'}</span>
+            {d.optimization_type && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{d.optimization_type}</span>
+            )}
+          </div>
+          <p className="text-muted-foreground truncate">IST: {istModel}</p>
+          <p className="text-foreground truncate">SOLL: {sollModel}</p>
+        </div>
+        <FinalCheckChip value={d.final_check} onChange={v => onUpdate(d.id, 'final_check', v)} />
+      </div>
+      {expanded && (
+        <div className="mt-2 pt-2 border-t border-border/50 space-y-1.5">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <span className="text-muted-foreground">Gebäude (IST):</span>
+            <EditableCell value={d.ist_building} onChange={v => onUpdate(d.id, 'ist_building', v || null)} />
+            <span className="text-muted-foreground">Etage/Zimmer:</span>
+            <span>{[d.ist_floor, d.ist_room].filter(Boolean).join(' / ') || '–'}</span>
+            <span className="text-muted-foreground">SerienNr (IST):</span>
+            <span className="truncate">{d.ist_serial || '–'}</span>
+            <span className="text-muted-foreground">IP:</span>
+            <span>{d.ist_ip || '–'}</span>
+            <span className="text-muted-foreground">SOLL SerienNr:</span>
+            <EditableCell value={d.soll_serial} onChange={v => onUpdate(d.id, 'soll_serial', v || null)} />
+            <span className="text-muted-foreground">Bemerkung:</span>
+            <EditableCell value={d.notes} onChange={v => onUpdate(d.id, 'notes', v || null)} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GroupRows({ group, onUpdate, getRowBg }: {
   group: { locationId: string | null; locationName: string; devices: Device[] };
   onUpdate: (id: string, field: string, value: any) => void;
