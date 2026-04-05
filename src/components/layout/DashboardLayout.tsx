@@ -47,7 +47,7 @@ export default function DashboardLayout() {
       <SiriusSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex-1 lg:ml-[252px] flex flex-col min-h-screen">
         <Topbar onMenuToggle={() => setMobileOpen(o => !o)} />
-        <main className="flex-1 p-4 sm:p-7 max-w-[1200px] w-full">
+        <main className="flex-1 p-3 sm:p-5 lg:p-7 max-w-[1200px] w-full">
           <Outlet />
         </main>
       </div>
