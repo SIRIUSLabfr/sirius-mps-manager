@@ -179,35 +179,59 @@ export default function RolloutListPage() {
   if (isLoading) return <div className="text-muted-foreground py-12 text-center">Lade Rolloutliste...</div>;
 
   return (
-    <div className="space-y-4 print:space-y-2">
+    <div className="space-y-3 sm:space-y-4 print:space-y-2">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 print:hidden">
-        <h1 className="text-2xl font-heading font-bold text-foreground shrink-0">Rolloutliste</h1>
-        <div className="flex items-center gap-2">
-          <div className="relative">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 print:hidden">
+        <h1 className="text-lg sm:text-2xl font-heading font-bold text-foreground shrink-0">Rolloutliste</h1>
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Suche..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-8 w-48 text-xs" />
+            <Input placeholder="Suche..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-8 w-full sm:w-48 text-xs" />
           </div>
-          <Button size="sm" variant="outline" onClick={addDevice} className="gap-1 font-heading text-xs">
-            <Plus className="h-3.5 w-3.5" /> Gerät
+          <Button size="sm" variant="outline" onClick={addDevice} className="gap-1 font-heading text-xs h-8">
+            <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Gerät</span>
           </Button>
-          <Button size="sm" variant="outline" onClick={exportExcel} className="gap-1 font-heading text-xs">
-            <Download className="h-3.5 w-3.5" /> Excel
+          <Button size="sm" variant="outline" onClick={exportExcel} className="gap-1 font-heading text-xs h-8">
+            <Download className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Excel</span>
           </Button>
-          <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-1 font-heading text-xs">
+          <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-1 font-heading text-xs h-8 hidden sm:flex">
             <Printer className="h-3.5 w-3.5" /> Druck
           </Button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="flex gap-4 text-xs text-muted-foreground font-body print:hidden">
-        <span>{devices?.length || 0} Geräte gesamt</span>
+      <div className="flex gap-3 sm:gap-4 text-xs text-muted-foreground font-body print:hidden">
+        <span>{devices?.length || 0} Geräte</span>
         <span>{grouped.length} Standorte</span>
       </div>
 
-      {/* Table */}
-      <div className="bg-card rounded-lg border border-border overflow-auto max-h-[calc(100vh-200px)] print:max-h-none print:overflow-visible">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {grouped.length === 0 ? (
+          <div className="text-center py-12">
+            <BarChart3 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/20" />
+            <p className="text-sm text-muted-foreground">Noch keine Geräte vorhanden.</p>
+          </div>
+        ) : (
+          grouped.map(group => (
+            <div key={group.locationId || '__none__'}>
+              <div className="sticky top-0 z-10 bg-primary/10 rounded-md px-3 py-1.5 mb-1.5">
+                <span className="font-heading font-bold text-xs text-primary">📍 {group.locationName}</span>
+                <span className="ml-2 text-[10px] text-muted-foreground">({group.devices.length})</span>
+              </div>
+              <div className="space-y-1.5">
+                {group.devices.map(d => (
+                  <MobileDeviceCard key={d.id} device={d} onUpdate={debouncedUpdate} />
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden sm:block bg-card rounded-lg border border-border overflow-auto max-h-[calc(100vh-200px)] print:max-h-none print:overflow-visible">
         <table className="w-full min-w-[1800px] border-collapse text-xs print:min-w-0 print:text-[8px]">
           <thead className="sticky top-0 z-10 bg-card">
             {/* Group headers */}
@@ -224,11 +248,9 @@ export default function RolloutListPage() {
             </tr>
             {/* Column headers */}
             <tr className="border-b-2 border-border bg-card">
-              {/* General */}
               <SortHeader label="Nr" field="device_number" className="w-10 border-r border-border/50" />
               <SortHeader label="KD-Nr" field="customer_device_number" className="w-16 border-r border-border/50" />
               <SortHeader label="Liefertermin" field="delivery_date" className="w-20 border-r border-border" />
-              {/* IST */}
               <SortHeader label="Gebäude" field="ist_building" className="border-r border-border/50" />
               <SortHeader label="Etage" field="ist_floor" className="w-12 border-r border-border/50" />
               <SortHeader label="Zimmer" field="ist_room" className="w-14 border-r border-border/50" />
@@ -239,7 +261,6 @@ export default function RolloutListPage() {
               <SortHeader label="InventarNr" field="ist_inventory_number" className="border-r border-border/50" />
               <SortHeader label="Abh." field="ist_pickup" className="w-10 border-r border-border/50" />
               <SortHeader label="Opt." field="optimization_type" className="w-24 border-r border-border" />
-              {/* SOLL */}
               <SortHeader label="Hersteller" field="soll_manufacturer" className="border-r border-border/50" />
               <SortHeader label="Modell" field="soll_model" className="border-r border-border/50" />
               <SortHeader label="Ausstattung" field="soll_options" className="border-r border-border/50" />
@@ -276,6 +297,51 @@ export default function RolloutListPage() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function MobileDeviceCard({ device: d, onUpdate }: {
+  device: Device;
+  onUpdate: (id: string, field: string, value: any) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const istModel = [d.ist_manufacturer, d.ist_model].filter(Boolean).join(' ') || '–';
+  const sollModel = [d.soll_manufacturer, d.soll_model].filter(Boolean).join(' ') || '–';
+
+  return (
+    <div className="bg-card rounded-lg border border-border p-3 text-xs">
+      <div className="flex items-start justify-between gap-2" onClick={() => setExpanded(!expanded)}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-heading font-bold text-foreground">#{d.device_number || '–'}</span>
+            {d.optimization_type && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{d.optimization_type}</span>
+            )}
+          </div>
+          <p className="text-muted-foreground truncate">IST: {istModel}</p>
+          <p className="text-foreground truncate">SOLL: {sollModel}</p>
+        </div>
+        <FinalCheckChip value={d.final_check} onChange={v => onUpdate(d.id, 'final_check', v)} />
+      </div>
+      {expanded && (
+        <div className="mt-2 pt-2 border-t border-border/50 space-y-1.5">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <span className="text-muted-foreground">Gebäude (IST):</span>
+            <EditableCell value={d.ist_building} onChange={v => onUpdate(d.id, 'ist_building', v || null)} />
+            <span className="text-muted-foreground">Etage/Zimmer:</span>
+            <span>{[d.ist_floor, d.ist_room].filter(Boolean).join(' / ') || '–'}</span>
+            <span className="text-muted-foreground">SerienNr (IST):</span>
+            <span className="truncate">{d.ist_serial || '–'}</span>
+            <span className="text-muted-foreground">IP:</span>
+            <span>{d.ist_ip || '–'}</span>
+            <span className="text-muted-foreground">SOLL SerienNr:</span>
+            <EditableCell value={d.soll_serial} onChange={v => onUpdate(d.id, 'soll_serial', v || null)} />
+            <span className="text-muted-foreground">Bemerkung:</span>
+            <EditableCell value={d.notes} onChange={v => onUpdate(d.id, 'notes', v || null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

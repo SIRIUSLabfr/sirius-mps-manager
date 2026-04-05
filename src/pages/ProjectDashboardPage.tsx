@@ -94,13 +94,13 @@ export default function ProjectDashboardPage() {
   const openIssues = devices?.filter(d => d.preparation_status === 'pending').length || 0;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-heading font-bold text-foreground">
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-lg sm:text-2xl font-heading font-bold text-foreground leading-tight">
         {project.customer_name}
         {project.project_name ? ` – ${project.project_name}` : ''}
       </h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <SummaryCard label="Gesamtgeräte" value={totalDevices} color="bg-primary" />
         <SummaryCard label="Vorgerichtet" value={prepared} color="bg-emerald-500" total={totalDevices} showProgress />
         <SummaryCard label="Ausgeliefert" value={delivered} color="bg-secondary" total={totalDevices} showProgress />

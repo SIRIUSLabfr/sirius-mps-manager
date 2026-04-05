@@ -114,23 +114,24 @@ export default function ProjectListPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-heading font-bold text-foreground">MPS-Projekte</h1>
-        <Button onClick={() => setDialogOpen(true)} className="gap-2 font-heading text-xs">
-          <Plus className="h-4 w-4" />
-          Neues MPS-Projekt
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg sm:text-2xl font-heading font-bold text-foreground">MPS-Projekte</h1>
+        <Button onClick={() => setDialogOpen(true)} size="sm" className="gap-1.5 font-heading text-xs">
+          <Plus className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Neues MPS-Projekt</span>
+          <span className="sm:hidden">Neu</span>
         </Button>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Suche nach Kunde, Projektnummer..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Suche..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+          <SelectTrigger className="w-[140px] sm:w-[180px]">
+            <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -141,7 +142,45 @@ export default function ProjectListPage() {
         </Select>
       </div>
 
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {isLoading ? (
+          <p className="text-center text-muted-foreground py-12">Lade Projekte...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-center text-muted-foreground py-12">Keine MPS-Projekte gefunden.</p>
+        ) : (
+          filtered.map(p => (
+            <div
+              key={p.id}
+              onClick={() => handleSelectProject(p)}
+              className="bg-card rounded-lg border border-border p-3.5 active:bg-muted/50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <p className="font-heading font-semibold text-sm text-foreground leading-tight">{p.customer_name}</p>
+                <div onClick={e => e.stopPropagation()}>
+                  <Select value={p.status} onValueChange={v => handleStatusChange(p.id, v)}>
+                    <SelectTrigger className="h-6 w-auto text-xs border-none bg-transparent px-0">
+                      <StatusChip status={p.status} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROJECT_STATUS_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {p.project_number && <span>#{p.project_number}</span>}
+                <span>{p.rollout_start ? formatDate(p.rollout_start) : '–'}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block bg-card rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
