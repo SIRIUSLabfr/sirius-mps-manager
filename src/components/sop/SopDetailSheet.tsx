@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback, useState } from 'react';
+import { useMemo, useRef, useCallback, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateInputString } from '@/components/ui/date-input';
+import { useProject } from '@/hooks/useProjectData';
+import { useOrderProcessing } from '@/hooks/useOrderProcessing';
 import type { Tables } from '@/integrations/supabase/types';
 
 const STATUS_OPTIONS = [
@@ -28,6 +30,45 @@ interface Props {
 
 export default function SopDetailSheet({ sop, open, onOpenChange, users, onUpdated }: Props) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const { data: project } = useProject(sop?.project_id || null);
+  const { data: orderProcessing } = useOrderProcessing(sop?.project_id || null);
+  const prefillDoneRef = useRef<string | null>(null);
+
+  // Build the default billing/delivery address from project data
+  const defaultAddress = useMemo(() => {
+    // First try order_processing billing address
+    const op = orderProcessing as any;
+    if (op?.billing_street || op?.billing_city) {
+      return [op.billing_street, [op.billing_zip, op.billing_city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    }
+    // Fallback to project warehouse_address
+    if (project?.warehouse_address) {
+      return project.warehouse_address;
+    }
+    return null;
+  }, [project, orderProcessing]);
+
+  // Auto-fill delivery_address when empty and we have a default
+  useEffect(() => {
+    if (!sop || !open || !defaultAddress) return;
+    if (prefillDoneRef.current === sop.id) return;
+
+    const needsDeliveryFill = !sop.delivery_address;
+    const needsCustomerFill = !sop.customer_address;
+
+    if (needsDeliveryFill || needsCustomerFill) {
+      const updates: Record<string, string> = {};
+      if (needsDeliveryFill) updates.delivery_address = defaultAddress;
+      if (needsCustomerFill) updates.customer_address = defaultAddress;
+
+      supabase.from('sop_orders').update(updates).eq('id', sop.id).then(({ error }) => {
+        if (!error) onUpdated();
+      });
+      prefillDoneRef.current = sop.id;
+    } else {
+      prefillDoneRef.current = sop.id;
+    }
+  }, [sop, open, defaultAddress, onUpdated]);
 
   const save = useCallback(async (field: string, value: any) => {
     if (!sop) return;
