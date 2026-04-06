@@ -142,7 +142,7 @@ function devicePages(deviceGroups: any[], showPrices: boolean): string {
   for (const group of deviceGroups) {
     if (!group.mainDevice) continue;
 
-    html += `<div class="page-break" style="padding:15mm 20mm 10mm;display:flex;flex-direction:column;min-height:262mm;">`;
+    html += `<div class="page-break" style="padding:15mm 20mm 15mm;display:flex;flex-direction:column;min-height:262mm;">`;
 
     // Location header
     const loc = group.label || 'Standort';
