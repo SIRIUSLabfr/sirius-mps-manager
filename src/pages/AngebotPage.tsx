@@ -5,6 +5,7 @@ import { useProject } from '@/hooks/useProjectData';
 import { useDocuments } from '@/hooks/useAngebotData';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { zohoClient } from '@/lib/zohoClient';
 import { toast } from 'sonner';
 import AngebotConfigCard from '@/components/angebot/AngebotConfigCard';
 import ZusatzvereinbarungenCard, { type Zusatzvereinbarungen, defaultZusatzvereinbarungen } from '@/components/angebot/ZusatzvereinbarungenCard';
@@ -41,6 +42,28 @@ export default function AngebotPage() {
       return data;
     },
     enabled: !!projectId,
+  });
+
+  // Load SIRIUS deal owner as Ansprechpartner from Zoho
+  const dealId = (project as any)?.zoho_deal_id;
+  const { data: dealOwner } = useQuery({
+    queryKey: ['zoho-deal-owner', dealId],
+    queryFn: async () => {
+      if (!dealId) return null;
+      const result = await zohoClient.getDeal(dealId);
+      const deal = result?.data?.[0];
+      if (!deal?.Owner) return null;
+      const owner = deal.Owner;
+      return {
+        name: owner.name || '',
+        email: owner.email || '',
+        phone: owner.phone || owner.mobile || '',
+        role: 'Ihr Ansprechpartner',
+        zoho_user_id: owner.id || '',
+      };
+    },
+    enabled: !!dealId,
+    staleTime: 1000 * 60 * 10, // cache 10 min
   });
 
   // Zusatzvereinbarungen state – persisted in projects.quote_config
@@ -85,9 +108,18 @@ export default function AngebotPage() {
     }
   };
 
-  // Get project contact info for PDF
-  const contacts = (project as any)?.customer_contacts as any[] | null;
-  const primaryContact = contacts?.[0];
+  // Build Ansprechpartner: prefer Zoho deal owner, fallback to customer contact
+  const ansprechpartner = dealOwner
+    ? {
+        name: dealOwner.name,
+        role: dealOwner.role,
+        email: dealOwner.email,
+        phone: dealOwner.phone,
+        photoUrl: dealOwner.zoho_user_id
+          ? `/.netlify/functions/zoho-photo?userId=${dealOwner.zoho_user_id}`
+          : undefined,
+      }
+    : null;
 
   const { data: docs = [] } = useDocuments(projectId || null);
   const signedDoc = docs.find(d => d.document_type === 'auftrag_unterschrieben');
@@ -105,6 +137,31 @@ export default function AngebotPage() {
         </p>
       </div>
 
+      {/* Ansprechpartner card */}
+      {ansprechpartner && (
+        <div className="flex items-center gap-4 bg-muted/30 border rounded-lg p-4">
+          {(ansprechpartner as any).photoUrl ? (
+            <img
+              src={(ansprechpartner as any).photoUrl}
+              alt={ansprechpartner.name}
+              className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+              {ansprechpartner.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-muted-foreground">Ihr Ansprechpartner bei SIRIUS</p>
+            <p className="font-semibold text-sm">{ansprechpartner.name}</p>
+            {ansprechpartner.email && (
+              <p className="text-xs text-muted-foreground">{ansprechpartner.email} {ansprechpartner.phone ? `· ${ansprechpartner.phone}` : ''}</p>
+            )}
+          </div>
+        </div>
+      )}
+
       <AngebotConfigCard
         projectId={projectId}
         projectName={project?.customer_name || 'Projekt'}
@@ -118,16 +175,11 @@ export default function AngebotPage() {
         } : null}
         zusatz={zusatz}
         customerName={project?.customer_name}
-        contactPerson={primaryContact?.name}
-        customerAddress={primaryContact?.address || (project as any)?.warehouse_address}
+        contactPerson={ansprechpartner?.name}
+        customerAddress={(project as any)?.warehouse_address}
         customerNumber={project?.customer_number || undefined}
         angebotNumber={project?.project_number || undefined}
-        ansprechpartner={primaryContact ? {
-          name: primaryContact.name,
-          role: primaryContact.rolle || primaryContact.role,
-          email: primaryContact.email,
-          phone: primaryContact.telefon || primaryContact.phone,
-        } : null}
+        ansprechpartner={ansprechpartner}
       />
 
       <ZusatzvereinbarungenCard
