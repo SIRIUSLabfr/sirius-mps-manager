@@ -12,10 +12,10 @@ import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 export interface ZusatzItem {
   active: boolean;
   text: string;
-  /** For items 10-12: selected radio option */
   selectedOption?: string;
-  /** For item 12: custom editable options */
   customOptions?: { value: string; label: string; price?: string }[];
+  /** If true, this is a user-added custom item that can be deleted */
+  isCustom?: boolean;
 }
 
 export interface Zusatzvereinbarungen {
@@ -27,7 +27,7 @@ export interface Zusatzvereinbarungen {
 const DEFAULT_ITEMS: ZusatzItem[] = [
   { active: false, text: 'SIRIUS BestForAdminFleet ist im Lieferumfang enthalten. Dies bringt die Vorteile von automatischer Tonerlieferung und selbstständiger Zählerstandübermittlung mit sich.' },
   { active: false, text: 'Die neuen Geräte werden nach genauer Terminabsprache bereits im [MONAT] geliefert. Der ALL-IN-Vertrag beginnt zum [DATUM]. Dies entspricht einer mietfreien Startphase in Höhe von bis zu [X] Monaten. Die Kosten hierfür übernimmt die SIRIUS GmbH.' },
-  { active: false, text: '' },
+  { active: false, text: 'Die neuen Geräte werden nach genauer Terminabsprache mit Ihnen bereits im Februar/März geliefert. Die Aufstockung in den bestehenden ALL-IN-Vertrag # 041-XXXX beginnt zum 01.10.2023. Dies entspricht einer mietfreien Startphase in Höhe von bis zu 2,5 Monaten. Die Kosten hierfür übernimmt die SIRIUS GmbH.' },
   { active: false, text: 'Das Angebot gilt solange der Vorrat reicht.' },
   { active: false, text: 'Nach [X] Monaten hat der Kunde die Möglichkeit, das Gerät gegen eine neue, gleichwertige Maschine zu identischen Konditionen zu tauschen.' },
   { active: false, text: 'Innerhalb der folgenden 6 Monate wird das durchschnittliche monatliche Volumen ermittelt und zur Festlegung der Freiseiten und der Rate verwendet.' },
@@ -39,6 +39,7 @@ const DEFAULT_ITEMS: ZusatzItem[] = [
   { active: false, text: 'Bitte gewünschte Variante ankreuzen:', selectedOption: '', customOptions: [{ value: 'option1', label: 'Option 1' }, { value: 'option2', label: 'Option 2' }] },
 ];
 
+/** Radio options only used in the PDF for the customer to check – NOT shown in app UI */
 export const RADIO_OPTIONS: Record<number, { value: string; label: string; price?: string }[]> = {
   9: [
     { value: 'ausbau', label: 'Festplattenausbau', price: '350,00 € je Gerät' },
@@ -64,7 +65,8 @@ interface Props {
 }
 
 export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen = false }: Props) {
-  const items: ZusatzItem[] = value.items && value.items.length === 12
+  // Migration: ensure at least 12 base items
+  const items: ZusatzItem[] = value.items && value.items.length >= 12
     ? value.items
     : DEFAULT_ITEMS;
 
@@ -88,7 +90,7 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
 
   const addCustomOption = (itemIdx: number) => {
     const opts = [...getCustomOptions(items[itemIdx])];
-    const newVal = `option${opts.length + 1}`;
+    const newVal = `option${Date.now()}`;
     opts.push({ value: newVal, label: `Option ${opts.length + 1}` });
     updateItem(itemIdx, { customOptions: opts });
   };
@@ -102,6 +104,16 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
       patch.selectedOption = '';
     }
     updateItem(itemIdx, patch);
+  };
+
+  const addNewItem = () => {
+    const newItems = [...items, { active: true, text: '', isCustom: true }];
+    onChange({ ...value, items: newItems });
+  };
+
+  const removeItem = (idx: number) => {
+    const newItems = items.filter((_, i) => i !== idx);
+    onChange({ ...value, items: newItems });
   };
 
   return (
@@ -146,10 +158,9 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
               </div>
             </div>
 
-            {/* 12 configurable items */}
+            {/* Configurable items */}
             {items.map((item, idx) => {
               const num = idx + 1;
-              const hasFixedRadio = RADIO_OPTIONS[idx] !== undefined;
               const hasCustomRadio = isCustomOptionsItem(idx);
 
               return (
@@ -165,28 +176,10 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
                     <Textarea
                       className="text-sm min-h-[36px] resize-y"
                       rows={item.text.length > 80 ? 3 : 1}
-                      placeholder={`Vereinbarung ${num} (Freitext)`}
+                      placeholder={`Vereinbarung ${num}`}
                       value={item.text}
                       onChange={(e) => updateItem(idx, { text: e.target.value })}
                     />
-
-                    {/* Fixed radio options (items 10, 11) */}
-                    {hasFixedRadio && item.active && (
-                      <RadioGroup
-                        className="mt-2 space-y-1"
-                        value={item.selectedOption || ''}
-                        onValueChange={(v) => updateItem(idx, { selectedOption: v })}
-                      >
-                        {RADIO_OPTIONS[idx].map((opt) => (
-                          <div key={opt.value} className="flex items-center gap-2">
-                            <RadioGroupItem value={opt.value} id={`z-${idx}-${opt.value}`} />
-                            <Label htmlFor={`z-${idx}-${opt.value}`} className="text-sm font-normal cursor-pointer">
-                              {opt.label}{opt.price ? ` (${opt.price})` : ''}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    )}
 
                     {/* Custom editable radio options (item 12) */}
                     {hasCustomRadio && item.active && (
@@ -229,9 +222,31 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
                       </div>
                     )}
                   </div>
+
+                  {/* Delete button for custom-added items */}
+                  {item.isCustom && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive mt-0.5"
+                      onClick={() => removeItem(idx)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               );
             })}
+
+            {/* Add new custom item */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 text-xs"
+              onClick={addNewItem}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Weitere Vereinbarung hinzufügen
+            </Button>
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
