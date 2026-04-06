@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS quote_config JSONB DEFAULT '{}'::jsonb;
