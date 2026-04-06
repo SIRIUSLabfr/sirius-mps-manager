@@ -1,49 +1,61 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-export interface Zusatzvereinbarungen {
-  lieferpauschale_active: boolean;
-  lieferpauschale_betrag: number;
-  basiseinweisung_active: boolean;
-  basiseinweisung_text: string;
-  it_installation_active: boolean;
-  it_installation_text: string;
-  abholung_altgeraete_active: boolean;
-  abholung_altgeraete_type: 'kostenlos' | 'pauschale';
-  abholung_altgeraete_betrag: number;
-  mietfreie_startphase: string;
-  erhoehbar_active: boolean;
-  erhoehbar_prozent: number;
-  berechnungsintervall: string;
-  sonderkuendigungsrecht_active: boolean;
-  sonderkuendigungsrecht_text: string;
-  weitere_vereinbarung: string;
+export interface ZusatzItem {
+  active: boolean;
+  text: string;
+  /** For items 10-12: selected radio option */
+  selectedOption?: string;
 }
 
+export interface Zusatzvereinbarungen {
+  mietfreie_startphase: string;
+  berechnungsintervall: string;
+  items: ZusatzItem[];
+}
+
+const DEFAULT_ITEMS: ZusatzItem[] = [
+  { active: false, text: 'SIRIUS BestForAdminFleet ist im Lieferumfang enthalten. Dies bringt die Vorteile von automatischer Tonerlieferung und selbstständiger Zählerstandübermittlung mit sich.' },
+  { active: false, text: 'Die neuen Geräte werden nach genauer Terminabsprache bereits im [MONAT] geliefert. Der ALL-IN-Vertrag beginnt zum [DATUM]. Dies entspricht einer mietfreien Startphase in Höhe von bis zu [X] Monaten. Die Kosten hierfür übernimmt die SIRIUS GmbH.' },
+  { active: false, text: '' },
+  { active: false, text: 'Das Angebot gilt solange der Vorrat reicht.' },
+  { active: false, text: 'Nach [X] Monaten hat der Kunde die Möglichkeit, das Gerät gegen eine neue, gleichwertige Maschine zu identischen Konditionen zu tauschen.' },
+  { active: false, text: 'Innerhalb der folgenden 6 Monate wird das durchschnittliche monatliche Volumen ermittelt und zur Festlegung der Freiseiten und der Rate verwendet.' },
+  { active: false, text: '' },
+  { active: false, text: '' },
+  { active: false, text: 'Altgeräte werden auf Wunsch kostenfrei entsorgt.' },
+  { active: false, text: 'Festplatten-Behandlung nach Abholung:', selectedOption: '' },
+  { active: false, text: 'Rücktransport Altgeräte:', selectedOption: '' },
+  { active: false, text: 'Bitte gewünschte Variante ankreuzen:', selectedOption: '' },
+];
+
+export const RADIO_OPTIONS: Record<number, { value: string; label: string; price?: string }[]> = {
+  9: [
+    { value: 'ausbau', label: 'Festplattenausbau', price: '350,00 € je Gerät' },
+    { value: 'loeschung', label: 'Protokollierte Löschung inkl. Zusendung des Protokolls', price: '150,00 € je Gerät' },
+    { value: 'keine', label: 'Keine protokollierte Datenlöschung erwünscht' },
+  ],
+  10: [
+    { value: 'versichert', label: 'Versicherter Rücktransport', price: '300,00 €' },
+    { value: 'kunde', label: 'Transport durch den Kunden' },
+  ],
+  11: [
+    { value: 'option1', label: 'Option 1' },
+    { value: 'option2', label: 'Option 2' },
+  ],
+};
+
 export const defaultZusatzvereinbarungen: Zusatzvereinbarungen = {
-  lieferpauschale_active: false,
-  lieferpauschale_betrag: 0,
-  basiseinweisung_active: false,
-  basiseinweisung_text: 'Grundeinweisung in die Bedienung der Geräte',
-  it_installation_active: false,
-  it_installation_text: 'Netzwerkintegration und Treiberinstallation',
-  abholung_altgeraete_active: false,
-  abholung_altgeraete_type: 'kostenlos',
-  abholung_altgeraete_betrag: 0,
   mietfreie_startphase: 'keine',
-  erhoehbar_active: false,
-  erhoehbar_prozent: 3,
   berechnungsintervall: 'quartalsweise',
-  sonderkuendigungsrecht_active: false,
-  sonderkuendigungsrecht_text: '',
-  weitere_vereinbarung: '',
+  items: DEFAULT_ITEMS,
 };
 
 interface Props {
@@ -53,128 +65,16 @@ interface Props {
 }
 
 export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen = false }: Props) {
-  const update = (patch: Partial<Zusatzvereinbarungen>) => onChange({ ...value, ...patch });
+  // Ensure items array has 12 entries (migration from old format)
+  const items: ZusatzItem[] = value.items && value.items.length === 12
+    ? value.items
+    : DEFAULT_ITEMS;
 
-  const content = (
-    <div className="space-y-4">
-      {/* Lieferpauschale */}
-      <div className="flex items-center gap-3">
-        <Checkbox checked={value.lieferpauschale_active} onCheckedChange={(c) => update({ lieferpauschale_active: !!c })} />
-        <Label className="flex-1">Lieferpauschale</Label>
-        {value.lieferpauschale_active && (
-          <div className="flex items-center gap-1">
-            <Input type="number" className="w-24 h-8 text-sm" value={value.lieferpauschale_betrag || ''} onChange={(e) => update({ lieferpauschale_betrag: parseFloat(e.target.value) || 0 })} />
-            <span className="text-sm text-muted-foreground">€</span>
-          </div>
-        )}
-      </div>
-
-      {/* Basiseinweisung */}
-      <div className="flex items-start gap-3">
-        <Checkbox checked={value.basiseinweisung_active} onCheckedChange={(c) => update({ basiseinweisung_active: !!c })} className="mt-1" />
-        <div className="flex-1">
-          <Label>Basiseinweisung</Label>
-          {value.basiseinweisung_active && (
-            <Input className="mt-1 h-8 text-sm" value={value.basiseinweisung_text} onChange={(e) => update({ basiseinweisung_text: e.target.value })} />
-          )}
-        </div>
-      </div>
-
-      {/* IT-Installation */}
-      <div className="flex items-start gap-3">
-        <Checkbox checked={value.it_installation_active} onCheckedChange={(c) => update({ it_installation_active: !!c })} className="mt-1" />
-        <div className="flex-1">
-          <Label>IT-Installation</Label>
-          {value.it_installation_active && (
-            <Input className="mt-1 h-8 text-sm" value={value.it_installation_text} onChange={(e) => update({ it_installation_text: e.target.value })} />
-          )}
-        </div>
-      </div>
-
-      {/* Abholung Altgeräte */}
-      <div className="flex items-start gap-3">
-        <Checkbox checked={value.abholung_altgeraete_active} onCheckedChange={(c) => update({ abholung_altgeraete_active: !!c })} className="mt-1" />
-        <div className="flex-1">
-          <Label>Abholung Altgeräte</Label>
-          {value.abholung_altgeraete_active && (
-            <div className="flex items-center gap-2 mt-1">
-              <Select value={value.abholung_altgeraete_type} onValueChange={(v) => update({ abholung_altgeraete_type: v as any })}>
-                <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="kostenlos">Kostenlos</SelectItem>
-                  <SelectItem value="pauschale">Pauschale</SelectItem>
-                </SelectContent>
-              </Select>
-              {value.abholung_altgeraete_type === 'pauschale' && (
-                <div className="flex items-center gap-1">
-                  <Input type="number" className="w-24 h-8 text-sm" value={value.abholung_altgeraete_betrag || ''} onChange={(e) => update({ abholung_altgeraete_betrag: parseFloat(e.target.value) || 0 })} />
-                  <span className="text-sm text-muted-foreground">€</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Mietfreie Startphase */}
-      <div>
-        <Label>Mietfreie Startphase</Label>
-        <Select value={value.mietfreie_startphase} onValueChange={(v) => update({ mietfreie_startphase: v })}>
-          <SelectTrigger className="mt-1 h-8 text-sm w-48"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="keine">Keine</SelectItem>
-            <SelectItem value="1_monat">1 Monat</SelectItem>
-            <SelectItem value="2_monate">2 Monate</SelectItem>
-            <SelectItem value="3_monate">3 Monate</SelectItem>
-            <SelectItem value="individuell">Individuell</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Erhöhbar */}
-      <div className="flex items-center gap-3">
-        <Checkbox checked={value.erhoehbar_active} onCheckedChange={(c) => update({ erhoehbar_active: !!c })} />
-        <Label>Erhöhbar</Label>
-        {value.erhoehbar_active && (
-          <div className="flex items-center gap-1">
-            <Input type="number" className="w-20 h-8 text-sm" value={value.erhoehbar_prozent || ''} onChange={(e) => update({ erhoehbar_prozent: parseFloat(e.target.value) || 0 })} />
-            <span className="text-sm text-muted-foreground">% p.a.</span>
-          </div>
-        )}
-      </div>
-
-      {/* Berechnungsintervall */}
-      <div>
-        <Label>Berechnungsintervall Zähler</Label>
-        <Select value={value.berechnungsintervall} onValueChange={(v) => update({ berechnungsintervall: v })}>
-          <SelectTrigger className="mt-1 h-8 text-sm w-48"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monatlich">Monatlich</SelectItem>
-            <SelectItem value="quartalsweise">Quartalsweise</SelectItem>
-            <SelectItem value="halbjaehrlich">Halbjährlich</SelectItem>
-            <SelectItem value="jaehrlich">Jährlich</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Sonderkündigungsrecht */}
-      <div className="flex items-start gap-3">
-        <Checkbox checked={value.sonderkuendigungsrecht_active} onCheckedChange={(c) => update({ sonderkuendigungsrecht_active: !!c })} className="mt-1" />
-        <div className="flex-1">
-          <Label>Sonderkündigungsrecht</Label>
-          {value.sonderkuendigungsrecht_active && (
-            <Input className="mt-1 h-8 text-sm" placeholder="z.B. nach 36 Monaten zum Quartalsende" value={value.sonderkuendigungsrecht_text} onChange={(e) => update({ sonderkuendigungsrecht_text: e.target.value })} />
-          )}
-        </div>
-      </div>
-
-      {/* Weitere Vereinbarung */}
-      <div>
-        <Label>Weitere Vereinbarung (Freitext)</Label>
-        <Textarea className="mt-1 text-sm" rows={3} placeholder="Zusätzliche Klauseln oder Vereinbarungen..." value={value.weitere_vereinbarung} onChange={(e) => update({ weitere_vereinbarung: e.target.value })} />
-      </div>
-    </div>
-  );
+  const updateItem = (idx: number, patch: Partial<ZusatzItem>) => {
+    const newItems = [...items];
+    newItems[idx] = { ...newItems[idx], ...patch };
+    onChange({ ...value, items: newItems });
+  };
 
   return (
     <Card>
@@ -188,7 +88,79 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
           </CardHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent>{content}</CardContent>
+          <CardContent className="space-y-4">
+            {/* Global settings */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b">
+              <div>
+                <Label>Mietfreie Startphase</Label>
+                <Select value={value.mietfreie_startphase} onValueChange={(v) => onChange({ ...value, mietfreie_startphase: v })}>
+                  <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="keine">Keine</SelectItem>
+                    <SelectItem value="1_monat">1 Monat</SelectItem>
+                    <SelectItem value="2_monate">2 Monate</SelectItem>
+                    <SelectItem value="3_monate">3 Monate</SelectItem>
+                    <SelectItem value="individuell">Individuell</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Berechnungsintervall Zähler</Label>
+                <Select value={value.berechnungsintervall} onValueChange={(v) => onChange({ ...value, berechnungsintervall: v })}>
+                  <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monatlich">Monatlich</SelectItem>
+                    <SelectItem value="quartalsweise">Quartalsweise</SelectItem>
+                    <SelectItem value="halbjaehrlich">Halbjährlich</SelectItem>
+                    <SelectItem value="jaehrlich">Jährlich</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* 12 configurable items */}
+            {items.map((item, idx) => {
+              const num = idx + 1;
+              const hasRadio = RADIO_OPTIONS[idx] !== undefined;
+
+              return (
+                <div key={idx} className="flex items-start gap-3 py-2 border-b border-border/50 last:border-0">
+                  <div className="flex items-center gap-2 pt-0.5 shrink-0">
+                    <span className="text-xs text-muted-foreground font-mono w-5">{num}.</span>
+                    <Switch
+                      checked={item.active}
+                      onCheckedChange={(c) => updateItem(idx, { active: c })}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Textarea
+                      className="text-sm min-h-[36px] resize-y"
+                      rows={item.text.length > 80 ? 3 : 1}
+                      placeholder={`Vereinbarung ${num} (Freitext)`}
+                      value={item.text}
+                      onChange={(e) => updateItem(idx, { text: e.target.value })}
+                    />
+                    {hasRadio && item.active && (
+                      <RadioGroup
+                        className="mt-2 space-y-1"
+                        value={item.selectedOption || ''}
+                        onValueChange={(v) => updateItem(idx, { selectedOption: v })}
+                      >
+                        {RADIO_OPTIONS[idx].map((opt) => (
+                          <div key={opt.value} className="flex items-center gap-2">
+                            <RadioGroupItem value={opt.value} id={`z-${idx}-${opt.value}`} />
+                            <Label htmlFor={`z-${idx}-${opt.value}`} className="text-sm font-normal cursor-pointer">
+                              {opt.label}{opt.price ? ` (${opt.price})` : ''}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
         </CollapsibleContent>
       </Collapsible>
     </Card>
