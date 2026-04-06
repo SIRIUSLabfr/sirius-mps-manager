@@ -378,7 +378,7 @@ function signaturePage(input: PdfInput): string {
     </div>` : ''}
 
     <!-- Signature area -->
-    <div style="border:2px dashed ${C.border};border-radius:8px;padding:24px;margin-bottom:auto;">
+    <div style="border:2px dashed ${C.border};border-radius:8px;padding:24px;margin-bottom:24px;">
       <div style="font-size:12px;font-weight:600;color:${C.dark};margin-bottom:20px;">Auftragsbestätigung</div>
       <div style="font-size:10px;color:${C.muted};margin-bottom:32px;">
         Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots zu den oben genannten Konditionen.
@@ -393,6 +393,11 @@ function signaturePage(input: PdfInput): string {
           <div style="font-size:9px;color:${C.muted};">Unterschrift / Stempel</div>
         </div>
       </div>
+    </div>
+
+    <!-- Team image on last page -->
+    <div style="margin-top:auto;margin-bottom:12px;">
+      <img src="/images/sirius-team-3.jpg" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
     </div>
 
     ${footer()}
