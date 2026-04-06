@@ -345,8 +345,13 @@ function konditionenPage(input: PdfInput, swVolume: number, colorVolume: number,
 
     ${zusatzHtml}
 
-    <div style="font-size:10px;color:${C.text};margin-top:20px;font-style:italic;">
+    <div style="font-size:10px;color:${C.text};margin-top:20px;font-style:italic;margin-bottom:24px;">
       Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots.
+    </div>
+
+    <!-- Team image on konditionen page -->
+    <div style="margin-top:auto;margin-bottom:12px;">
+      <img src="/images/sirius-team-2.jpg" style="width:100%;max-height:130px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
     </div>
 
     ${footer()}
