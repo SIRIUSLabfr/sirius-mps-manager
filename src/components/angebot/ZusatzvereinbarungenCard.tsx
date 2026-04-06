@@ -6,13 +6,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 
 export interface ZusatzItem {
   active: boolean;
   text: string;
   /** For items 10-12: selected radio option */
   selectedOption?: string;
+  /** For item 12: custom editable options */
+  customOptions?: { value: string; label: string; price?: string }[];
 }
 
 export interface Zusatzvereinbarungen {
@@ -28,12 +31,12 @@ const DEFAULT_ITEMS: ZusatzItem[] = [
   { active: false, text: 'Das Angebot gilt solange der Vorrat reicht.' },
   { active: false, text: 'Nach [X] Monaten hat der Kunde die Möglichkeit, das Gerät gegen eine neue, gleichwertige Maschine zu identischen Konditionen zu tauschen.' },
   { active: false, text: 'Innerhalb der folgenden 6 Monate wird das durchschnittliche monatliche Volumen ermittelt und zur Festlegung der Freiseiten und der Rate verwendet.' },
-  { active: false, text: '' },
-  { active: false, text: '' },
+  { active: false, text: 'Die ersten 1.000 S/W-Seiten bis zum 31.3.2023 sind kostenfrei. Mehrseiten werden normal berechnet.' },
+  { active: false, text: 'Für die offenen Raten Ihrer aktuellen Verträge erhalten Sie eine Gutschrift in Höhe von 100,00€. Dies entspricht 10 Restraten Ihres Altgeräts à mtl. 10,00€ (Leasingvertrag Kyocera FS2100dn).' },
   { active: false, text: 'Altgeräte werden auf Wunsch kostenfrei entsorgt.' },
-  { active: false, text: 'Festplatten-Behandlung nach Abholung:', selectedOption: '' },
-  { active: false, text: 'Rücktransport Altgeräte:', selectedOption: '' },
-  { active: false, text: 'Bitte gewünschte Variante ankreuzen:', selectedOption: '' },
+  { active: false, text: 'Nach Abholung der Multifunktionsgeräte werden die Festplatten einer fachgemäßen, protokollierten Rücksetzung in den Werkszustand unterzogen oder entfernt und im Nachgang an Sie ausgehändigt bzw. zugeschickt.\nBitte wählen Sie eine Variante:', selectedOption: '' },
+  { active: false, text: 'Gemäß Ihres Vertrages sind Sie verpflichtet, das Gerät auf Ihre Kosten durch hierfür geschultes, fachkundiges Personal zum Zentrallager Grenke Berlin zu transportieren. Gerne führen wir den Rücktransport inkl. transportfähig machen im Hause SIRIUS für Sie durch.', selectedOption: '' },
+  { active: false, text: 'Bitte gewünschte Variante ankreuzen:', selectedOption: '', customOptions: [{ value: 'option1', label: 'Option 1' }, { value: 'option2', label: 'Option 2' }] },
 ];
 
 export const RADIO_OPTIONS: Record<number, { value: string; label: string; price?: string }[]> = {
@@ -45,10 +48,6 @@ export const RADIO_OPTIONS: Record<number, { value: string; label: string; price
   10: [
     { value: 'versichert', label: 'Versicherter Rücktransport', price: '300,00 €' },
     { value: 'kunde', label: 'Transport durch den Kunden' },
-  ],
-  11: [
-    { value: 'option1', label: 'Option 1' },
-    { value: 'option2', label: 'Option 2' },
   ],
 };
 
@@ -65,7 +64,6 @@ interface Props {
 }
 
 export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen = false }: Props) {
-  // Ensure items array has 12 entries (migration from old format)
   const items: ZusatzItem[] = value.items && value.items.length === 12
     ? value.items
     : DEFAULT_ITEMS;
@@ -74,6 +72,36 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
     const newItems = [...items];
     newItems[idx] = { ...newItems[idx], ...patch };
     onChange({ ...value, items: newItems });
+  };
+
+  const isCustomOptionsItem = (idx: number) => idx === 11;
+
+  const getCustomOptions = (item: ZusatzItem) => {
+    return item.customOptions || [{ value: 'option1', label: 'Option 1' }, { value: 'option2', label: 'Option 2' }];
+  };
+
+  const updateCustomOptionLabel = (itemIdx: number, optIdx: number, label: string) => {
+    const opts = [...getCustomOptions(items[itemIdx])];
+    opts[optIdx] = { ...opts[optIdx], label };
+    updateItem(itemIdx, { customOptions: opts });
+  };
+
+  const addCustomOption = (itemIdx: number) => {
+    const opts = [...getCustomOptions(items[itemIdx])];
+    const newVal = `option${opts.length + 1}`;
+    opts.push({ value: newVal, label: `Option ${opts.length + 1}` });
+    updateItem(itemIdx, { customOptions: opts });
+  };
+
+  const removeCustomOption = (itemIdx: number, optIdx: number) => {
+    const opts = [...getCustomOptions(items[itemIdx])];
+    if (opts.length <= 1) return;
+    const removed = opts.splice(optIdx, 1);
+    const patch: Partial<ZusatzItem> = { customOptions: opts };
+    if (items[itemIdx].selectedOption === removed[0]?.value) {
+      patch.selectedOption = '';
+    }
+    updateItem(itemIdx, patch);
   };
 
   return (
@@ -121,7 +149,8 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
             {/* 12 configurable items */}
             {items.map((item, idx) => {
               const num = idx + 1;
-              const hasRadio = RADIO_OPTIONS[idx] !== undefined;
+              const hasFixedRadio = RADIO_OPTIONS[idx] !== undefined;
+              const hasCustomRadio = isCustomOptionsItem(idx);
 
               return (
                 <div key={idx} className="flex items-start gap-3 py-2 border-b border-border/50 last:border-0">
@@ -140,7 +169,9 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
                       value={item.text}
                       onChange={(e) => updateItem(idx, { text: e.target.value })}
                     />
-                    {hasRadio && item.active && (
+
+                    {/* Fixed radio options (items 10, 11) */}
+                    {hasFixedRadio && item.active && (
                       <RadioGroup
                         className="mt-2 space-y-1"
                         value={item.selectedOption || ''}
@@ -155,6 +186,47 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
                           </div>
                         ))}
                       </RadioGroup>
+                    )}
+
+                    {/* Custom editable radio options (item 12) */}
+                    {hasCustomRadio && item.active && (
+                      <div className="mt-2 space-y-2">
+                        <RadioGroup
+                          className="space-y-2"
+                          value={item.selectedOption || ''}
+                          onValueChange={(v) => updateItem(idx, { selectedOption: v })}
+                        >
+                          {getCustomOptions(item).map((opt, optIdx) => (
+                            <div key={opt.value} className="flex items-center gap-2">
+                              <RadioGroupItem value={opt.value} id={`z-${idx}-${opt.value}`} />
+                              <Input
+                                className="h-7 text-sm flex-1"
+                                value={opt.label}
+                                onChange={(e) => updateCustomOptionLabel(idx, optIdx, e.target.value)}
+                                placeholder={`Option ${optIdx + 1}`}
+                              />
+                              {getCustomOptions(item).length > 1 && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => removeCustomOption(idx, optIdx)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </RadioGroup>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => addCustomOption(idx)}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Option hinzufügen
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>
