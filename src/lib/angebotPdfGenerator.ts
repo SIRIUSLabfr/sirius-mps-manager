@@ -77,7 +77,7 @@ function coverPage(input: PdfInput, today: Date, gueltigBis: Date): string {
   const angNum = input.angebotNumber || '';
 
   return `
-  <div style="page-break-after:always;min-height:282mm;display:flex;flex-direction:column;padding:15mm 20mm 10mm;">
+  <div style="page-break-after:always;min-height:282mm;display:flex;flex-direction:column;padding:15mm 20mm 15mm;">
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
       <img src="/sirius-logo.png" style="width:180px;height:auto;" alt="SIRIUS" />
@@ -115,13 +115,18 @@ function coverPage(input: PdfInput, today: Date, gueltigBis: Date): string {
     </div>
 
     <!-- Info box -->
-    <div style="border-left:4px solid ${C.accent};background:${C.bg};padding:14px 18px;border-radius:0 6px 6px 0;margin-bottom:auto;">
+    <div style="border-left:4px solid ${C.accent};background:${C.bg};padding:14px 18px;border-radius:0 6px 6px 0;margin-bottom:24px;">
       <div style="display:flex;flex-wrap:wrap;gap:20px;font-size:10px;color:${C.text};">
         <div><span style="color:${C.muted};">Datum:</span> <strong>${fmtDate(today)}</strong></div>
         <div><span style="color:${C.muted};">Gültig bis:</span> <strong>${fmtDate(gueltigBis)}</strong></div>
         ${angNum ? `<div><span style="color:${C.muted};">Angebotsnr.:</span> <strong>${angNum}</strong></div>` : ''}
         ${input.ansprechpartner?.name ? `<div><span style="color:${C.muted};">Ihr Ansprechpartner:</span> <strong>${input.ansprechpartner.name}</strong></div>` : ''}
       </div>
+    </div>
+
+    <!-- Team image on cover -->
+    <div style="margin-top:auto;margin-bottom:12px;">
+      <img src="/images/sirius-team-1.jpg" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
     </div>
 
     ${footer()}
@@ -137,7 +142,7 @@ function devicePages(deviceGroups: any[], showPrices: boolean): string {
   for (const group of deviceGroups) {
     if (!group.mainDevice) continue;
 
-    html += `<div class="page-break" style="padding:15mm 20mm 10mm;display:flex;flex-direction:column;min-height:262mm;">`;
+    html += `<div class="page-break" style="padding:15mm 20mm 15mm;display:flex;flex-direction:column;min-height:262mm;">`;
 
     // Location header
     const loc = group.label || 'Standort';
@@ -315,7 +320,7 @@ function konditionenPage(input: PdfInput, swVolume: number, colorVolume: number,
   }
 
   return `
-  <div class="page-break" style="padding:15mm 20mm 10mm;display:flex;flex-direction:column;min-height:262mm;">
+  <div class="page-break" style="padding:15mm 20mm 15mm;display:flex;flex-direction:column;min-height:262mm;">
     <div style="display:flex;align-items:center;margin-bottom:24px;">
       <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
       <div style="font-size:18px;font-weight:700;color:${C.primary};">Konditionen & Vereinbarungen</div>
@@ -340,8 +345,13 @@ function konditionenPage(input: PdfInput, swVolume: number, colorVolume: number,
 
     ${zusatzHtml}
 
-    <div style="font-size:10px;color:${C.text};margin-top:20px;font-style:italic;">
+    <div style="font-size:10px;color:${C.text};margin-top:20px;font-style:italic;margin-bottom:24px;">
       Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots.
+    </div>
+
+    <!-- Team image on konditionen page -->
+    <div style="margin-top:auto;margin-bottom:12px;">
+      <img src="/images/sirius-team-2.jpg" style="width:100%;max-height:130px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
     </div>
 
     ${footer()}
@@ -355,7 +365,7 @@ function signaturePage(input: PdfInput): string {
     : 'SI';
 
   return `
-  <div class="page-break" style="padding:15mm 20mm 10mm;display:flex;flex-direction:column;min-height:262mm;">
+  <div class="page-break" style="padding:15mm 20mm 15mm;display:flex;flex-direction:column;min-height:262mm;">
     <div style="display:flex;align-items:center;margin-bottom:32px;">
       <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
       <div style="font-size:18px;font-weight:700;color:${C.primary};">Ihr Ansprechpartner</div>
@@ -373,7 +383,7 @@ function signaturePage(input: PdfInput): string {
     </div>` : ''}
 
     <!-- Signature area -->
-    <div style="border:2px dashed ${C.border};border-radius:8px;padding:24px;margin-bottom:auto;">
+    <div style="border:2px dashed ${C.border};border-radius:8px;padding:24px;margin-bottom:24px;">
       <div style="font-size:12px;font-weight:600;color:${C.dark};margin-bottom:20px;">Auftragsbestätigung</div>
       <div style="font-size:10px;color:${C.muted};margin-bottom:32px;">
         Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots zu den oben genannten Konditionen.
@@ -388,6 +398,11 @@ function signaturePage(input: PdfInput): string {
           <div style="font-size:9px;color:${C.muted};">Unterschrift / Stempel</div>
         </div>
       </div>
+    </div>
+
+    <!-- Team image on last page -->
+    <div style="margin-top:auto;margin-bottom:12px;">
+      <img src="/images/sirius-team-3.jpg" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
     </div>
 
     ${footer()}
