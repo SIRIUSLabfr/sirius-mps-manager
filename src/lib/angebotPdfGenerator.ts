@@ -284,11 +284,23 @@ function konditionenPage(input: PdfInput, swVolume: number, colorVolume: number,
       zusatzHtml += `<div style="border-left:3px solid ${C.primary};padding:8px 14px;margin-bottom:8px;background:${C.bg};border-radius:0 4px 4px 0;">
         <div style="font-size:11px;color:${C.text};line-height:1.6;"><strong>${counter}.</strong> ${item.text}</div>`;
 
-      // Radio options for items 10-12 (idx 9-11)
+      // Radio options for items 10-11 (idx 9-10) - fixed options
       const radioOpts = RADIO_OPTIONS[item.idx];
       if (radioOpts) {
         zusatzHtml += `<div style="margin-top:6px;padding-left:16px;">`;
         for (const opt of radioOpts) {
+          const checked = item.selectedOption === opt.value;
+          zusatzHtml += `<div style="font-size:10px;color:${C.text};margin-bottom:3px;">
+            ${checked ? '☑' : '☐'} ${opt.label}${opt.price ? ` (${opt.price})` : ''}
+          </div>`;
+        }
+        zusatzHtml += `</div>`;
+      }
+
+      // Custom options for item 12 (idx 11)
+      if (item.idx === 11 && item.customOptions && item.customOptions.length > 0) {
+        zusatzHtml += `<div style="margin-top:6px;padding-left:16px;">`;
+        for (const opt of item.customOptions) {
           const checked = item.selectedOption === opt.value;
           zusatzHtml += `<div style="font-size:10px;color:${C.text};margin-bottom:3px;">
             ${checked ? '☑' : '☐'} ${opt.label}${opt.price ? ` (${opt.price})` : ''}
