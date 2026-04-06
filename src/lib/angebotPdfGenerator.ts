@@ -63,13 +63,21 @@ const C = {
   lightMuted: '#B8C9DB',
 };
 
-function footer(): string {
-  return `<div style="padding:8px 0;border-top:1px solid ${C.border};display:flex;justify-content:space-between;font-size:7.5px;color:${C.muted};margin-top:auto;">
+/* ─── Image helper: proper aspect ratio ─── */
+function teamImage(src: string, alt: string): string {
+  return `<div data-pdf-section style="margin-top:12px;margin-bottom:12px;text-align:center;">
+    <img src="${src}" style="max-width:100%;max-height:150px;height:auto;object-fit:contain;border-radius:8px;" alt="${alt}" />
+  </div>`;
+}
+
+function footerRow(): string {
+  return `<div data-pdf-section style="padding:8px 0;border-top:1px solid ${C.border};display:flex;justify-content:space-between;font-size:7.5px;color:${C.muted};">
     <span>SIRIUS document solutions · Abrichstr. 23 · 79108 Freiburg · (0761) 704070 · info@sirius-gmbh.de</span>
   </div>`;
 }
 
-function coverPage(input: PdfInput, today: Date, gueltigBis: Date): string {
+/* ─── Cover page sections ─── */
+function coverSections(input: PdfInput, today: Date, gueltigBis: Date): string {
   const fmtDate = (d: Date) => d.toLocaleDateString('de-DE');
   const contact = input.contactPerson || '';
   const customerName = input.customerName || input.projectName;
@@ -77,63 +85,54 @@ function coverPage(input: PdfInput, today: Date, gueltigBis: Date): string {
   const angNum = input.angebotNumber || '';
 
   return `
-  <div style="page-break-after:always;min-height:282mm;display:flex;flex-direction:column;padding:15mm 20mm 15mm;">
-    <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
-      <img src="/sirius-logo.png" style="width:180px;height:auto;" alt="SIRIUS" />
-      <div style="text-align:right;font-size:8px;color:${C.muted};line-height:1.6;">
-        SIRIUS GmbH · Abrichstr. 23 · 79108 Freiburg<br/>
-        Tel: (0761) 704070 · info@sirius-gmbh.de
-      </div>
+  <div data-pdf-section style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+    <img src="/sirius-logo.png" style="width:180px;height:auto;" alt="SIRIUS" />
+    <div style="text-align:right;font-size:8px;color:${C.muted};line-height:1.6;">
+      SIRIUS GmbH · Abrichstr. 23 · 79108 Freiburg<br/>
+      Tel: (0761) 704070 · info@sirius-gmbh.de
     </div>
+  </div>
 
-    <!-- Empfänger + Meta -->
-    <div style="display:flex;justify-content:space-between;margin-bottom:24px;">
-      <div style="font-size:11px;color:${C.text};line-height:1.6;">
-        <div style="font-weight:700;font-size:13px;">${customerName}</div>
-        ${contact ? `<div>${contact}</div>` : ''}
-        ${input.customerAddress ? `<div>${input.customerAddress}</div>` : ''}
-      </div>
-      <div style="text-align:right;font-size:10px;color:${C.muted};line-height:1.8;">
-        ${custNum ? `<div>KD-NR: <strong style="color:${C.text}">${custNum}</strong></div>` : ''}
-        ${angNum ? `<div>AN-NR: <strong style="color:${C.text}">${angNum}</strong></div>` : ''}
-      </div>
+  <div data-pdf-section style="display:flex;justify-content:space-between;margin-bottom:24px;">
+    <div style="font-size:11px;color:${C.text};line-height:1.6;">
+      <div style="font-weight:700;font-size:13px;">${customerName}</div>
+      ${contact ? `<div>${contact}</div>` : ''}
+      ${input.customerAddress ? `<div>${input.customerAddress}</div>` : ''}
     </div>
+    <div style="text-align:right;font-size:10px;color:${C.muted};line-height:1.8;">
+      ${custNum ? `<div>KD-NR: <strong style="color:${C.text}">${custNum}</strong></div>` : ''}
+      ${angNum ? `<div>AN-NR: <strong style="color:${C.text}">${angNum}</strong></div>` : ''}
+    </div>
+  </div>
 
-    <!-- Accent line -->
-    <div style="width:48px;height:3px;background:${C.accent};margin-bottom:24px;"></div>
+  <div data-pdf-section style="width:48px;height:3px;background:${C.accent};margin-bottom:24px;"></div>
 
-    <!-- Title -->
+  <div data-pdf-section style="margin-bottom:28px;">
     <div style="font-size:28px;font-weight:700;color:${C.dark};margin-bottom:8px;">ANGEBOT</div>
-    <div style="font-size:18px;color:${C.primary};font-weight:500;margin-bottom:28px;">${input.projectName} – ${customerName}</div>
+    <div style="font-size:18px;color:${C.primary};font-weight:500;">${input.projectName} – ${customerName}</div>
+  </div>
 
-    <!-- Anschreiben -->
-    <div style="font-size:11px;color:${C.text};line-height:1.7;margin-bottom:28px;">
-      Sehr geehrte${contact ? ('/r ' + contact) : ' Damen und Herren'},<br/><br/>
-      nochmals vielen Dank für Ihr Interesse an unserem SIRIUS Print Konzept. Gerne unterbreiten wir Ihnen folgendes Angebot für die Optimierung Ihrer Druckerlandschaft.
-      Wir sind überzeugt, dass Sie von unserem umfassenden All-In-Service profitieren werden. Bei Fragen stehen wir Ihnen jederzeit gerne zur Verfügung.
+  <div data-pdf-section style="font-size:11px;color:${C.text};line-height:1.7;margin-bottom:28px;">
+    Sehr geehrte${contact ? ('/r ' + contact) : ' Damen und Herren'},<br/><br/>
+    nochmals vielen Dank für Ihr Interesse an unserem SIRIUS Print Konzept. Gerne unterbreiten wir Ihnen folgendes Angebot für die Optimierung Ihrer Druckerlandschaft.
+    Wir sind überzeugt, dass Sie von unserem umfassenden All-In-Service profitieren werden. Bei Fragen stehen wir Ihnen jederzeit gerne zur Verfügung.
+  </div>
+
+  <div data-pdf-section style="border-left:4px solid ${C.accent};background:${C.bg};padding:14px 18px;border-radius:0 6px 6px 0;margin-bottom:24px;">
+    <div style="display:flex;flex-wrap:wrap;gap:20px;font-size:10px;color:${C.text};">
+      <div><span style="color:${C.muted};">Datum:</span> <strong>${fmtDate(today)}</strong></div>
+      <div><span style="color:${C.muted};">Gültig bis:</span> <strong>${fmtDate(gueltigBis)}</strong></div>
+      ${angNum ? `<div><span style="color:${C.muted};">Angebotsnr.:</span> <strong>${angNum}</strong></div>` : ''}
+      ${input.ansprechpartner?.name ? `<div><span style="color:${C.muted};">Ihr Ansprechpartner:</span> <strong>${input.ansprechpartner.name}</strong></div>` : ''}
     </div>
+  </div>
 
-    <!-- Info box -->
-    <div style="border-left:4px solid ${C.accent};background:${C.bg};padding:14px 18px;border-radius:0 6px 6px 0;margin-bottom:24px;">
-      <div style="display:flex;flex-wrap:wrap;gap:20px;font-size:10px;color:${C.text};">
-        <div><span style="color:${C.muted};">Datum:</span> <strong>${fmtDate(today)}</strong></div>
-        <div><span style="color:${C.muted};">Gültig bis:</span> <strong>${fmtDate(gueltigBis)}</strong></div>
-        ${angNum ? `<div><span style="color:${C.muted};">Angebotsnr.:</span> <strong>${angNum}</strong></div>` : ''}
-        ${input.ansprechpartner?.name ? `<div><span style="color:${C.muted};">Ihr Ansprechpartner:</span> <strong>${input.ansprechpartner.name}</strong></div>` : ''}
-      </div>
-    </div>
-
-    <!-- Team image on cover -->
-    <div style="margin-top:auto;margin-bottom:12px;">
-      <img src="/images/sirius-team-1.jpg" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
-    </div>
-
-    ${footer()}
-  </div>`;
+  ${teamImage('/images/sirius-team-1.jpg', 'SIRIUS Team')}
+  ${footerRow()}`;
 }
 
-function devicePages(deviceGroups: any[], showPrices: boolean): string {
+/* ─── Device page sections ─── */
+function deviceSections(deviceGroups: any[], showPrices: boolean): string {
   if (!deviceGroups.length) return '';
 
   let html = '';
@@ -142,22 +141,18 @@ function devicePages(deviceGroups: any[], showPrices: boolean): string {
   for (const group of deviceGroups) {
     if (!group.mainDevice) continue;
 
-    html += `<div class="page-break" style="padding:15mm 20mm 15mm;display:flex;flex-direction:column;min-height:262mm;">`;
-
-    // Location header
     const loc = group.label || 'Standort';
-    html += `<div style="background:${C.dark};color:${C.white};padding:10px 16px;font-size:11px;font-weight:700;border-radius:4px;margin-bottom:16px;letter-spacing:0.5px;">
+    html += `<div data-pdf-section style="background:${C.dark};color:${C.white};padding:10px 16px;font-size:11px;font-weight:700;border-radius:4px;margin-bottom:16px;letter-spacing:0.5px;">
       STANDORT: ${loc}
     </div>`;
 
-    // Main device card
     const mainName = group.mainDevice?.Product_Name || group.mainDevice?.name || 'Gerät';
     const mainQty = group.mainQuantity || 1;
     const imgUrl = group.mainDevice?.Bild_URL1 || group.mainDevice?.image_url || '';
     const description = group.mainDevice?.Description || group.mainDevice?.description || '';
     const datasheetUrl = group.mainDevice?.Bild_URL || group.mainDevice?.datasheet_url || '';
 
-    html += `<div style="display:flex;gap:16px;border:1px solid ${C.border};border-radius:8px;padding:14px;margin-bottom:16px;">`;
+    html += `<div data-pdf-section style="display:flex;gap:16px;border:1px solid ${C.border};border-radius:8px;padding:14px;margin-bottom:16px;">`;
     if (imgUrl) {
       html += `<img src="${imgUrl}" style="width:120px;height:120px;object-fit:contain;border-radius:6px;background:${C.bg};" />`;
     } else {
@@ -170,7 +165,6 @@ function devicePages(deviceGroups: any[], showPrices: boolean): string {
       ${datasheetUrl ? `<div style="margin-top:6px;"><a href="${datasheetUrl}" style="font-size:10px;color:${C.accent};text-decoration:none;">📎 Datenblatt</a></div>` : ''}
     </div></div>`;
 
-    // Accessories table
     const accessories = group.accessories || [];
     if (accessories.length > 0) {
       const priceHeaders = showPrices
@@ -178,7 +172,7 @@ function devicePages(deviceGroups: any[], showPrices: boolean): string {
            <th style="text-align:right;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.primary};font-weight:700;width:90px;">Gesamt</th>`
         : '';
 
-      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+      let tableHtml = `<table data-pdf-section style="width:100%;border-collapse:collapse;margin-bottom:12px;">
         <thead><tr style="border-bottom:2px solid ${C.primary};">
           <th style="text-align:left;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.primary};font-weight:700;width:40px;">Pos</th>
           <th style="text-align:left;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.primary};font-weight:700;">Bezeichnung</th>
@@ -196,19 +190,19 @@ function devicePages(deviceGroups: any[], showPrices: boolean): string {
           ? `<td style="text-align:right;padding:8px 10px;font-size:11px;color:${C.text};">${fmtEuro(accPrice)}</td>
              <td style="text-align:right;padding:8px 10px;font-size:11px;color:${C.text};font-weight:600;">${fmtEuro(accPrice * accQty)}</td>`
           : '';
-        html += `<tr style="border-bottom:1px solid ${C.border};${stripe}">
+        tableHtml += `<tr style="border-bottom:1px solid ${C.border};${stripe}">
           <td style="padding:8px 10px;font-size:11px;color:${C.muted};">${posCounter}</td>
           <td style="padding:8px 10px;font-size:11px;color:${C.text};font-weight:500;">${accName}</td>
           <td style="text-align:right;padding:8px 10px;font-size:11px;color:${C.text};">${accQty}</td>
           ${priceCells}
         </tr>`;
       }
-      html += `</tbody></table>`;
+      tableHtml += `</tbody></table>`;
+      html += tableHtml;
     }
 
-    // Page prices
     if (group.page_prices?.bw || group.page_prices?.color) {
-      html += `<div style="background:${C.bg};border-radius:6px;padding:10px 16px;margin-bottom:12px;">
+      html += `<div data-pdf-section style="background:${C.bg};border-radius:6px;padding:10px 16px;margin-bottom:12px;">
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.muted};font-weight:700;margin-bottom:6px;">Seitenpreise</div>`;
       if (group.page_prices.bw) {
         const vol = group.page_prices.bw_volume || '';
@@ -227,17 +221,16 @@ function devicePages(deviceGroups: any[], showPrices: boolean): string {
       html += `</div>`;
     }
 
-    html += footer();
-    html += `</div>`;
+    html += footerRow();
   }
 
   return html;
 }
 
-function konditionenPage(input: PdfInput, swVolume: number, colorVolume: number, folgeseitenSw: number, folgeseitenFarbe: number): string {
+/* ─── Konditionen sections ─── */
+function konditionenSections(input: PdfInput, swVolume: number, colorVolume: number, folgeseitenSw: number, folgeseitenFarbe: number): string {
   const { calcData, zusatz } = input;
 
-  // Rate box
   let rateLabel = 'MONATLICHE ALL-IN-RATE';
   let rateValue = calcData.total_monthly_rate || 0;
   let rateSub = '';
@@ -276,103 +269,92 @@ function konditionenPage(input: PdfInput, swVolume: number, colorVolume: number,
     </tr>`;
   }).join('');
 
-  // Zusatzvereinbarungen
+  let html = `
+  <div data-pdf-section style="display:flex;align-items:center;margin-bottom:24px;">
+    <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
+    <div style="font-size:18px;font-weight:700;color:${C.primary};">Konditionen & Vereinbarungen</div>
+  </div>
+
+  <div data-pdf-section style="background:${C.dark};border-radius:8px;padding:24px;text-align:center;margin-bottom:24px;">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:${C.lightMuted};margin-bottom:8px;">${rateLabel}</div>
+    <div style="font-size:28px;font-weight:800;color:${C.accent};">${fmtEuro(rateValue)}</div>
+    ${rateSub ? `<div style="font-size:11px;color:${C.lightMuted};margin-top:6px;">${rateSub}</div>` : ''}
+  </div>
+
+  <table data-pdf-section style="width:100%;border-collapse:collapse;margin-bottom:20px;border-radius:6px;overflow:hidden;border:1px solid ${C.border};">
+    ${kondTableHtml}
+  </table>
+
+  <div data-pdf-section style="background:${C.bg};border-radius:6px;padding:12px 16px;font-size:10px;color:${C.muted};line-height:1.6;margin-bottom:16px;">
+    <strong style="color:${C.text};">Enthaltene Leistungen:</strong> Die Nutzungsrate enthält: Finanzierung der Geräte, sämtliche Wartungsarbeiten, Reparaturen (inkl. Anfahrt und Arbeitszeit), Ersatzteile und alle Verbrauchsmaterialien. <strong>Nicht enthalten:</strong> Papier, EDV-Dienstleistungen.
+  </div>`;
+
+  // Zusatzvereinbarungen - each item is its own section so it won't be split
   const items = zusatz.items || [];
   const activeItems = items.map((item, idx) => ({ ...item, idx })).filter(i => i.active && i.text);
-  let zusatzHtml = '';
   if (activeItems.length > 0) {
+    html += `<div data-pdf-section style="font-size:13px;font-weight:700;color:${C.primary};margin-bottom:12px;margin-top:24px;text-transform:uppercase;letter-spacing:1px;">Zusatzvereinbarungen</div>`;
+
     let counter = 0;
-    zusatzHtml = `<div style="margin-top:24px;">
-      <div style="font-size:13px;font-weight:700;color:${C.primary};margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">Zusatzvereinbarungen</div>`;
     for (const item of activeItems) {
       counter++;
-      zusatzHtml += `<div style="border-left:3px solid ${C.primary};padding:8px 14px;margin-bottom:8px;background:${C.bg};border-radius:0 4px 4px 0;">
+      let itemHtml = `<div data-pdf-section style="border-left:3px solid ${C.primary};padding:8px 14px;margin-bottom:8px;background:${C.bg};border-radius:0 4px 4px 0;">
         <div style="font-size:11px;color:${C.text};line-height:1.6;"><strong>${counter}.</strong> ${item.text}</div>`;
 
-      // Radio options for items 10-11 (idx 9-10) - fixed options
       const radioOpts = RADIO_OPTIONS[item.idx];
       if (radioOpts) {
-        zusatzHtml += `<div style="margin-top:6px;padding-left:16px;">`;
+        itemHtml += `<div style="margin-top:6px;padding-left:16px;">`;
         for (const opt of radioOpts) {
           const checked = item.selectedOption === opt.value;
-          zusatzHtml += `<div style="font-size:10px;color:${C.text};margin-bottom:3px;">
+          itemHtml += `<div style="font-size:10px;color:${C.text};margin-bottom:3px;">
             ${checked ? '☑' : '☐'} ${opt.label}${opt.price ? ` (${opt.price})` : ''}
           </div>`;
         }
-        zusatzHtml += `</div>`;
+        itemHtml += `</div>`;
       }
 
-      // Custom options for item 12 (idx 11)
       if (item.idx === 11 && item.customOptions && item.customOptions.length > 0) {
-        zusatzHtml += `<div style="margin-top:6px;padding-left:16px;">`;
+        itemHtml += `<div style="margin-top:6px;padding-left:16px;">`;
         for (const opt of item.customOptions) {
           const checked = item.selectedOption === opt.value;
-          zusatzHtml += `<div style="font-size:10px;color:${C.text};margin-bottom:3px;">
+          itemHtml += `<div style="font-size:10px;color:${C.text};margin-bottom:3px;">
             ${checked ? '☑' : '☐'} ${opt.label}${opt.price ? ` (${opt.price})` : ''}
           </div>`;
         }
-        zusatzHtml += `</div>`;
+        itemHtml += `</div>`;
       }
 
-      zusatzHtml += `</div>`;
+      itemHtml += `</div>`;
+      html += itemHtml;
     }
-    zusatzHtml += `</div>`;
   }
 
-  return `
-  <div class="page-break" style="padding:15mm 20mm 15mm;display:flex;flex-direction:column;min-height:262mm;">
-    <div style="display:flex;align-items:center;margin-bottom:24px;">
-      <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
-      <div style="font-size:18px;font-weight:700;color:${C.primary};">Konditionen & Vereinbarungen</div>
-    </div>
-
-    <!-- Rate box -->
-    <div style="background:${C.dark};border-radius:8px;padding:24px;text-align:center;margin-bottom:24px;">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:${C.lightMuted};margin-bottom:8px;">${rateLabel}</div>
-      <div style="font-size:28px;font-weight:800;color:${C.accent};">${fmtEuro(rateValue)}</div>
-      ${rateSub ? `<div style="font-size:11px;color:${C.lightMuted};margin-top:6px;">${rateSub}</div>` : ''}
-    </div>
-
-    <!-- Konditionen table -->
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;border-radius:6px;overflow:hidden;border:1px solid ${C.border};">
-      ${kondTableHtml}
-    </table>
-
-    <!-- Enthaltene Leistungen -->
-    <div style="background:${C.bg};border-radius:6px;padding:12px 16px;font-size:10px;color:${C.muted};line-height:1.6;margin-bottom:16px;">
-      <strong style="color:${C.text};">Enthaltene Leistungen:</strong> Die Nutzungsrate enthält: Finanzierung der Geräte, sämtliche Wartungsarbeiten, Reparaturen (inkl. Anfahrt und Arbeitszeit), Ersatzteile und alle Verbrauchsmaterialien. <strong>Nicht enthalten:</strong> Papier, EDV-Dienstleistungen.
-    </div>
-
-    ${zusatzHtml}
-
-    <div style="font-size:10px;color:${C.text};margin-top:20px;font-style:italic;margin-bottom:24px;">
-      Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots.
-    </div>
-
-    <!-- Team image on konditionen page -->
-    <div style="margin-top:auto;margin-bottom:12px;">
-      <img src="/images/sirius-team-2.jpg" style="width:100%;max-height:130px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
-    </div>
-
-    ${footer()}
+  html += `<div data-pdf-section style="font-size:10px;color:${C.text};margin-top:20px;font-style:italic;margin-bottom:24px;">
+    Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots.
   </div>`;
+
+  html += teamImage('/images/sirius-team-2.jpg', 'SIRIUS Team');
+  html += footerRow();
+
+  return html;
 }
 
-function signaturePage(input: PdfInput): string {
+/* ─── Signature page sections ─── */
+function signatureSections(input: PdfInput): string {
   const ap = input.ansprechpartner;
   const initials = ap?.name
     ? ap.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : 'SI';
 
-  return `
-  <div class="page-break" style="padding:15mm 20mm 15mm;display:flex;flex-direction:column;min-height:262mm;">
-    <div style="display:flex;align-items:center;margin-bottom:32px;">
-      <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
-      <div style="font-size:18px;font-weight:700;color:${C.primary};">Ihr Ansprechpartner</div>
-    </div>
+  let html = `
+  <div data-pdf-section style="display:flex;align-items:center;margin-bottom:32px;">
+    <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
+    <div style="font-size:18px;font-weight:700;color:${C.primary};">Ihr Ansprechpartner</div>
+  </div>`;
 
-    ${ap ? `
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:40px;">
+  if (ap) {
+    html += `
+    <div data-pdf-section style="display:flex;align-items:center;gap:16px;margin-bottom:40px;">
       <div style="width:44px;height:44px;border-radius:50%;background:${C.primary};color:${C.white};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">${initials}</div>
       <div>
         <div style="font-size:14px;font-weight:700;color:${C.dark};">${ap.name}</div>
@@ -380,37 +362,37 @@ function signaturePage(input: PdfInput): string {
         ${ap.email ? `<div style="font-size:11px;color:${C.accent};">${ap.email}</div>` : ''}
         ${ap.phone ? `<div style="font-size:11px;color:${C.text};">${ap.phone}</div>` : ''}
       </div>
-    </div>` : ''}
+    </div>`;
+  }
 
-    <!-- Signature area -->
-    <div style="border:2px dashed ${C.border};border-radius:8px;padding:24px;margin-bottom:24px;">
-      <div style="font-size:12px;font-weight:600;color:${C.dark};margin-bottom:20px;">Auftragsbestätigung</div>
-      <div style="font-size:10px;color:${C.muted};margin-bottom:32px;">
-        Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots zu den oben genannten Konditionen.
+  html += `
+  <div data-pdf-section style="border:2px dashed ${C.border};border-radius:8px;padding:24px;margin-bottom:24px;">
+    <div style="font-size:12px;font-weight:600;color:${C.dark};margin-bottom:20px;">Auftragsbestätigung</div>
+    <div style="font-size:10px;color:${C.muted};margin-bottom:32px;">
+      Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots zu den oben genannten Konditionen.
+    </div>
+    <div style="display:flex;gap:40px;">
+      <div style="flex:1;">
+        <div style="border-bottom:1px solid ${C.dark};margin-bottom:6px;height:40px;"></div>
+        <div style="font-size:9px;color:${C.muted};">Ort, Datum</div>
       </div>
-      <div style="display:flex;gap:40px;">
-        <div style="flex:1;">
-          <div style="border-bottom:1px solid ${C.dark};margin-bottom:6px;height:40px;"></div>
-          <div style="font-size:9px;color:${C.muted};">Ort, Datum</div>
-        </div>
-        <div style="flex:1;">
-          <div style="border-bottom:1px solid ${C.dark};margin-bottom:6px;height:40px;"></div>
-          <div style="font-size:9px;color:${C.muted};">Unterschrift / Stempel</div>
-        </div>
+      <div style="flex:1;">
+        <div style="border-bottom:1px solid ${C.dark};margin-bottom:6px;height:40px;"></div>
+        <div style="font-size:9px;color:${C.muted};">Unterschrift / Stempel</div>
       </div>
     </div>
-
-    <!-- Team image on last page -->
-    <div style="margin-top:auto;margin-bottom:12px;">
-      <img src="/images/sirius-team-3.jpg" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
-    </div>
-
-    ${footer()}
   </div>`;
+
+  html += teamImage('/images/sirius-team-3.jpg', 'SIRIUS Team');
+  html += footerRow();
+
+  return html;
 }
 
+/* ─── Main: Section-based rendering with jsPDF ─── */
 export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
-  const html2pdf = (await import('html2pdf.js')).default;
+  const html2canvas = (await import('html2canvas')).default;
+  const { jsPDF } = await import('jspdf');
 
   const { calcData, zusatz } = input;
   const config = calcData.config_json || {};
@@ -424,50 +406,97 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   const gueltigBis = new Date(today);
   gueltigBis.setDate(gueltigBis.getDate() + 30);
 
-  const fullHtml = `
-  <div style="font-family:Arial,Helvetica,sans-serif;color:${C.text};font-size:11px;line-height:1.5;width:210mm;">
-    ${coverPage(input, today, gueltigBis)}
-    ${devicePages(deviceGroups, !!input.showPrices)}
-    ${konditionenPage(input, swVolume, colorVolume, folgeseitenSw, folgeseitenFarbe)}
-    ${signaturePage(input)}
-  </div>`;
+  const sectionsHtml = `
+    <div style="font-family:Arial,Helvetica,sans-serif;color:${C.text};font-size:11px;line-height:1.5;width:210mm;padding:0 20mm;">
+      ${coverSections(input, today, gueltigBis)}
+      ${deviceSections(deviceGroups, !!input.showPrices)}
+      ${konditionenSections(input, swVolume, colorVolume, folgeseitenSw, folgeseitenFarbe)}
+      ${signatureSections(input)}
+    </div>`;
 
+  // Create hidden render container
   const wrapper = document.createElement('div');
   wrapper.style.position = 'fixed';
   wrapper.style.left = '0';
   wrapper.style.top = '0';
   wrapper.style.width = '210mm';
-  wrapper.style.height = '0';
-  wrapper.style.overflow = 'hidden';
-  wrapper.style.zIndex = '-9999';
   wrapper.style.opacity = '0';
+  wrapper.style.zIndex = '-9999';
   wrapper.style.pointerEvents = 'none';
 
   const container = document.createElement('div');
   container.style.width = '210mm';
-  container.innerHTML = fullHtml;
+  container.innerHTML = sectionsHtml;
   wrapper.appendChild(container);
   document.body.appendChild(wrapper);
 
-  // Temporarily make visible for html2canvas rendering
-  wrapper.style.height = 'auto';
-  wrapper.style.overflow = 'visible';
+  // Wait for images to load
+  const images = container.querySelectorAll('img');
+  await Promise.all(
+    Array.from(images).map(
+      (img) =>
+        new Promise<void>((resolve) => {
+          if (img.complete) return resolve();
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        })
+    )
+  );
 
-  const version = input.version || 1;
-  const fileName = `KV_${input.projectName.replace(/\s+/g, '_')}_${today.toISOString().split('T')[0]}_v${version}.pdf`;
+  // Constants
+  const A4_W_MM = 210;
+  const A4_H_MM = 297;
+  const MARGIN_TOP = 15;
+  const MARGIN_BOTTOM = 20; // generous bottom margin
+  const MARGIN_LR = 0; // padding is already in the HTML
+  const CONTENT_W_MM = A4_W_MM;
+  const USABLE_H_MM = A4_H_MM - MARGIN_TOP - MARGIN_BOTTOM;
+  const SECTION_GAP = 2;
 
-  const blob: Blob = await html2pdf()
-    .set({
-      margin: 0,
-      filename: fileName,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], before: '.page-break' } as any,
-    })
-    .from(container)
-    .output('blob');
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+  // Gather all sections
+  const sections = Array.from(container.querySelectorAll('[data-pdf-section]')) as HTMLElement[];
+
+  let currentY = MARGIN_TOP;
+  let isFirstSection = true;
+
+  for (const section of sections) {
+    const canvas = await html2canvas(section, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+
+    const widthPx = canvas.width / 2;
+    const heightPx = canvas.height / 2;
+    const scaleFactor = CONTENT_W_MM / widthPx;
+    const heightMM = heightPx * scaleFactor;
+
+    const remainingSpace = USABLE_H_MM - (currentY - MARGIN_TOP);
+
+    if (heightMM > remainingSpace && !isFirstSection) {
+      pdf.addPage();
+      currentY = MARGIN_TOP;
+    }
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', MARGIN_LR, currentY, CONTENT_W_MM, heightMM);
+    currentY += heightMM + SECTION_GAP;
+    isFirstSection = false;
+  }
+
+  // Add page numbers
+  const pageCount = pdf.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.setTextColor(107, 114, 128); // muted gray
+    pdf.text(`Seite ${i} von ${pageCount}`, A4_W_MM - 15, A4_H_MM - 8, { align: 'right' });
+  }
 
   document.body.removeChild(wrapper);
-  return blob;
+
+  return pdf.output('blob');
 }
