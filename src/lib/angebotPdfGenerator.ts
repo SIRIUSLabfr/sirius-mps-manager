@@ -360,7 +360,7 @@ function signaturePage(input: PdfInput): string {
     : 'SI';
 
   return `
-  <div class="page-break" style="padding:15mm 20mm 10mm;display:flex;flex-direction:column;min-height:262mm;">
+  <div class="page-break" style="padding:15mm 20mm 15mm;display:flex;flex-direction:column;min-height:262mm;">
     <div style="display:flex;align-items:center;margin-bottom:32px;">
       <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
       <div style="font-size:18px;font-weight:700;color:${C.primary};">Ihr Ansprechpartner</div>
