@@ -453,6 +453,6 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
     .from(container)
     .output('blob');
 
-  document.body.removeChild(container);
+  document.body.removeChild(wrapper);
   return blob;
 }
