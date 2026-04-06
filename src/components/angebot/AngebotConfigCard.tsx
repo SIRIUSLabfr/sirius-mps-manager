@@ -45,11 +45,13 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
   const [showPrices, setShowPrices] = useState(false);
   const queryClient = useQueryClient();
 
-  const deviceCount = calcData?.config_json?.deviceGroups?.reduce((sum: number, g: any) => sum + (g.mainQuantity || 0), 0) || 0;
-  const folgeseitenSw = calcData?.config_json?.calculated?.folgeseitenpreis_sw || calcData?.config_json?.folgeseitenpreis_sw || 0;
-  const folgeseitenFarbe = calcData?.config_json?.calculated?.folgeseitenpreis_farbe || calcData?.config_json?.folgeseitenpreis_farbe || 0;
-  const swVolume = calcData?.config_json?.calculated?.totalSwVolume || 0;
-  const colorVolume = calcData?.config_json?.calculated?.totalColorVolume || 0;
+  const groups = calcData?.config_json?.device_groups || calcData?.config_json?.deviceGroups || [];
+  const deviceCount = groups.reduce((sum: number, g: any) => sum + (g.mainQuantity || 0), 0) || 0;
+  const calc = calcData?.config_json?.calculated || {};
+  const folgeseitenSw = calc.folgeseitenpreis_sw || calcData?.config_json?.folgeseitenpreis_sw || 0;
+  const folgeseitenFarbe = calc.folgeseitenpreis_farbe || calcData?.config_json?.folgeseitenpreis_farbe || 0;
+  const swVolume = calc.total_volume_bw || calc.totalSwVolume || 0;
+  const colorVolume = calc.total_volume_color || calc.totalColorVolume || 0;
 
   const handleGenerate = async () => {
     if (!calcData) {

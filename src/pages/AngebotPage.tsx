@@ -43,40 +43,45 @@ export default function AngebotPage() {
     enabled: !!projectId,
   });
 
-  // Zusatzvereinbarungen state
+  // Zusatzvereinbarungen state – persisted in projects.quote_config
   const [zusatz, setZusatz] = useState<Zusatzvereinbarungen>(defaultZusatzvereinbarungen);
   const [zusatzLoaded, setZusatzLoaded] = useState(false);
 
   useEffect(() => {
-    if (calcData?.config_json && !zusatzLoaded) {
-      const saved = (calcData.config_json as any)?.zusatzvereinbarungen;
-      if (saved) {
-        // Migrate from old format if needed
-        if (saved.items && Array.isArray(saved.items)) {
-          setZusatz({ ...defaultZusatzvereinbarungen, ...saved });
-        } else {
-          // Old format without items array - use defaults
-          setZusatz({
-            ...defaultZusatzvereinbarungen,
-            mietfreie_startphase: saved.mietfreie_startphase || 'keine',
-            berechnungsintervall: saved.berechnungsintervall || 'quartalsweise',
-          });
-        }
+    if (!project || zusatzLoaded) return;
+    const saved = (project as any)?.quote_config?.zusatzvereinbarungen;
+    if (saved) {
+      if (saved.items && Array.isArray(saved.items)) {
+        setZusatz({ ...defaultZusatzvereinbarungen, ...saved });
+      } else {
+        setZusatz({
+          ...defaultZusatzvereinbarungen,
+          mietfreie_startphase: saved.mietfreie_startphase || 'keine',
+          berechnungsintervall: saved.berechnungsintervall || 'quartalsweise',
+        });
       }
-      setZusatzLoaded(true);
     }
-  }, [calcData, zusatzLoaded]);
+    // Also try legacy location in calcData
+    if (!saved && calcData?.config_json) {
+      const legacy = (calcData.config_json as any)?.zusatzvereinbarungen;
+      if (legacy?.items && Array.isArray(legacy.items)) {
+        setZusatz({ ...defaultZusatzvereinbarungen, ...legacy });
+      }
+    }
+    setZusatzLoaded(true);
+  }, [project, calcData, zusatzLoaded]);
 
   const handleZusatzChange = async (v: Zusatzvereinbarungen) => {
     setZusatz(v);
-    if (calcData?.id) {
-      const existingConfig = (calcData.config_json as any) || {};
+    if (projectId) {
+      const existingConfig = ((project as any)?.quote_config as any) || {};
       await supabase
-        .from('calculations')
+        .from('projects')
         .update({
-          config_json: { ...existingConfig, zusatzvereinbarungen: v },
-        })
-        .eq('id', calcData.id);
+          quote_config: { ...existingConfig, zusatzvereinbarungen: v },
+        } as any)
+        .eq('id', projectId);
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
     }
   };
 
