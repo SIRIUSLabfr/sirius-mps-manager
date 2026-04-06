@@ -1,4 +1,5 @@
-import type { Zusatzvereinbarungen } from '@/components/angebot/ZusatzvereinbarungenCard';
+import type { Zusatzvereinbarungen, ZusatzItem } from '@/components/angebot/ZusatzvereinbarungenCard';
+import { RADIO_OPTIONS } from '@/components/angebot/ZusatzvereinbarungenCard';
 
 interface PdfInput {
   projectName: string;
@@ -13,6 +14,13 @@ interface PdfInput {
   };
   zusatz: Zusatzvereinbarungen;
   version?: number;
+  showPrices?: boolean;
+  customerName?: string;
+  contactPerson?: string;
+  customerAddress?: string;
+  customerNumber?: string;
+  angebotNumber?: string;
+  ansprechpartner?: { name: string; role?: string; email?: string; phone?: string } | null;
 }
 
 const financeLabels: Record<string, string> = {
@@ -43,7 +51,7 @@ const startphaseLabels: Record<string, string> = {
   individuell: 'Individuell',
 };
 
-const COLORS = {
+const C = {
   primary: '#003DA5',
   accent: '#00A3E0',
   dark: '#172A45',
@@ -52,263 +60,325 @@ const COLORS = {
   muted: '#6B7280',
   border: '#D5E0F0',
   white: '#FFFFFF',
+  lightMuted: '#B8C9DB',
 };
 
-function buildFooter(): string {
-  return `<div style="position:relative;margin-top:auto;padding-top:20px;border-top:1px solid ${COLORS.border};display:flex;justify-content:space-between;align-items:center;font-size:8px;color:${COLORS.muted};">
-    <span>SIRIUS document solutions · Abrichstraße 23 · 79108 Freiburg · (0761) 704070</span>
+function footer(): string {
+  return `<div style="padding:8px 0;border-top:1px solid ${C.border};display:flex;justify-content:space-between;font-size:7.5px;color:${C.muted};margin-top:auto;">
+    <span>SIRIUS document solutions · Abrichstr. 23 · 79108 Freiburg · (0761) 704070 · info@sirius-gmbh.de</span>
   </div>`;
 }
 
-function buildCoverPage(input: PdfInput, today: Date, gueltigBis: Date): string {
+function coverPage(input: PdfInput, today: Date, gueltigBis: Date): string {
   const fmtDate = (d: Date) => d.toLocaleDateString('de-DE');
+  const contact = input.contactPerson || '';
+  const customerName = input.customerName || input.projectName;
+  const custNum = input.customerNumber || '';
+  const angNum = input.angebotNumber || '';
+
   return `
-  <div style="page-break-after:always;min-height:282mm;display:flex;flex-direction:column;padding:0;">
-    <!-- Top accent bar -->
-    <div style="height:8px;background:linear-gradient(90deg,${COLORS.primary},${COLORS.accent});"></div>
-    
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20mm;">
-      <!-- Logo -->
-      <div style="margin-bottom:60px;">
-        <div style="font-size:42px;font-weight:800;color:${COLORS.primary};letter-spacing:4px;font-family:Arial,Helvetica,sans-serif;">SIRIUS</div>
-        <div style="font-size:12px;color:${COLORS.muted};margin-top:4px;letter-spacing:2px;">document solutions.</div>
+  <div style="page-break-after:always;min-height:282mm;display:flex;flex-direction:column;padding:15mm 20mm 10mm;">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+      <img src="/sirius-logo.png" style="width:180px;height:auto;" alt="SIRIUS" />
+      <div style="text-align:right;font-size:8px;color:${C.muted};line-height:1.6;">
+        SIRIUS GmbH · Abrichstr. 23 · 79108 Freiburg<br/>
+        Tel: (0761) 704070 · info@sirius-gmbh.de
       </div>
-      
-      <!-- Divider -->
-      <div style="width:80px;height:3px;background:linear-gradient(90deg,${COLORS.primary},${COLORS.accent});margin:0 auto 50px;"></div>
-      
-      <!-- Title -->
-      <div style="font-size:28px;font-weight:700;color:${COLORS.primary};letter-spacing:1px;margin-bottom:16px;">KOSTENVORANSCHLAG</div>
-      
-      <!-- Customer -->
-      <div style="font-size:18px;color:${COLORS.dark};font-weight:500;margin-bottom:8px;">${input.projectName}</div>
-      
-      <!-- Meta -->
-      <div style="font-size:11px;color:${COLORS.muted};margin-bottom:50px;">
-        ${input.calcData.config_json?.projectNumber ? input.calcData.config_json.projectNumber + ' · ' : ''}${fmtDate(today)}
-      </div>
-      
-      <!-- Ansprechpartner -->
-      <div style="background:${COLORS.bg};border-radius:8px;padding:20px 32px;text-align:center;margin-bottom:30px;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted};margin-bottom:8px;">Ihr Ansprechpartner</div>
-        <div style="font-size:13px;font-weight:600;color:${COLORS.dark};">SIRIUS document solutions</div>
-        <div style="font-size:11px;color:${COLORS.muted};margin-top:4px;">info@sirius-gmbh.de · (0761) 704070</div>
-      </div>
-      
-      <!-- Gültig bis -->
-      <div style="font-size:10px;color:${COLORS.muted};">Gültig bis: ${fmtDate(gueltigBis)}</div>
     </div>
-    
-    <!-- Bottom footer -->
-    <div style="padding:0 20mm 10mm;font-size:8px;color:${COLORS.muted};text-align:center;">
-      SIRIUS document solutions · Abrichstraße 23 · 79108 Freiburg · (0761) 704070 · info@sirius-gmbh.de
+
+    <!-- Empfänger + Meta -->
+    <div style="display:flex;justify-content:space-between;margin-bottom:24px;">
+      <div style="font-size:11px;color:${C.text};line-height:1.6;">
+        <div style="font-weight:700;font-size:13px;">${customerName}</div>
+        ${contact ? `<div>${contact}</div>` : ''}
+        ${input.customerAddress ? `<div>${input.customerAddress}</div>` : ''}
+      </div>
+      <div style="text-align:right;font-size:10px;color:${C.muted};line-height:1.8;">
+        ${custNum ? `<div>KD-NR: <strong style="color:${C.text}">${custNum}</strong></div>` : ''}
+        ${angNum ? `<div>AN-NR: <strong style="color:${C.text}">${angNum}</strong></div>` : ''}
+      </div>
     </div>
+
+    <!-- Accent line -->
+    <div style="width:48px;height:3px;background:${C.accent};margin-bottom:24px;"></div>
+
+    <!-- Title -->
+    <div style="font-size:28px;font-weight:700;color:${C.dark};margin-bottom:8px;">ANGEBOT</div>
+    <div style="font-size:18px;color:${C.primary};font-weight:500;margin-bottom:28px;">${input.projectName} – ${customerName}</div>
+
+    <!-- Anschreiben -->
+    <div style="font-size:11px;color:${C.text};line-height:1.7;margin-bottom:28px;">
+      Sehr geehrte${contact ? ('/r ' + contact) : ' Damen und Herren'},<br/><br/>
+      nochmals vielen Dank für Ihr Interesse an unserem SIRIUS Print Konzept. Gerne unterbreiten wir Ihnen folgendes Angebot für die Optimierung Ihrer Druckerlandschaft.
+      Wir sind überzeugt, dass Sie von unserem umfassenden All-In-Service profitieren werden. Bei Fragen stehen wir Ihnen jederzeit gerne zur Verfügung.
+    </div>
+
+    <!-- Info box -->
+    <div style="border-left:4px solid ${C.accent};background:${C.bg};padding:14px 18px;border-radius:0 6px 6px 0;margin-bottom:auto;">
+      <div style="display:flex;flex-wrap:wrap;gap:20px;font-size:10px;color:${C.text};">
+        <div><span style="color:${C.muted};">Datum:</span> <strong>${fmtDate(today)}</strong></div>
+        <div><span style="color:${C.muted};">Gültig bis:</span> <strong>${fmtDate(gueltigBis)}</strong></div>
+        ${angNum ? `<div><span style="color:${C.muted};">Angebotsnr.:</span> <strong>${angNum}</strong></div>` : ''}
+        ${input.ansprechpartner?.name ? `<div><span style="color:${C.muted};">Ihr Ansprechpartner:</span> <strong>${input.ansprechpartner.name}</strong></div>` : ''}
+      </div>
+    </div>
+
+    ${footer()}
   </div>`;
 }
 
-function buildPositionsPages(deviceGroups: any[]): string {
+function devicePages(deviceGroups: any[], showPrices: boolean): string {
   if (!deviceGroups.length) return '';
 
-  let html = `<div class="page-break" style="padding:15mm 20mm 20mm;">
-    <!-- Section header -->
-    <div style="display:flex;align-items:center;margin-bottom:24px;">
-      <div style="width:4px;height:24px;background:${COLORS.primary};border-radius:2px;margin-right:12px;"></div>
-      <div style="font-size:18px;font-weight:700;color:${COLORS.primary};">Positionen</div>
-    </div>`;
-
+  let html = '';
   let posCounter = 0;
-  let isFirstGroup = true;
 
   for (const group of deviceGroups) {
     if (!group.mainDevice) continue;
 
-    if (!isFirstGroup) {
-      html += `<div style="height:20px;"></div>`;
-    }
-    isFirstGroup = false;
+    html += `<div class="page-break" style="padding:15mm 20mm 10mm;display:flex;flex-direction:column;min-height:262mm;">`;
 
     // Location header
-    if (group.label) {
-      html += `<div style="background:${COLORS.primary};color:${COLORS.white};padding:8px 16px;font-size:11px;font-weight:700;border-radius:4px;margin-bottom:12px;letter-spacing:0.5px;">
-        STANDORT: ${group.label}
-      </div>`;
-    }
+    const loc = group.label || 'Standort';
+    html += `<div style="background:${C.dark};color:${C.white};padding:10px 16px;font-size:11px;font-weight:700;border-radius:4px;margin-bottom:16px;letter-spacing:0.5px;">
+      STANDORT: ${loc}
+    </div>`;
 
-    // Table
-    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
-      <thead>
-        <tr style="border-bottom:2px solid ${COLORS.primary};">
-          <th style="text-align:left;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.primary};font-weight:700;width:40px;">Pos</th>
-          <th style="text-align:left;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.primary};font-weight:700;">Bezeichnung</th>
-          <th style="text-align:right;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.primary};font-weight:700;width:60px;">Menge</th>
-          <th style="text-align:right;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.primary};font-weight:700;width:100px;">Einzelpreis</th>
-          <th style="text-align:right;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.primary};font-weight:700;width:100px;">Gesamt</th>
-        </tr>
-      </thead>
-      <tbody>`;
-
-    // Main device
-    posCounter++;
+    // Main device card
     const mainName = group.mainDevice?.Product_Name || group.mainDevice?.name || 'Gerät';
-    const mainPrice = group.mainDevice?.Unit_Price || group.mainDevice?.ek_preis || 0;
     const mainQty = group.mainQuantity || 1;
-    html += buildPositionRow(posCounter, mainName, mainQty, mainPrice, false);
+    const imgUrl = group.mainDevice?.Bild_URL1 || group.mainDevice?.image_url || '';
+    const description = group.mainDevice?.Description || group.mainDevice?.description || '';
+    const datasheetUrl = group.mainDevice?.Bild_URL || group.mainDevice?.datasheet_url || '';
 
-    // Accessories
-    for (const acc of (group.accessories || [])) {
-      posCounter++;
-      const accName = acc.product?.Product_Name || acc.product?.name || 'Zubehör';
-      const accPrice = acc.product?.Unit_Price || acc.product?.ek_preis || 0;
-      const accQty = acc.quantity || 1;
-      html += buildPositionRow(posCounter, accName, accQty, accPrice, posCounter % 2 === 0);
+    html += `<div style="display:flex;gap:16px;border:1px solid ${C.border};border-radius:8px;padding:14px;margin-bottom:16px;">`;
+    if (imgUrl) {
+      html += `<img src="${imgUrl}" style="width:120px;height:120px;object-fit:contain;border-radius:6px;background:${C.bg};" />`;
+    } else {
+      html += `<div style="width:120px;height:120px;background:${C.bg};border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:36px;color:${C.border};">🖨</div>`;
     }
+    html += `<div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:${C.dark};margin-bottom:4px;">${mainName}</div>
+      <div style="font-size:12px;color:${C.primary};font-weight:600;margin-bottom:6px;">${mainQty} Stück</div>
+      ${description ? `<div style="font-size:11px;color:#4b5563;line-height:1.5;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;">${description}</div>` : ''}
+      ${datasheetUrl ? `<div style="margin-top:6px;"><a href="${datasheetUrl}" style="font-size:10px;color:${C.accent};text-decoration:none;">📎 Datenblatt</a></div>` : ''}
+    </div></div>`;
 
-    html += `</tbody></table>`;
+    // Accessories table
+    const accessories = group.accessories || [];
+    if (accessories.length > 0) {
+      const priceHeaders = showPrices
+        ? `<th style="text-align:right;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.primary};font-weight:700;width:90px;">Einzelpreis</th>
+           <th style="text-align:right;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.primary};font-weight:700;width:90px;">Gesamt</th>`
+        : '';
+
+      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+        <thead><tr style="border-bottom:2px solid ${C.primary};">
+          <th style="text-align:left;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.primary};font-weight:700;width:40px;">Pos</th>
+          <th style="text-align:left;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.primary};font-weight:700;">Bezeichnung</th>
+          <th style="text-align:right;padding:8px 10px;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.primary};font-weight:700;width:60px;">Menge</th>
+          ${priceHeaders}
+        </tr></thead><tbody>`;
+
+      for (const acc of accessories) {
+        posCounter++;
+        const accName = acc.product?.Product_Name || acc.product?.name || 'Zubehör';
+        const accPrice = acc.product?.Unit_Price || acc.product?.ek_preis || 0;
+        const accQty = acc.quantity || 1;
+        const stripe = posCounter % 2 === 0 ? `background:${C.bg};` : '';
+        const priceCells = showPrices
+          ? `<td style="text-align:right;padding:8px 10px;font-size:11px;color:${C.text};">${fmtEuro(accPrice)}</td>
+             <td style="text-align:right;padding:8px 10px;font-size:11px;color:${C.text};font-weight:600;">${fmtEuro(accPrice * accQty)}</td>`
+          : '';
+        html += `<tr style="border-bottom:1px solid ${C.border};${stripe}">
+          <td style="padding:8px 10px;font-size:11px;color:${C.muted};">${posCounter}</td>
+          <td style="padding:8px 10px;font-size:11px;color:${C.text};font-weight:500;">${accName}</td>
+          <td style="text-align:right;padding:8px 10px;font-size:11px;color:${C.text};">${accQty}</td>
+          ${priceCells}
+        </tr>`;
+      }
+      html += `</tbody></table>`;
+    }
 
     // Page prices
     if (group.page_prices?.bw || group.page_prices?.color) {
-      html += `<div style="background:${COLORS.bg};border-left:3px solid ${COLORS.accent};padding:10px 16px;margin-top:8px;border-radius:0 4px 4px 0;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.muted};font-weight:700;margin-bottom:6px;">Seitenpreise</div>`;
+      html += `<div style="background:${C.bg};border-radius:6px;padding:10px 16px;margin-bottom:12px;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.muted};font-weight:700;margin-bottom:6px;">Seitenpreise</div>`;
       if (group.page_prices.bw) {
         const vol = group.page_prices.bw_volume || '';
-        html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:${COLORS.text};margin-bottom:2px;">
-          <span>Seitenpreis S/W${vol ? ` (${fmtNumber(vol)} Seiten/Monat)` : ''}</span>
+        html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:${C.text};margin-bottom:2px;">
+          <span>S/W:${vol ? ` ${fmtNumber(vol)} Seiten/Monat →` : ''}</span>
           <span style="font-weight:600;">${fmtPrice4(group.page_prices.bw)}</span>
         </div>`;
       }
       if (group.page_prices.color) {
         const vol = group.page_prices.color_volume || '';
-        html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:${COLORS.text};">
-          <span>Seitenpreis Farbe${vol ? ` (${fmtNumber(vol)} Seiten/Monat)` : ''}</span>
+        html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:${C.text};">
+          <span>Farbe:${vol ? ` ${fmtNumber(vol)} Seiten/Monat →` : ''}</span>
           <span style="font-weight:600;">${fmtPrice4(group.page_prices.color)}</span>
         </div>`;
       }
       html += `</div>`;
     }
+
+    html += footer();
+    html += `</div>`;
   }
 
-  html += buildFooter();
-  html += `</div>`;
   return html;
 }
 
-function buildPositionRow(pos: number, name: string, qty: number, price: number, stripe: boolean): string {
-  const bg = stripe ? `background:${COLORS.bg};` : '';
-  const total = qty * price;
-  return `<tr style="border-bottom:1px solid ${COLORS.border};${bg}">
-    <td style="padding:8px 10px;font-size:11px;color:${COLORS.muted};">${pos}</td>
-    <td style="padding:8px 10px;font-size:11px;color:${COLORS.text};font-weight:500;">${name}</td>
-    <td style="text-align:right;padding:8px 10px;font-size:11px;color:${COLORS.text};">${qty}</td>
-    <td style="text-align:right;padding:8px 10px;font-size:11px;color:${COLORS.text};">${fmtEuro(price)}</td>
-    <td style="text-align:right;padding:8px 10px;font-size:11px;color:${COLORS.text};font-weight:600;">${fmtEuro(total)}</td>
-  </tr>`;
-}
+function konditionenPage(input: PdfInput, swVolume: number, colorVolume: number, folgeseitenSw: number, folgeseitenFarbe: number): string {
+  const { calcData, zusatz } = input;
 
-function buildSummaryPage(input: PdfInput, totalDevices: number, swVolume: number, colorVolume: number, folgeseitenSw: number, folgeseitenFarbe: number): string {
-  const { calcData } = input;
+  // Rate box
+  let rateLabel = 'MONATLICHE ALL-IN-RATE';
+  let rateValue = calcData.total_monthly_rate || 0;
+  let rateSub = '';
 
-  let rateSection = '';
   if (calcData.finance_type === 'kauf_wartung') {
-    rateSection = `
-      <div style="text-align:center;margin-bottom:32px;">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted};margin-bottom:8px;">Hardware Kaufpreis</div>
-        <div style="font-size:32px;font-weight:800;color:${COLORS.primary};">${fmtEuro(calcData.total_hardware_ek)}</div>
-        <div style="font-size:12px;color:${COLORS.muted};margin-top:6px;">Wartungsvertrag mtl.: ${fmtEuro(calcData.service_rate || 0)}</div>
-      </div>`;
+    rateLabel = 'HARDWARE KAUFPREIS';
+    rateValue = calcData.total_hardware_ek;
+    rateSub = `Wartungsvertrag mtl.: ${fmtEuro(calcData.service_rate || 0)}`;
   } else if (calcData.finance_type === 'eigenmiete') {
+    rateLabel = 'MONATLICHE GESAMTRATE';
     const mietrate = (calcData.total_monthly_rate || 0) - (calcData.service_rate || 0);
-    rateSection = `
-      <div style="text-align:center;margin-bottom:32px;">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted};margin-bottom:8px;">Monatliche Gesamtrate</div>
-        <div style="font-size:32px;font-weight:800;color:${COLORS.primary};">${fmtEuro(calcData.total_monthly_rate || 0)}</div>
-        <div style="font-size:12px;color:${COLORS.muted};margin-top:6px;">Mietrate: ${fmtEuro(mietrate)} · Servicerate: ${fmtEuro(calcData.service_rate || 0)}</div>
-      </div>`;
+    rateSub = `Mietrate: ${fmtEuro(mietrate)} · Servicerate: ${fmtEuro(calcData.service_rate || 0)}`;
   } else {
-    // Leasing / All-In
     const hwRate = (calcData.total_monthly_rate || 0) - (calcData.service_rate || 0);
-    rateSection = `
-      <div style="text-align:center;margin-bottom:32px;">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:${COLORS.muted};margin-bottom:8px;">Monatliche Rate</div>
-        <div style="font-size:32px;font-weight:800;color:${COLORS.primary};">${fmtEuro(calcData.total_monthly_rate || 0)}</div>
-        <div style="font-size:12px;color:${COLORS.muted};margin-top:6px;">Hardware: ${fmtEuro(hwRate)} · Service: ${fmtEuro(calcData.service_rate || 0)}</div>
-      </div>`;
+    rateSub = `Hardware: ${fmtEuro(hwRate)} · Service: ${fmtEuro(calcData.service_rate || 0)}`;
+  }
+
+  const kondRows = [
+    ['Vertragslaufzeit', `${calcData.term_months} Monate`],
+    ['Seiten S/W', `${fmtNumber(swVolume)} Seiten/Monat`],
+    ['Seiten Farbe', `${fmtNumber(colorVolume)} Seiten/Monat`],
+    ['Folgeseite S/W', fmtPrice4(folgeseitenSw)],
+    ['Folgeseite Farbe', fmtPrice4(folgeseitenFarbe)],
+    ['Lieferpauschale inkl. Einweisung', 'Kostenfrei'],
+    ['Urheberrechtsabgabe (UHG)', 'pro Gerät'],
+    ['EDV-Installation', '35,00 € / 15 Min (nach Aufwand)'],
+    ['Mietfreie Startphase', startphaseLabels[zusatz.mietfreie_startphase] || zusatz.mietfreie_startphase],
+    ['Berechnungsintervall', intervallLabels[zusatz.berechnungsintervall] || zusatz.berechnungsintervall],
+  ];
+
+  const kondTableHtml = kondRows.map((r, i) => {
+    const bg = i % 2 === 0 ? C.bg : C.white;
+    return `<tr style="background:${bg};">
+      <td style="padding:8px 14px;font-size:11px;color:${C.muted};width:45%;">${r[0]}</td>
+      <td style="padding:8px 14px;font-size:11px;color:${C.text};font-weight:500;">${r[1]}</td>
+    </tr>`;
+  }).join('');
+
+  // Zusatzvereinbarungen
+  const items = zusatz.items || [];
+  const activeItems = items.map((item, idx) => ({ ...item, idx })).filter(i => i.active && i.text);
+  let zusatzHtml = '';
+  if (activeItems.length > 0) {
+    let counter = 0;
+    zusatzHtml = `<div style="margin-top:24px;">
+      <div style="font-size:13px;font-weight:700;color:${C.primary};margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">Zusatzvereinbarungen</div>`;
+    for (const item of activeItems) {
+      counter++;
+      zusatzHtml += `<div style="border-left:3px solid ${C.primary};padding:8px 14px;margin-bottom:8px;background:${C.bg};border-radius:0 4px 4px 0;">
+        <div style="font-size:11px;color:${C.text};line-height:1.6;"><strong>${counter}.</strong> ${item.text}</div>`;
+
+      // Radio options for items 10-12 (idx 9-11)
+      const radioOpts = RADIO_OPTIONS[item.idx];
+      if (radioOpts) {
+        zusatzHtml += `<div style="margin-top:6px;padding-left:16px;">`;
+        for (const opt of radioOpts) {
+          const checked = item.selectedOption === opt.value;
+          zusatzHtml += `<div style="font-size:10px;color:${C.text};margin-bottom:3px;">
+            ${checked ? '☑' : '☐'} ${opt.label}${opt.price ? ` (${opt.price})` : ''}
+          </div>`;
+        }
+        zusatzHtml += `</div>`;
+      }
+
+      zusatzHtml += `</div>`;
+    }
+    zusatzHtml += `</div>`;
   }
 
   return `
-  <div class="page-break" style="padding:15mm 20mm 20mm;display:flex;flex-direction:column;min-height:262mm;">
-    <!-- Section header -->
-    <div style="display:flex;align-items:center;margin-bottom:32px;">
-      <div style="width:4px;height:24px;background:${COLORS.primary};border-radius:2px;margin-right:12px;"></div>
-      <div style="font-size:18px;font-weight:700;color:${COLORS.primary};">Zusammenfassung</div>
+  <div class="page-break" style="padding:15mm 20mm 10mm;display:flex;flex-direction:column;min-height:262mm;">
+    <div style="display:flex;align-items:center;margin-bottom:24px;">
+      <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
+      <div style="font-size:18px;font-weight:700;color:${C.primary};">Konditionen & Vereinbarungen</div>
     </div>
-    
-    <!-- KPI cards -->
-    <div style="display:flex;gap:16px;margin-bottom:32px;">
-      <div style="flex:1;background:${COLORS.bg};border-radius:8px;padding:16px;text-align:center;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.muted};margin-bottom:4px;">Geräte</div>
-        <div style="font-size:24px;font-weight:800;color:${COLORS.dark};">${totalDevices}</div>
-      </div>
-      <div style="flex:1;background:${COLORS.bg};border-radius:8px;padding:16px;text-align:center;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.muted};margin-bottom:4px;">Laufzeit</div>
-        <div style="font-size:24px;font-weight:800;color:${COLORS.dark};">${calcData.term_months}</div>
-        <div style="font-size:9px;color:${COLORS.muted};">Monate</div>
-      </div>
-      <div style="flex:1;background:${COLORS.bg};border-radius:8px;padding:16px;text-align:center;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.muted};margin-bottom:4px;">Finanzierung</div>
-        <div style="font-size:13px;font-weight:700;color:${COLORS.dark};margin-top:6px;">${financeLabels[calcData.finance_type] || calcData.finance_type}</div>
-      </div>
+
+    <!-- Rate box -->
+    <div style="background:${C.dark};border-radius:8px;padding:24px;text-align:center;margin-bottom:24px;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:${C.lightMuted};margin-bottom:8px;">${rateLabel}</div>
+      <div style="font-size:28px;font-weight:800;color:${C.accent};">${fmtEuro(rateValue)}</div>
+      ${rateSub ? `<div style="font-size:11px;color:${C.lightMuted};margin-top:6px;">${rateSub}</div>` : ''}
     </div>
-    
-    <!-- Rate -->
-    ${rateSection}
-    
-    <!-- Volume + Folgeseitenpreise -->
-    <div style="display:flex;gap:16px;margin-bottom:32px;">
-      <div style="flex:1;border:1px solid ${COLORS.border};border-radius:8px;padding:16px;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.primary};font-weight:700;margin-bottom:10px;">Inklusivvolumen</div>
-        <div style="font-size:11px;color:${COLORS.text};margin-bottom:4px;">S/W: <strong>${fmtNumber(swVolume)}</strong> Seiten/Monat</div>
-        <div style="font-size:11px;color:${COLORS.text};">Farbe: <strong>${fmtNumber(colorVolume)}</strong> Seiten/Monat</div>
-      </div>
-      <div style="flex:1;border:1px solid ${COLORS.border};border-radius:8px;padding:16px;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${COLORS.primary};font-weight:700;margin-bottom:10px;">Folgeseitenpreise</div>
-        <div style="font-size:11px;color:${COLORS.text};margin-bottom:4px;">S/W: <strong>${fmtPrice4(folgeseitenSw)}</strong></div>
-        <div style="font-size:11px;color:${COLORS.text};">Farbe: <strong>${fmtPrice4(folgeseitenFarbe)}</strong></div>
-      </div>
+
+    <!-- Konditionen table -->
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;border-radius:6px;overflow:hidden;border:1px solid ${C.border};">
+      ${kondTableHtml}
+    </table>
+
+    <!-- Enthaltene Leistungen -->
+    <div style="background:${C.bg};border-radius:6px;padding:12px 16px;font-size:10px;color:${C.muted};line-height:1.6;margin-bottom:16px;">
+      <strong style="color:${C.text};">Enthaltene Leistungen:</strong> Die Nutzungsrate enthält: Finanzierung der Geräte, sämtliche Wartungsarbeiten, Reparaturen (inkl. Anfahrt und Arbeitszeit), Ersatzteile und alle Verbrauchsmaterialien. <strong>Nicht enthalten:</strong> Papier, EDV-Dienstleistungen.
     </div>
-    
-    ${buildFooter()}
+
+    ${zusatzHtml}
+
+    <div style="font-size:10px;color:${C.text};margin-top:20px;font-style:italic;">
+      Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots.
+    </div>
+
+    ${footer()}
   </div>`;
 }
 
-function buildZusatzPage(zusatz: Zusatzvereinbarungen): string {
-  const items: string[] = [];
-  if (zusatz.lieferpauschale_active) items.push(`Lieferpauschale inkl. Basiseinweisung: ${fmtEuro(zusatz.lieferpauschale_betrag)}`);
-  if (zusatz.basiseinweisung_active) items.push(`Basiseinweisung: ${zusatz.basiseinweisung_text}`);
-  if (zusatz.it_installation_active) items.push(`Komplette IT-Installation: ${zusatz.it_installation_text}`);
-  if (zusatz.abholung_altgeraete_active) {
-    items.push(`Abholung der Altgeräte: ${zusatz.abholung_altgeraete_type === 'kostenlos' ? 'kostenlos' : `Pauschale ${fmtEuro(zusatz.abholung_altgeraete_betrag)}`}`);
-  }
-  if (zusatz.mietfreie_startphase !== 'keine') items.push(`Mietfreie Startphase: ${startphaseLabels[zusatz.mietfreie_startphase]}`);
-  if (zusatz.erhoehbar_active) items.push(`Erhöhbar: ${zusatz.erhoehbar_prozent}% p.a.`);
-  items.push(`Berechnungsintervall Zähler: ${intervallLabels[zusatz.berechnungsintervall] || zusatz.berechnungsintervall}`);
-  if (zusatz.sonderkuendigungsrecht_active && zusatz.sonderkuendigungsrecht_text) {
-    items.push(`Sonderkündigungsrecht: ${zusatz.sonderkuendigungsrecht_text}`);
-  }
-  if (zusatz.weitere_vereinbarung) items.push(zusatz.weitere_vereinbarung);
-
-  if (items.length === 0) return '';
-
-  const itemsHtml = items.map(item =>
-    `<div style="display:flex;align-items:flex-start;margin-bottom:10px;">
-      <div style="width:20px;height:20px;border-radius:50%;background:${COLORS.accent};color:${COLORS.white};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-right:12px;margin-top:1px;">✓</div>
-      <div style="font-size:11px;color:${COLORS.text};line-height:1.5;">${item}</div>
-    </div>`
-  ).join('');
+function signaturePage(input: PdfInput): string {
+  const ap = input.ansprechpartner;
+  const initials = ap?.name
+    ? ap.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : 'SI';
 
   return `
-  <div style="margin-top:32px;padding:20px 24px;background:${COLORS.bg};border-radius:8px;border:1px solid ${COLORS.border};">
-    <div style="font-size:13px;font-weight:700;color:${COLORS.primary};margin-bottom:16px;text-transform:uppercase;letter-spacing:1px;">Zusatzvereinbarungen</div>
-    ${itemsHtml}
+  <div class="page-break" style="padding:15mm 20mm 10mm;display:flex;flex-direction:column;min-height:262mm;">
+    <div style="display:flex;align-items:center;margin-bottom:32px;">
+      <div style="width:4px;height:24px;background:${C.primary};border-radius:2px;margin-right:12px;"></div>
+      <div style="font-size:18px;font-weight:700;color:${C.primary};">Ihr Ansprechpartner</div>
+    </div>
+
+    ${ap ? `
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:40px;">
+      <div style="width:44px;height:44px;border-radius:50%;background:${C.primary};color:${C.white};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">${initials}</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:${C.dark};">${ap.name}</div>
+        ${ap.role ? `<div style="font-size:11px;color:${C.muted};">${ap.role}</div>` : ''}
+        ${ap.email ? `<div style="font-size:11px;color:${C.accent};">${ap.email}</div>` : ''}
+        ${ap.phone ? `<div style="font-size:11px;color:${C.text};">${ap.phone}</div>` : ''}
+      </div>
+    </div>` : ''}
+
+    <!-- Signature area -->
+    <div style="border:2px dashed ${C.border};border-radius:8px;padding:24px;margin-bottom:auto;">
+      <div style="font-size:12px;font-weight:600;color:${C.dark};margin-bottom:20px;">Auftragsbestätigung</div>
+      <div style="font-size:10px;color:${C.muted};margin-bottom:32px;">
+        Mit Ihrer Unterschrift bestätigen Sie die Annahme des Angebots zu den oben genannten Konditionen.
+      </div>
+      <div style="display:flex;gap:40px;">
+        <div style="flex:1;">
+          <div style="border-bottom:1px solid ${C.dark};margin-bottom:6px;height:40px;"></div>
+          <div style="font-size:9px;color:${C.muted};">Ort, Datum</div>
+        </div>
+        <div style="flex:1;">
+          <div style="border-bottom:1px solid ${C.dark};margin-bottom:6px;height:40px;"></div>
+          <div style="font-size:9px;color:${C.muted};">Unterschrift / Stempel</div>
+        </div>
+      </div>
+    </div>
+
+    ${footer()}
   </div>`;
 }
 
@@ -327,26 +397,19 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   const gueltigBis = new Date(today);
   gueltigBis.setDate(gueltigBis.getDate() + 30);
 
-  const totalDevices = deviceGroups.reduce((s: number, g: any) => s + (g.mainQuantity || 0), 0);
-
-  // Build the full HTML document
-  const html = `
-  <div style="font-family:Arial,Helvetica,sans-serif;color:${COLORS.text};font-size:11px;line-height:1.5;width:210mm;">
-    ${buildCoverPage(input, today, gueltigBis)}
-    ${buildPositionsPages(deviceGroups)}
-    ${buildSummaryPage(input, totalDevices, swVolume, colorVolume, folgeseitenSw, folgeseitenFarbe)}
-    ${buildZusatzPage(zusatz) ? `
-    <div style="padding:0 20mm;">
-      ${buildZusatzPage(zusatz)}
-    </div>` : ''}
+  const fullHtml = `
+  <div style="font-family:Arial,Helvetica,sans-serif;color:${C.text};font-size:11px;line-height:1.5;width:210mm;">
+    ${coverPage(input, today, gueltigBis)}
+    ${devicePages(deviceGroups, !!input.showPrices)}
+    ${konditionenPage(input, swVolume, colorVolume, folgeseitenSw, folgeseitenFarbe)}
+    ${signaturePage(input)}
   </div>`;
 
-  // Render off-screen
   const container = document.createElement('div');
   container.style.position = 'absolute';
   container.style.left = '-9999px';
   container.style.top = '0';
-  container.innerHTML = html;
+  container.innerHTML = fullHtml;
   document.body.appendChild(container);
 
   const version = input.version || 1;

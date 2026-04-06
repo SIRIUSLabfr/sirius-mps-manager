@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { FileText, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -22,6 +23,12 @@ interface Props {
   projectName: string;
   calcData: CalcData | null;
   zusatz: Zusatzvereinbarungen;
+  customerName?: string;
+  contactPerson?: string;
+  customerAddress?: string;
+  customerNumber?: string;
+  angebotNumber?: string;
+  ansprechpartner?: { name: string; role?: string; email?: string; phone?: string } | null;
 }
 
 const financeLabels: Record<string, string> = {
@@ -33,8 +40,9 @@ const financeLabels: Record<string, string> = {
 
 const fmt = (v: number) => v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export default function AngebotConfigCard({ projectId, projectName, calcData, zusatz }: Props) {
+export default function AngebotConfigCard({ projectId, projectName, calcData, zusatz, customerName, contactPerson, customerAddress, customerNumber, angebotNumber, ansprechpartner }: Props) {
   const [generating, setGenerating] = useState(false);
+  const [showPrices, setShowPrices] = useState(false);
   const queryClient = useQueryClient();
 
   const deviceCount = calcData?.config_json?.deviceGroups?.reduce((sum: number, g: any) => sum + (g.mainQuantity || 0), 0) || 0;
@@ -50,18 +58,23 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
     }
     setGenerating(true);
     try {
-      // Dynamic import to avoid loading heavy PDF lib on page load
       const { generateAngebotPdf } = await import('@/lib/angebotPdfGenerator');
       const blob = await generateAngebotPdf({
         projectName,
         projectId,
         calcData,
         zusatz,
+        showPrices,
+        customerName,
+        contactPerson,
+        customerAddress,
+        customerNumber,
+        angebotNumber,
+        ansprechpartner,
       });
 
       const fileName = `KV_${projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
 
-      // Upload to storage
       const filePath = `${projectId}/angebote/${Date.now()}_${fileName}`;
       const { error: uploadErr } = await supabase.storage
         .from('project-documents')
@@ -72,7 +85,6 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         .from('project-documents')
         .getPublicUrl(filePath);
 
-      // Create document record
       await supabase.from('documents').insert({
         project_id: projectId,
         document_type: 'angebot',
@@ -81,7 +93,6 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         file_size: blob.size,
       });
 
-      // Trigger download
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -147,6 +158,15 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
               <div>
                 <span className="text-muted-foreground">Folgeseitenpreis Farbe: </span>
                 <span className="font-medium">{folgeseitenFarbe.toLocaleString('de-DE', { minimumFractionDigits: 4 })} €</span>
+              </div>
+            </div>
+
+            {/* PDF Options */}
+            <div className="border rounded-lg p-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">PDF-Optionen</p>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Einzelpreise anzeigen</Label>
+                <Switch checked={showPrices} onCheckedChange={setShowPrices} />
               </div>
             </div>
 
