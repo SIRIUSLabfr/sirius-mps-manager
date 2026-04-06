@@ -43,7 +43,7 @@ export default function AngebotPage() {
     enabled: !!projectId,
   });
 
-  // Zusatzvereinbarungen state - stored in calc config_json
+  // Zusatzvereinbarungen state
   const [zusatz, setZusatz] = useState<Zusatzvereinbarungen>(defaultZusatzvereinbarungen);
   const [zusatzLoaded, setZusatzLoaded] = useState(false);
 
@@ -51,13 +51,22 @@ export default function AngebotPage() {
     if (calcData?.config_json && !zusatzLoaded) {
       const saved = (calcData.config_json as any)?.zusatzvereinbarungen;
       if (saved) {
-        setZusatz({ ...defaultZusatzvereinbarungen, ...saved });
+        // Migrate from old format if needed
+        if (saved.items && Array.isArray(saved.items)) {
+          setZusatz({ ...defaultZusatzvereinbarungen, ...saved });
+        } else {
+          // Old format without items array - use defaults
+          setZusatz({
+            ...defaultZusatzvereinbarungen,
+            mietfreie_startphase: saved.mietfreie_startphase || 'keine',
+            berechnungsintervall: saved.berechnungsintervall || 'quartalsweise',
+          });
+        }
       }
       setZusatzLoaded(true);
     }
   }, [calcData, zusatzLoaded]);
 
-  // Auto-save zusatz changes
   const handleZusatzChange = async (v: Zusatzvereinbarungen) => {
     setZusatz(v);
     if (calcData?.id) {
@@ -71,7 +80,10 @@ export default function AngebotPage() {
     }
   };
 
-  // Get signed document info
+  // Get project contact info for PDF
+  const contacts = (project as any)?.customer_contacts as any[] | null;
+  const primaryContact = contacts?.[0];
+
   const { data: docs = [] } = useDocuments(projectId || null);
   const signedDoc = docs.find(d => d.document_type === 'auftrag_unterschrieben');
 
@@ -88,7 +100,6 @@ export default function AngebotPage() {
         </p>
       </div>
 
-      {/* Bereich 1: Angebot konfigurieren */}
       <AngebotConfigCard
         projectId={projectId}
         projectName={project?.customer_name || 'Projekt'}
@@ -101,16 +112,25 @@ export default function AngebotPage() {
           config_json: calcData.config_json,
         } : null}
         zusatz={zusatz}
+        customerName={project?.customer_name}
+        contactPerson={primaryContact?.name}
+        customerAddress={primaryContact?.address || (project as any)?.warehouse_address}
+        customerNumber={project?.customer_number || undefined}
+        angebotNumber={project?.project_number || undefined}
+        ansprechpartner={primaryContact ? {
+          name: primaryContact.name,
+          role: primaryContact.rolle || primaryContact.role,
+          email: primaryContact.email,
+          phone: primaryContact.telefon || primaryContact.phone,
+        } : null}
       />
 
-      {/* Bereich 2: Zusatzvereinbarungen */}
       <ZusatzvereinbarungenCard
         value={zusatz}
         onChange={handleZusatzChange}
         defaultOpen={isDaily}
       />
 
-      {/* Bereich 3: Auftrag erteilt */}
       <AuftragErteiltCard
         projectId={projectId}
         orderConfirmedAt={(project as any)?.order_confirmed_at || null}
@@ -119,7 +139,6 @@ export default function AngebotPage() {
         signedDocZohoId={signedDoc?.zoho_attachment_id || null}
       />
 
-      {/* Bereich 4: Dokumenten-Übersicht */}
       <DocumentsList projectId={projectId} />
     </div>
   );
