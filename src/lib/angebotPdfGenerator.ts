@@ -399,12 +399,12 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
 
   const { calcData, zusatz } = input;
   const config = calcData.config_json || {};
-  const deviceGroups = config.deviceGroups || [];
+  const deviceGroups = config.device_groups || config.deviceGroups || [];
   const calculated = config.calculated || {};
   const folgeseitenSw = calculated.folgeseitenpreis_sw || config.folgeseitenpreis_sw || 0;
   const folgeseitenFarbe = calculated.folgeseitenpreis_farbe || config.folgeseitenpreis_farbe || 0;
-  const swVolume = calculated.totalSwVolume || 0;
-  const colorVolume = calculated.totalColorVolume || 0;
+  const swVolume = calculated.total_volume_bw || calculated.totalSwVolume || 0;
+  const colorVolume = calculated.total_volume_color || calculated.totalColorVolume || 0;
   const today = new Date();
   const gueltigBis = new Date(today);
   gueltigBis.setDate(gueltigBis.getDate() + 30);

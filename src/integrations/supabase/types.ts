@@ -959,6 +959,7 @@ export type Database = {
           project_name: string | null
           project_number: string | null
           project_type: string
+          quote_config: Json | null
           rollout_end: string | null
           rollout_start: string | null
           signed_document_id: string | null
@@ -983,6 +984,7 @@ export type Database = {
           project_name?: string | null
           project_number?: string | null
           project_type?: string
+          quote_config?: Json | null
           rollout_end?: string | null
           rollout_start?: string | null
           signed_document_id?: string | null
@@ -1007,6 +1009,7 @@ export type Database = {
           project_name?: string | null
           project_number?: string | null
           project_type?: string
+          quote_config?: Json | null
           rollout_end?: string | null
           rollout_start?: string | null
           signed_document_id?: string | null
