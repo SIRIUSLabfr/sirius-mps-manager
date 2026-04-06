@@ -77,7 +77,7 @@ function coverPage(input: PdfInput, today: Date, gueltigBis: Date): string {
   const angNum = input.angebotNumber || '';
 
   return `
-  <div style="page-break-after:always;min-height:282mm;display:flex;flex-direction:column;padding:15mm 20mm 10mm;">
+  <div style="page-break-after:always;min-height:282mm;display:flex;flex-direction:column;padding:15mm 20mm 15mm;">
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
       <img src="/sirius-logo.png" style="width:180px;height:auto;" alt="SIRIUS" />
@@ -115,13 +115,18 @@ function coverPage(input: PdfInput, today: Date, gueltigBis: Date): string {
     </div>
 
     <!-- Info box -->
-    <div style="border-left:4px solid ${C.accent};background:${C.bg};padding:14px 18px;border-radius:0 6px 6px 0;margin-bottom:auto;">
+    <div style="border-left:4px solid ${C.accent};background:${C.bg};padding:14px 18px;border-radius:0 6px 6px 0;margin-bottom:24px;">
       <div style="display:flex;flex-wrap:wrap;gap:20px;font-size:10px;color:${C.text};">
         <div><span style="color:${C.muted};">Datum:</span> <strong>${fmtDate(today)}</strong></div>
         <div><span style="color:${C.muted};">Gültig bis:</span> <strong>${fmtDate(gueltigBis)}</strong></div>
         ${angNum ? `<div><span style="color:${C.muted};">Angebotsnr.:</span> <strong>${angNum}</strong></div>` : ''}
         ${input.ansprechpartner?.name ? `<div><span style="color:${C.muted};">Ihr Ansprechpartner:</span> <strong>${input.ansprechpartner.name}</strong></div>` : ''}
       </div>
+    </div>
+
+    <!-- Team image on cover -->
+    <div style="margin-top:auto;margin-bottom:12px;">
+      <img src="/images/sirius-team-1.jpg" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;" alt="SIRIUS Team" />
     </div>
 
     ${footer()}
