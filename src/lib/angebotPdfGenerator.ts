@@ -205,17 +205,21 @@ function deviceSections(deviceGroups: any[], showPrices: boolean): string {
       html += `<div data-pdf-section style="background:${C.bg};border-radius:6px;padding:10px 16px;margin-bottom:12px;">
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.muted};font-weight:700;margin-bottom:6px;">Seitenpreise</div>`;
       if (group.page_prices.bw) {
-        const vol = group.page_prices.bw_volume || '';
+        const bw = group.page_prices.bw;
+        const bwPrice = typeof bw === 'object' ? (bw.price || 0) : bw;
+        const bwVol = typeof bw === 'object' ? (bw.volume || 0) : (group.page_prices.bw_volume || 0);
         html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:${C.text};margin-bottom:2px;">
-          <span>S/W:${vol ? ` ${fmtNumber(vol)} Seiten/Monat →` : ''}</span>
-          <span style="font-weight:600;">${fmtPrice4(group.page_prices.bw)}</span>
+          <span>S/W:${bwVol ? ` ${fmtNumber(bwVol)} Seiten/Monat →` : ''}</span>
+          <span style="font-weight:600;">${fmtPrice4(bwPrice)}</span>
         </div>`;
       }
       if (group.page_prices.color) {
-        const vol = group.page_prices.color_volume || '';
+        const color = group.page_prices.color;
+        const colorPrice = typeof color === 'object' ? (color.price || 0) : color;
+        const colorVol = typeof color === 'object' ? (color.volume || 0) : (group.page_prices.color_volume || 0);
         html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:${C.text};">
-          <span>Farbe:${vol ? ` ${fmtNumber(vol)} Seiten/Monat →` : ''}</span>
-          <span style="font-weight:600;">${fmtPrice4(group.page_prices.color)}</span>
+          <span>Farbe:${colorVol ? ` ${fmtNumber(colorVol)} Seiten/Monat →` : ''}</span>
+          <span style="font-weight:600;">${fmtPrice4(colorPrice)}</span>
         </div>`;
       }
       html += `</div>`;
