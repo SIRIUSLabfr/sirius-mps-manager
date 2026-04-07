@@ -145,7 +145,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
               customer_name: customerName || f.customer_name,
               contact_name: contactName || f.contact_name,
               project_number: dealNumber || f.project_number,
-              delivery_address: shippingAddress || f.delivery_address,
+              delivery_address: billingAddress || f.delivery_address,
               note: description || f.note,
             }));
             if (closingDate && !isNaN(closingDate.getTime())) {
