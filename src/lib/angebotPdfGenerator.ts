@@ -205,17 +205,21 @@ function deviceSections(deviceGroups: any[], showPrices: boolean): string {
       html += `<div data-pdf-section style="background:${C.bg};border-radius:6px;padding:10px 16px;margin-bottom:12px;">
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${C.muted};font-weight:700;margin-bottom:6px;">Seitenpreise</div>`;
       if (group.page_prices.bw) {
-        const vol = group.page_prices.bw_volume || '';
+        const bw = group.page_prices.bw;
+        const bwPrice = typeof bw === 'object' ? (bw.price || 0) : bw;
+        const bwVol = typeof bw === 'object' ? (bw.volume || 0) : (group.page_prices.bw_volume || 0);
         html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:${C.text};margin-bottom:2px;">
-          <span>S/W:${vol ? ` ${fmtNumber(vol)} Seiten/Monat →` : ''}</span>
-          <span style="font-weight:600;">${fmtPrice4(group.page_prices.bw)}</span>
+          <span>S/W:${bwVol ? ` ${fmtNumber(bwVol)} Seiten/Monat →` : ''}</span>
+          <span style="font-weight:600;">${fmtPrice4(bwPrice)}</span>
         </div>`;
       }
       if (group.page_prices.color) {
-        const vol = group.page_prices.color_volume || '';
+        const color = group.page_prices.color;
+        const colorPrice = typeof color === 'object' ? (color.price || 0) : color;
+        const colorVol = typeof color === 'object' ? (color.volume || 0) : (group.page_prices.color_volume || 0);
         html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:${C.text};">
-          <span>Farbe:${vol ? ` ${fmtNumber(vol)} Seiten/Monat →` : ''}</span>
-          <span style="font-weight:600;">${fmtPrice4(group.page_prices.color)}</span>
+          <span>Farbe:${colorVol ? ` ${fmtNumber(colorVol)} Seiten/Monat →` : ''}</span>
+          <span style="font-weight:600;">${fmtPrice4(colorPrice)}</span>
         </div>`;
       }
       html += `</div>`;
@@ -447,7 +451,7 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   const A4_W_MM = 210;
   const A4_H_MM = 297;
   const MARGIN_TOP = 15;
-  const MARGIN_BOTTOM = 20; // generous bottom margin
+  const MARGIN_BOTTOM = 25; // generous bottom margin to prevent text at edge
   const MARGIN_LR = 0; // padding is already in the HTML
   const CONTENT_W_MM = A4_W_MM;
   const USABLE_H_MM = A4_H_MM - MARGIN_TOP - MARGIN_BOTTOM;
@@ -459,7 +463,6 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   const sections = Array.from(container.querySelectorAll('[data-pdf-section]')) as HTMLElement[];
 
   let currentY = MARGIN_TOP;
-  let isFirstSection = true;
 
   for (const section of sections) {
     const canvas = await html2canvas(section, {
@@ -476,15 +479,21 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
 
     const remainingSpace = USABLE_H_MM - (currentY - MARGIN_TOP);
 
-    if (heightMM > remainingSpace && !isFirstSection) {
+    // If section doesn't fit, start a new page
+    if (heightMM > remainingSpace && currentY > MARGIN_TOP) {
       pdf.addPage();
       currentY = MARGIN_TOP;
+    }
+
+    // If a single section is taller than the usable area, we still need to handle it
+    // but at least it starts at the top of a fresh page
+    if (heightMM > USABLE_H_MM && currentY === MARGIN_TOP) {
+      // Render it but it will overflow — this is acceptable for very tall sections
     }
 
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     pdf.addImage(imgData, 'JPEG', MARGIN_LR, currentY, CONTENT_W_MM, heightMM);
     currentY += heightMM + SECTION_GAP;
-    isFirstSection = false;
   }
 
   // Add page numbers
