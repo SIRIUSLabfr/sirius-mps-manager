@@ -397,8 +397,8 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="font-heading text-xs">Lieferadresse</Label>
-              <Input value={dailyForm.delivery_address} onChange={e => setDailyForm(f => ({ ...f, delivery_address: e.target.value }))} placeholder="Straße, PLZ Ort" />
+              <Label className="font-heading text-xs">Rechnungsadresse</Label>
+              <Input value={dailyForm.delivery_address} onChange={e => setDailyForm(f => ({ ...f, delivery_address: e.target.value }))} placeholder="Straße, PLZ Ort (aus Zoho Account)" />
             </div>
             <div className="space-y-2">
               <Label className="font-heading text-xs">Gewünschter Liefertermin</Label>
