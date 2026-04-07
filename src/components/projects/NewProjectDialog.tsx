@@ -99,7 +99,33 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
             const dealNumber = deal.Deal_Number ? String(deal.Deal_Number) : '';
             const description = deal.Description || '';
             const closingDate = deal.Closing_Date ? new Date(deal.Closing_Date) : undefined;
-            const shippingAddress = [deal.Shipping_Street, deal.Shipping_City].filter(Boolean).join(', ');
+
+            // Try to get billing address from the associated Account
+            let billingAddress = '';
+            const accountId = deal.Account_Name?.id;
+            if (accountId) {
+              try {
+                const accResponse = await fetch('/.netlify/functions/zoho-api', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ endpoint: `Accounts/${accountId}`, method: 'GET' }),
+                });
+                if (accResponse.ok) {
+                  const accResult = await accResponse.json();
+                  const acc = accResult?.data?.[0];
+                  if (acc) {
+                    billingAddress = [acc.Billing_Street, acc.Billing_Code, acc.Billing_City].filter(Boolean).join(', ');
+                  }
+                }
+              } catch (e) {
+                console.warn('Account-Daten konnten nicht geladen werden:', e);
+              }
+            }
+            // Fallback to deal shipping address
+            if (!billingAddress) {
+              billingAddress = [deal.Shipping_Street, deal.Shipping_City].filter(Boolean).join(', ');
+            }
 
             // Pre-fill MPS form
             setForm(f => ({
@@ -119,7 +145,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
               customer_name: customerName || f.customer_name,
               contact_name: contactName || f.contact_name,
               project_number: dealNumber || f.project_number,
-              delivery_address: shippingAddress || f.delivery_address,
+              delivery_address: billingAddress || f.delivery_address,
               note: description || f.note,
             }));
             if (closingDate && !isNaN(closingDate.getTime())) {
@@ -206,7 +232,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
           status: 'offen',
         } as any);
       }
-      toast.success(selectedType === 'project' ? 'Projekt erstellt' : 'Auftrag erstellt');
+      toast.success(selectedType === 'project' ? 'Angebot erstellt' : 'Angebot erstellt');
       onOpenChange(false);
       resetAll();
       if (data?.id) {
@@ -238,7 +264,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
       <DialogContent className={cn('transition-all', showTypeSelection ? 'sm:max-w-[620px]' : 'sm:max-w-[540px]')}>
         <DialogHeader>
           <DialogTitle className="font-heading">
-            {showTypeSelection ? 'Neuer Vorgang' : selectedType === 'project' ? 'Neues MPS-Projekt' : 'Neuer Tagesgeschäft-Auftrag'}
+            {showTypeSelection ? 'Neuer Vorgang' : selectedType === 'project' ? 'Neues MPS-Angebot' : 'Neues Tagesgeschäft-Angebot'}
           </DialogTitle>
         </DialogHeader>
 
@@ -299,8 +325,8 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="font-heading text-xs">Projektnummer</Label>
-                <Input value={form.project_number} onChange={e => setForm(f => ({ ...f, project_number: e.target.value }))} placeholder="z.B. P-2024-001" />
+                <Label className="font-heading text-xs">Angebotsnummer</Label>
+                <Input value={form.project_number} onChange={e => setForm(f => ({ ...f, project_number: e.target.value }))} placeholder="z.B. A-2024-001" />
               </div>
               <div className="space-y-2">
                 <Label className="font-heading text-xs">Projektbezeichnung</Label>
@@ -357,7 +383,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
               <Input value={dailyForm.customer_name} onChange={e => setDailyForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="z.B. Müller AG" />
             </div>
             <div className="space-y-2">
-              <Label className="font-heading text-xs">Auftragsnummer</Label>
+              <Label className="font-heading text-xs">Angebotsnummer</Label>
               <Input value={dailyForm.project_number} onChange={e => setDailyForm(f => ({ ...f, project_number: e.target.value }))} placeholder="z.B. A-2026-042" />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -371,8 +397,8 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="font-heading text-xs">Lieferadresse</Label>
-              <Input value={dailyForm.delivery_address} onChange={e => setDailyForm(f => ({ ...f, delivery_address: e.target.value }))} placeholder="Straße, PLZ Ort" />
+              <Label className="font-heading text-xs">Rechnungsadresse</Label>
+              <Input value={dailyForm.delivery_address} onChange={e => setDailyForm(f => ({ ...f, delivery_address: e.target.value }))} placeholder="Straße, PLZ Ort (aus Zoho Account)" />
             </div>
             <div className="space-y-2">
               <Label className="font-heading text-xs">Gewünschter Liefertermin</Label>
@@ -404,7 +430,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
           <DialogFooter>
             <Button variant="outline" onClick={() => { resetAll(); onOpenChange(false); }}>Abbrechen</Button>
             <Button onClick={() => createMutation.mutate()} disabled={!canSubmit || createMutation.isPending}>
-              {createMutation.isPending ? 'Speichern...' : selectedType === 'project' ? 'Projekt erstellen' : 'Auftrag erstellen'}
+              {createMutation.isPending ? 'Speichern...' : 'Angebot erstellen'}
             </Button>
           </DialogFooter>
         )}
