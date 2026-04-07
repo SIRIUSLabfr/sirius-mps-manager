@@ -624,19 +624,14 @@ export default function KalkulationPage() {
             />
             <div className="space-y-2">
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 gap-2 font-heading border-foreground/30" onClick={handleSave} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Zwischenspeichern
-                </Button>
                 <Button
                   className="flex-1 gap-2 font-heading shadow-lg"
-                  style={{ backgroundColor: isZohoConnected ? '#00A3E0' : undefined }}
-                  variant={isZohoConnected ? 'default' : 'outline'}
-                  onClick={handleCreateEstimate}
-                  disabled={creating}
+                  style={{ backgroundColor: '#00A3E0' }}
+                  onClick={handleSave}
+                  disabled={saving}
                 >
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                  {creating ? 'Wird erstellt…' : isZohoConnected ? 'Angebot erstellen' : 'Zoho verbinden für Angebot'}
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  In Zoho speichern
                 </Button>
               </div>
               {statusMsg && (
