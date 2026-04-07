@@ -99,7 +99,33 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
             const dealNumber = deal.Deal_Number ? String(deal.Deal_Number) : '';
             const description = deal.Description || '';
             const closingDate = deal.Closing_Date ? new Date(deal.Closing_Date) : undefined;
-            const shippingAddress = [deal.Shipping_Street, deal.Shipping_City].filter(Boolean).join(', ');
+
+            // Try to get billing address from the associated Account
+            let billingAddress = '';
+            const accountId = deal.Account_Name?.id;
+            if (accountId) {
+              try {
+                const accResponse = await fetch('/.netlify/functions/zoho-api', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ endpoint: `Accounts/${accountId}`, method: 'GET' }),
+                });
+                if (accResponse.ok) {
+                  const accResult = await accResponse.json();
+                  const acc = accResult?.data?.[0];
+                  if (acc) {
+                    billingAddress = [acc.Billing_Street, acc.Billing_Code, acc.Billing_City].filter(Boolean).join(', ');
+                  }
+                }
+              } catch (e) {
+                console.warn('Account-Daten konnten nicht geladen werden:', e);
+              }
+            }
+            // Fallback to deal shipping address
+            if (!billingAddress) {
+              billingAddress = [deal.Shipping_Street, deal.Shipping_City].filter(Boolean).join(', ');
+            }
 
             // Pre-fill MPS form
             setForm(f => ({
