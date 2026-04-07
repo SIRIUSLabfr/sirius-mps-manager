@@ -357,7 +357,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
               <Input value={dailyForm.customer_name} onChange={e => setDailyForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="z.B. Müller AG" />
             </div>
             <div className="space-y-2">
-              <Label className="font-heading text-xs">Auftragsnummer</Label>
+              <Label className="font-heading text-xs">Angebotsnummer</Label>
               <Input value={dailyForm.project_number} onChange={e => setDailyForm(f => ({ ...f, project_number: e.target.value }))} placeholder="z.B. A-2026-042" />
             </div>
             <div className="grid grid-cols-2 gap-4">
