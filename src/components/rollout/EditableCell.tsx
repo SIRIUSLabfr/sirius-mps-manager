@@ -65,6 +65,7 @@ export default function EditableCell({ value, onChange, type = 'text', options, 
           setEditing(false);
           if (localValue !== String(value ?? '')) onChange(localValue);
         }}
+        onFocus={e => e.target.select()}
         onKeyDown={e => {
           if (e.key === 'Enter') {
             setEditing(false);
