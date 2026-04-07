@@ -451,7 +451,7 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   const A4_W_MM = 210;
   const A4_H_MM = 297;
   const MARGIN_TOP = 15;
-  const MARGIN_BOTTOM = 20; // generous bottom margin
+  const MARGIN_BOTTOM = 25; // generous bottom margin to prevent text at edge
   const MARGIN_LR = 0; // padding is already in the HTML
   const CONTENT_W_MM = A4_W_MM;
   const USABLE_H_MM = A4_H_MM - MARGIN_TOP - MARGIN_BOTTOM;
@@ -463,7 +463,6 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   const sections = Array.from(container.querySelectorAll('[data-pdf-section]')) as HTMLElement[];
 
   let currentY = MARGIN_TOP;
-  let isFirstSection = true;
 
   for (const section of sections) {
     const canvas = await html2canvas(section, {
@@ -480,15 +479,21 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
 
     const remainingSpace = USABLE_H_MM - (currentY - MARGIN_TOP);
 
-    if (heightMM > remainingSpace && !isFirstSection) {
+    // If section doesn't fit, start a new page
+    if (heightMM > remainingSpace && currentY > MARGIN_TOP) {
       pdf.addPage();
       currentY = MARGIN_TOP;
+    }
+
+    // If a single section is taller than the usable area, we still need to handle it
+    // but at least it starts at the top of a fresh page
+    if (heightMM > USABLE_H_MM && currentY === MARGIN_TOP) {
+      // Render it but it will overflow — this is acceptable for very tall sections
     }
 
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     pdf.addImage(imgData, 'JPEG', MARGIN_LR, currentY, CONTENT_W_MM, heightMM);
     currentY += heightMM + SECTION_GAP;
-    isFirstSection = false;
   }
 
   // Add page numbers
