@@ -299,7 +299,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="font-heading text-xs">Projektnummer</Label>
+                <Label className="font-heading text-xs">Angebotsnummer</Label>
                 <Input value={form.project_number} onChange={e => setForm(f => ({ ...f, project_number: e.target.value }))} placeholder="z.B. P-2024-001" />
               </div>
               <div className="space-y-2">
