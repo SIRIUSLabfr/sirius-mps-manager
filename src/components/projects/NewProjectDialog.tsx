@@ -206,7 +206,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
           status: 'offen',
         } as any);
       }
-      toast.success(selectedType === 'project' ? 'Projekt erstellt' : 'Auftrag erstellt');
+      toast.success(selectedType === 'project' ? 'Angebot erstellt' : 'Angebot erstellt');
       onOpenChange(false);
       resetAll();
       if (data?.id) {
