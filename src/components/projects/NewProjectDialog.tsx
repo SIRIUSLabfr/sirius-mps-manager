@@ -238,7 +238,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
       <DialogContent className={cn('transition-all', showTypeSelection ? 'sm:max-w-[620px]' : 'sm:max-w-[540px]')}>
         <DialogHeader>
           <DialogTitle className="font-heading">
-            {showTypeSelection ? 'Neuer Vorgang' : selectedType === 'project' ? 'Neues MPS-Projekt' : 'Neuer Tagesgeschäft-Auftrag'}
+            {showTypeSelection ? 'Neuer Vorgang' : selectedType === 'project' ? 'Neues MPS-Angebot' : 'Neues Tagesgeschäft-Angebot'}
           </DialogTitle>
         </DialogHeader>
 
