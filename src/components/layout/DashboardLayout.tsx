@@ -36,7 +36,7 @@ function ZohoLoginGate() {
 export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isZohoConnected } = useZoho();
-  const shouldBypassZohoGate = true;
+  const shouldBypassZohoGate = false;
 
   if (!shouldBypassZohoGate && !isZohoConnected) {
     return <ZohoLoginGate />;
