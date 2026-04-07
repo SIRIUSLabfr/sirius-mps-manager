@@ -112,12 +112,17 @@ export default function KalkSummary({
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center p-2 rounded-md" style={{ backgroundColor: 'hsl(196 100% 44% / 0.08)' }}>
               <Input
-                type="number"
-                step="0.0001"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 value={folgeseitenpreisSw || ''}
-                onChange={(e) => onFolgeseitenpreisChange('sw', parseFloat(e.target.value) || 0)}
-                className="h-8 text-center text-sm font-heading font-bold border-0 bg-transparent shadow-none px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                onChange={(e) => {
+                  const v = e.target.value.replace(',', '.');
+                  if (v === '' || /^\d*\.?\d{0,4}$/.test(v)) {
+                    onFolgeseitenpreisChange('sw', parseFloat(v) || 0);
+                  }
+                }}
+                onFocus={(e) => e.target.select()}
+                className="h-8 text-center text-sm font-heading font-bold border-0 bg-transparent shadow-none px-1"
                 style={{ color: '#00A3E0' }}
                 placeholder="0,0000"
               />
