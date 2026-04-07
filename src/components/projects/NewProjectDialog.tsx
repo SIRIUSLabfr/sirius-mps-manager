@@ -404,7 +404,7 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
           <DialogFooter>
             <Button variant="outline" onClick={() => { resetAll(); onOpenChange(false); }}>Abbrechen</Button>
             <Button onClick={() => createMutation.mutate()} disabled={!canSubmit || createMutation.isPending}>
-              {createMutation.isPending ? 'Speichern...' : selectedType === 'project' ? 'Projekt erstellen' : 'Auftrag erstellen'}
+              {createMutation.isPending ? 'Speichern...' : 'Angebot erstellen'}
             </Button>
           </DialogFooter>
         )}
