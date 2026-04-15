@@ -62,8 +62,21 @@ interface SollAssignment {
   product?: ZohoProduct;
 }
 
+interface OldContract {
+  id: string;
+  contract_end: string;
+  term_months: number;
+  goods_value: number;
+  devices: string;
+  leasing_rate: number;
+  maintenance_rate: number;
+  free_volume_bw: number;
+  free_volume_color: number;
+}
+
 interface Props {
   projectId: string;
+  projectType?: string;
   deviceGroups: DeviceGroup[];
   totalRate: number;
   onSollAssigned?: (istDevice: IstDevice, product: ZohoProduct) => void;
