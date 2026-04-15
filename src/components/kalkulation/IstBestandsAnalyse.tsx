@@ -105,7 +105,7 @@ function buildLocationString(d: { location?: string; building?: string; floor?: 
   return parts.join(', ');
 }
 
-export default function IstBestandsAnalyse({ projectId, deviceGroups, totalRate, onSollAssigned }: Props) {
+export default function IstBestandsAnalyse({ projectId, projectType = 'project', deviceGroups, totalRate, onSollAssigned }: Props) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
