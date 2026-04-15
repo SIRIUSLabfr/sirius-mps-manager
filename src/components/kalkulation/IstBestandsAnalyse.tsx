@@ -487,7 +487,7 @@ export default function IstBestandsAnalyse({ projectId, projectType = 'project',
                   <Button
                     variant="outline"
                     className="gap-2 text-xs font-heading w-full"
-                    onClick={() => setOldContracts(prev => [...prev, { id: crypto.randomUUID(), contract_end: '', term_months: 0, goods_value: 0, devices: '', leasing_rate: 0, maintenance_rate: 0, free_volume_bw: 0, free_volume_color: 0 }])}
+                    onClick={() => setOldContracts(prev => [...prev, { id: crypto.randomUUID(), contract_end: '', term_months: 0, goods_value: 0, devices: '', leasing_rate: 0, maintenance_rate: 0, free_volume_bw: 0, free_volume_color: 0, add_ons: [] }])}
                   >
                     <Plus className="h-3.5 w-3.5" /> Weiteren Vertrag hinzufügen
                   </Button>
