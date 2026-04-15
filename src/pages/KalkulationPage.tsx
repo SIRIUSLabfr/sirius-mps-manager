@@ -90,6 +90,17 @@ export default function KalkulationPage() {
   const { dealId } = useZoho();
   const queryClient = useQueryClient();
 
+  // Fetch project to determine type
+  const { data: project } = useQuery({
+    queryKey: ['project', activeProjectId],
+    queryFn: async () => {
+      if (!activeProjectId) return null;
+      const { data } = await supabase.from('projects').select('project_type').eq('id', activeProjectId).single();
+      return data;
+    },
+    enabled: !!activeProjectId,
+  });
+
   useEffect(() => {
     if (urlProjectId) setActiveProjectId(urlProjectId);
   }, [urlProjectId, setActiveProjectId]);
@@ -540,6 +551,7 @@ export default function KalkulationPage() {
         <div className="lg:col-span-3 space-y-4">
           <IstBestandsAnalyse
             projectId={activeProjectId}
+            projectType={project?.project_type || 'project'}
             deviceGroups={form.deviceGroups}
             totalRate={totalRate}
             onSollAssigned={handleSollAssigned}
