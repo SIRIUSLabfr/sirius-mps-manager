@@ -481,6 +481,77 @@ export default function IstBestandsAnalyse({ projectId, projectType = 'project',
                           />
                         </div>
                       </div>
+
+                      {/* Aufstockungen */}
+                      {contract.add_ons.length > 0 && (
+                        <div className="space-y-2 pl-4 border-l-2 border-primary/20">
+                          <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground">
+                            Aufstockungen
+                          </span>
+                          {contract.add_ons.map((addOn, aIdx) => (
+                            <div key={addOn.id} className="grid grid-cols-3 gap-3 items-end">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-heading uppercase">Leasinganteil (€)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  className="h-8 text-xs"
+                                  value={addOn.leasing_rate || ''}
+                                  onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? {
+                                    ...c,
+                                    add_ons: c.add_ons.map(a => a.id === addOn.id ? { ...a, leasing_rate: Number(e.target.value) || 0 } : a)
+                                  } : c))}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-heading uppercase">Laufzeit (Monate)</Label>
+                                <Input
+                                  type="number"
+                                  className="h-8 text-xs"
+                                  value={addOn.term_months || ''}
+                                  onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? {
+                                    ...c,
+                                    add_ons: c.add_ons.map(a => a.id === addOn.id ? { ...a, term_months: Number(e.target.value) || 0 } : a)
+                                  } : c))}
+                                />
+                              </div>
+                              <div className="flex items-end gap-2">
+                                <div className="space-y-1 flex-1">
+                                  <Label className="text-[10px] font-heading uppercase">Vertragsende</Label>
+                                  <Input
+                                    type="date"
+                                    className="h-8 text-xs bg-muted/50"
+                                    value={contract.contract_end}
+                                    disabled
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setOldContracts(prev => prev.map(c => c.id === contract.id ? {
+                                    ...c,
+                                    add_ons: c.add_ons.filter(a => a.id !== addOn.id)
+                                  } : c))}
+                                  className="text-muted-foreground hover:text-destructive mb-1"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-[10px] text-muted-foreground hover:text-primary h-7"
+                        onClick={() => setOldContracts(prev => prev.map(c => c.id === contract.id ? {
+                          ...c,
+                          add_ons: [...c.add_ons, { id: crypto.randomUUID(), leasing_rate: 0, term_months: 0 }]
+                        } : c))}
+                      >
+                        <Plus className="h-3 w-3" /> Aufstockung hinzufügen
+                      </Button>
                     </div>
                   ))}
 
