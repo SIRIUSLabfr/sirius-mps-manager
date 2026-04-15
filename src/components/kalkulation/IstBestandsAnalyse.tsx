@@ -64,6 +64,12 @@ interface SollAssignment {
   product?: ZohoProduct;
 }
 
+interface ContractAddOn {
+  id: string;
+  leasing_rate: number;
+  term_months: number;
+}
+
 interface OldContract {
   id: string;
   contract_end: string;
@@ -74,6 +80,7 @@ interface OldContract {
   maintenance_rate: number;
   free_volume_bw: number;
   free_volume_color: number;
+  add_ons: ContractAddOn[];
 }
 
 interface Props {
