@@ -116,6 +116,13 @@ export default function IstBestandsAnalyse({ projectId, projectType = 'project',
   const [transferring, setTransferring] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Old contracts for daily business
+  const [oldContracts, setOldContracts] = useState<OldContract[]>([
+    { id: crypto.randomUUID(), contract_end: '', term_months: 0, goods_value: 0, devices: '', leasing_rate: 0, maintenance_rate: 0, free_volume_bw: 0, free_volume_color: 0 },
+  ]);
+
+  const isDailyBusiness = projectType === 'daily';
+
   // Fetch existing IST devices from rollout
   const { data: existingDevices = [] } = useQuery({
     queryKey: ['ist-devices-kalk', projectId],
