@@ -342,8 +342,10 @@ export default function IstBestandsAnalyse({ projectId, projectType = 'project',
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Database className="h-5 w-5 text-primary" />
-                  <CardTitle className="font-heading text-base">IST-Bestandsanalyse</CardTitle>
-                  {hasData && (
+                  <CardTitle className="font-heading text-base">
+                    {isDailyBusiness ? 'Bestehende Verträge' : 'IST-Bestandsanalyse'}
+                  </CardTitle>
+                  {!isDailyBusiness && hasData && (
                     <Badge variant="secondary" className="text-[10px]">
                       {totalIst} Geräte
                     </Badge>
