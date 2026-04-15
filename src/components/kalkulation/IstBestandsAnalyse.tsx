@@ -358,190 +358,292 @@ export default function IstBestandsAnalyse({ projectId, projectType = 'project',
 
           <CollapsibleContent>
             <CardContent className="space-y-4">
-              {/* Info Banner */}
-              <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/15 rounded-lg text-xs text-muted-foreground">
-                <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <p>
-                  Importiere die aktuelle Geräteliste des Kunden (vom bisherigen MPS-Anbieter).
-                  Ordne jedem IST-Gerät ein SOLL-Gerät zu – es wird automatisch in der Hardware-Konfiguration angelegt.
-                </p>
-              </div>
+              {isDailyBusiness ? (
+                /* ===== DAILY BUSINESS: Old Contracts View ===== */
+                <>
+                  <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/15 rounded-lg text-xs text-muted-foreground">
+                    <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <p>Bestehende Verträge des Kunden erfassen – Vertragsende, Laufzeit, Konditionen und enthaltene Geräte.</p>
+                  </div>
 
-              {/* Import actions */}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  className="gap-2 text-xs font-heading"
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload className="h-3.5 w-3.5" /> IST-Liste importieren
-                </Button>
-                {existingDevices.length > 0 && istDevices.length === 0 && (
+                  {oldContracts.map((contract, idx) => (
+                    <div key={contract.id} className="border border-border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-heading font-bold uppercase tracking-wider text-primary">
+                          Vertrag {idx + 1}
+                        </span>
+                        {oldContracts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setOldContracts(prev => prev.filter(c => c.id !== contract.id))}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] font-heading uppercase">Vertragsende</Label>
+                          <Input
+                            type="date"
+                            className="h-8 text-xs"
+                            value={contract.contract_end}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? { ...c, contract_end: e.target.value } : c))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] font-heading uppercase">Laufzeit (Monate)</Label>
+                          <Input
+                            type="number"
+                            className="h-8 text-xs"
+                            value={contract.term_months || ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? { ...c, term_months: Number(e.target.value) || 0 } : c))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] font-heading uppercase">Warennettowert (€)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="h-8 text-xs"
+                            value={contract.goods_value || ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? { ...c, goods_value: Number(e.target.value) || 0 } : c))}
+                          />
+                        </div>
+                        <div className="space-y-1 col-span-2 sm:col-span-1">
+                          <Label className="text-[10px] font-heading uppercase">Enthaltene Geräte</Label>
+                          <Input
+                            type="text"
+                            className="h-8 text-xs"
+                            placeholder="z.B. 3x Kyocera M4125"
+                            value={contract.devices}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? { ...c, devices: e.target.value } : c))}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] font-heading uppercase">Leasingrate (€)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="h-8 text-xs"
+                            value={contract.leasing_rate || ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? { ...c, leasing_rate: Number(e.target.value) || 0 } : c))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] font-heading uppercase">Wartungsrate (€)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="h-8 text-xs"
+                            value={contract.maintenance_rate || ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? { ...c, maintenance_rate: Number(e.target.value) || 0 } : c))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] font-heading uppercase">Freivolumen S/W</Label>
+                          <Input
+                            type="number"
+                            className="h-8 text-xs"
+                            value={contract.free_volume_bw || ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? { ...c, free_volume_bw: Number(e.target.value) || 0 } : c))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] font-heading uppercase">Freivolumen Farbe</Label>
+                          <Input
+                            type="number"
+                            className="h-8 text-xs"
+                            value={contract.free_volume_color || ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => setOldContracts(prev => prev.map(c => c.id === contract.id ? { ...c, free_volume_color: Number(e.target.value) || 0 } : c))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
                   <Button
                     variant="outline"
-                    className="gap-2 text-xs font-heading border-secondary/40 text-secondary"
-                    onClick={handleUseExisting}
+                    className="gap-2 text-xs font-heading w-full"
+                    onClick={() => setOldContracts(prev => [...prev, { id: crypto.randomUUID(), contract_end: '', term_months: 0, goods_value: 0, devices: '', leasing_rate: 0, maintenance_rate: 0, free_volume_bw: 0, free_volume_color: 0 }])}
                   >
-                    <FileSpreadsheet className="h-3.5 w-3.5" />
-                    {existingDevices.length} IST-Geräte aus Rolloutliste verwenden
+                    <Plus className="h-3.5 w-3.5" /> Weiteren Vertrag hinzufügen
                   </Button>
-                )}
-              </div>
-
-              {/* Comparison Table */}
-              {hasData && (
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-muted/50 border-b border-border">
-                        <th className="px-3 py-2 text-left w-[45%]">
-                          <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-primary">IST (Altgerät)</span>
-                        </th>
-                        <th className="px-2 py-2 text-center w-8">
-                          <ArrowRight className="h-3.5 w-3.5 mx-auto text-muted-foreground" />
-                        </th>
-                        <th className="px-3 py-2 text-left">
-                          <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-secondary">SOLL (Neugerät)</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/50">
-                      {aggregatedIst.map((ist, i) => {
-                        const key = ist.id || String(i);
-                        const assignment = sollAssignments[key];
-                        const locationStr = buildLocationString(ist);
-
-                        return (
-                          <tr key={key} className="hover:bg-muted/20">
-                            <td className="px-3 py-2.5">
-                              <div className="font-medium">
-                                {ist.manufacturer} {ist.model}
-                                <span className="text-muted-foreground ml-1.5">{ist.count}×</span>
-                              </div>
-                              {locationStr && (
-                                <div className="text-[10px] text-muted-foreground mt-0.5">
-                                  📍 {locationStr}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-2 py-2 text-center">
-                              <ArrowRight className="h-3 w-3 mx-auto text-muted-foreground/50" />
-                            </td>
-                            <td className="px-3 py-2.5">
-                              {/* Already assigned */}
-                              {assignment?.type === 'product' && assignment.product ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-secondary truncate">
-                                      {assignment.product.name}
-                                    </div>
-                                    <div className="text-[10px] text-muted-foreground">
-                                      {assignment.product.category}
-                                    </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => clearSollAssignment(key)}
-                                    className="text-muted-foreground hover:text-destructive shrink-0"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              ) : assignment?.type === 'none' ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-muted-foreground italic">– kein Gerät –</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => clearSollAssignment(key)}
-                                    className="text-muted-foreground hover:text-destructive shrink-0"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              ) : assignment?.type === 'removed' ? (
-                                <div className="flex items-center gap-2">
-                                  <Ban className="h-3.5 w-3.5 text-destructive/60" />
-                                  <span className="text-destructive/80 font-medium">Entfällt</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => clearSollAssignment(key)}
-                                    className="text-muted-foreground hover:text-destructive shrink-0 ml-auto"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              ) : (
-                                /* Not yet assigned – show search + special options */
-                                <div className="space-y-1.5">
-                                  <ZohoProductSearch
-                                    value={null}
-                                    onChange={(product) => {
-                                      if (product) handleSollAssign(key, ist, product);
-                                    }}
-                                    filterType="main_device"
-                                    placeholder="SOLL-Gerät suchen…"
-                                    className="w-full"
-                                  />
-                                  <div className="flex gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleSollSpecial(key, 'none')}
-                                      className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded border border-border/50 hover:border-border transition-colors"
-                                    >
-                                      kein Gerät
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleSollSpecial(key, 'removed')}
-                                      className="text-[10px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/50 hover:border-destructive/50 transition-colors"
-                                    >
-                                      Entfällt
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Summary */}
-              {hasData && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-muted/30 rounded-lg text-center">
-                    <p className="text-[10px] font-heading uppercase text-muted-foreground">IST Geräte</p>
-                    <p className="text-lg font-bold">{totalIst}</p>
+                </>
+              ) : (
+                /* ===== MPS PROJECT: Original IST Import View ===== */
+                <>
+                  {/* Info Banner */}
+                  <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/15 rounded-lg text-xs text-muted-foreground">
+                    <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <p>
+                      Importiere die aktuelle Geräteliste des Kunden (vom bisherigen MPS-Anbieter).
+                      Ordne jedem IST-Gerät ein SOLL-Gerät zu – es wird automatisch in der Hardware-Konfiguration angelegt.
+                    </p>
                   </div>
-                  {istMonthlyRate > 0 && (
-                    <div className="p-3 bg-muted/30 rounded-lg text-center">
-                      <p className="text-[10px] font-heading uppercase text-muted-foreground">IST Rate gesamt</p>
-                      <p className="text-lg font-bold">
-                        {istMonthlyRate.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                      </p>
+
+                  {/* Import actions */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      className="gap-2 text-xs font-heading"
+                      onClick={() => setImportOpen(true)}
+                    >
+                      <Upload className="h-3.5 w-3.5" /> IST-Liste importieren
+                    </Button>
+                    {existingDevices.length > 0 && istDevices.length === 0 && (
+                      <Button
+                        variant="outline"
+                        className="gap-2 text-xs font-heading border-secondary/40 text-secondary"
+                        onClick={handleUseExisting}
+                      >
+                        <FileSpreadsheet className="h-3.5 w-3.5" />
+                        {existingDevices.length} IST-Geräte aus Rolloutliste verwenden
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Comparison Table */}
+                  {hasData && (
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-muted/50 border-b border-border">
+                            <th className="px-3 py-2 text-left w-[45%]">
+                              <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-primary">IST (Altgerät)</span>
+                            </th>
+                            <th className="px-2 py-2 text-center w-8">
+                              <ArrowRight className="h-3.5 w-3.5 mx-auto text-muted-foreground" />
+                            </th>
+                            <th className="px-3 py-2 text-left">
+                              <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-secondary">SOLL (Neugerät)</span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                          {aggregatedIst.map((ist, i) => {
+                            const key = ist.id || String(i);
+                            const assignment = sollAssignments[key];
+                            const locationStr = buildLocationString(ist);
+
+                            return (
+                              <tr key={key} className="hover:bg-muted/20">
+                                <td className="px-3 py-2.5">
+                                  <div className="font-medium">
+                                    {ist.manufacturer} {ist.model}
+                                    <span className="text-muted-foreground ml-1.5">{ist.count}×</span>
+                                  </div>
+                                  {locationStr && (
+                                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                                      📍 {locationStr}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 text-center">
+                                  <ArrowRight className="h-3 w-3 mx-auto text-muted-foreground/50" />
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  {assignment?.type === 'product' && assignment.product ? (
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-secondary truncate">
+                                          {assignment.product.name}
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground">
+                                          {assignment.product.category}
+                                        </div>
+                                      </div>
+                                      <button type="button" onClick={() => clearSollAssignment(key)} className="text-muted-foreground hover:text-destructive shrink-0">
+                                        <X className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  ) : assignment?.type === 'none' ? (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-muted-foreground italic">– kein Gerät –</span>
+                                      <button type="button" onClick={() => clearSollAssignment(key)} className="text-muted-foreground hover:text-destructive shrink-0">
+                                        <X className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  ) : assignment?.type === 'removed' ? (
+                                    <div className="flex items-center gap-2">
+                                      <Ban className="h-3.5 w-3.5 text-destructive/60" />
+                                      <span className="text-destructive/80 font-medium">Entfällt</span>
+                                      <button type="button" onClick={() => clearSollAssignment(key)} className="text-muted-foreground hover:text-destructive shrink-0 ml-auto">
+                                        <X className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-1.5">
+                                      <ZohoProductSearch
+                                        value={null}
+                                        onChange={(product) => { if (product) handleSollAssign(key, ist, product); }}
+                                        filterType="main_device"
+                                        placeholder="SOLL-Gerät suchen…"
+                                        className="w-full"
+                                      />
+                                      <div className="flex gap-1.5">
+                                        <button type="button" onClick={() => handleSollSpecial(key, 'none')} className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded border border-border/50 hover:border-border transition-colors">
+                                          kein Gerät
+                                        </button>
+                                        <button type="button" onClick={() => handleSollSpecial(key, 'removed')} className="text-[10px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/50 hover:border-destructive/50 transition-colors">
+                                          Entfällt
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* Transfer button */}
-              {istDevices.length > 0 && (
-                <Button
-                  variant="outline"
-                  className="w-full gap-2 text-xs font-heading border-secondary/40"
-                  onClick={handleTransferToRollout}
-                  disabled={transferring}
-                >
-                  {transferring ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ArrowDownToLine className="h-3.5 w-3.5" />
+                  {/* Summary */}
+                  {hasData && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-muted/30 rounded-lg text-center">
+                        <p className="text-[10px] font-heading uppercase text-muted-foreground">IST Geräte</p>
+                        <p className="text-lg font-bold">{totalIst}</p>
+                      </div>
+                      {istMonthlyRate > 0 && (
+                        <div className="p-3 bg-muted/30 rounded-lg text-center">
+                          <p className="text-[10px] font-heading uppercase text-muted-foreground">IST Rate gesamt</p>
+                          <p className="text-lg font-bold">
+                            {istMonthlyRate.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
-                  IST-Daten in Rolloutliste übernehmen
-                </Button>
+
+                  {/* Transfer button */}
+                  {istDevices.length > 0 && (
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 text-xs font-heading border-secondary/40"
+                      onClick={handleTransferToRollout}
+                      disabled={transferring}
+                    >
+                      {transferring ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowDownToLine className="h-3.5 w-3.5" />}
+                      IST-Daten in Rolloutliste übernehmen
+                    </Button>
+                  )}
+                </>
               )}
             </CardContent>
           </CollapsibleContent>
