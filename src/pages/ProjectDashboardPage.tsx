@@ -25,11 +25,6 @@ export default function ProjectDashboardPage() {
     if (projectId) setActiveProjectId(projectId);
   }, [projectId, setActiveProjectId]);
 
-  // Tagesgeschäft: zeige Potentialübersicht statt MPS-Dashboard
-  if (project && (project as any).project_type === 'daily') {
-    return <PotentialOverviewPage />;
-  }
-
   // Build activity feed from recent device/sop changes
   const activities = useMemo(() => {
     const items: { id: string; text: string; time: Date }[] = [];
