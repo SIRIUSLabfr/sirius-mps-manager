@@ -13,6 +13,7 @@ import TagesgeschaeftListPage from "./pages/TagesgeschaeftListPage";
 import ProjectDashboardPage from "./pages/ProjectDashboardPage";
 import DailyDashboardPage from "./pages/DailyDashboardPage";
 import DailyGeraeteListePage from "./pages/DailyGeraeteListePage";
+import PotentialOverviewPage from "./pages/PotentialOverviewPage";
 import ProjectDataPage from "./pages/ProjectDataPage";
 import RolloutListPage from "./pages/RolloutListPage";
 import IstSollPage from "./pages/IstSollPage";
