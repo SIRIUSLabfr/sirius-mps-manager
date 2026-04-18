@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, Package, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
+import PotentialOverviewPage from './PotentialOverviewPage';
 
 export default function ProjectDashboardPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -23,13 +24,6 @@ export default function ProjectDashboardPage() {
   useEffect(() => {
     if (projectId) setActiveProjectId(projectId);
   }, [projectId, setActiveProjectId]);
-
-  // Redirect daily projects to their dashboard
-  useEffect(() => {
-    if (project && (project as any).project_type === 'daily') {
-      navigate(`/projekt/${projectId}/daily`, { replace: true });
-    }
-  }, [project, projectId, navigate]);
 
   // Build activity feed from recent device/sop changes
   const activities = useMemo(() => {
@@ -66,6 +60,11 @@ export default function ProjectDashboardPage() {
 
     return items.sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 10);
   }, [devices, sopOrders]);
+
+  // Tagesgeschäft: zeige Potentialübersicht statt MPS-Dashboard (nach allen Hooks!)
+  if (project && (project as any).project_type === 'daily') {
+    return <PotentialOverviewPage />;
+  }
 
   if (isLoading) {
     return (

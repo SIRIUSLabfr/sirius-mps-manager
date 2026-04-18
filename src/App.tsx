@@ -13,6 +13,7 @@ import TagesgeschaeftListPage from "./pages/TagesgeschaeftListPage";
 import ProjectDashboardPage from "./pages/ProjectDashboardPage";
 import DailyDashboardPage from "./pages/DailyDashboardPage";
 import DailyGeraeteListePage from "./pages/DailyGeraeteListePage";
+import PotentialOverviewPage from "./pages/PotentialOverviewPage";
 import ProjectDataPage from "./pages/ProjectDataPage";
 import RolloutListPage from "./pages/RolloutListPage";
 import IstSollPage from "./pages/IstSollPage";
@@ -119,7 +120,8 @@ const App = () => (
                 <Route path="/projekt/:projectId/checklisten" element={<ChecklistenPage />} />
                 <Route path="/projekt/:projectId/kalender" element={<KalenderPage />} />
                 <Route path="/projekt/:projectId/geraete" element={<DailyGeraeteListePage />} />
-                <Route path="/projekt/:projectId/daily" element={<DailyDashboardPage />} />
+                <Route path="/projekt/:projectId/daily" element={<PotentialOverviewPage />} />
+                <Route path="/projekt/:projectId/potential" element={<PotentialOverviewPage />} />
                 <Route path="/projekt/:projectId/abwicklung" element={<AbwicklungPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />

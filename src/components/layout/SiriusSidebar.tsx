@@ -60,18 +60,11 @@ const phase3Items: NavItem[] = [
   { title: 'Abwicklung', path: '/projekt/:id/abwicklung', icon: ClipboardList, requiresProject: true },
 ];
 
-// ── EBENE 2: Daily phases ──
-const dailyPhase1: NavItem[] = [
-  { title: 'Auftragsübersicht', path: '/projekt/:id', icon: ClipboardList, requiresProject: true },
-];
-const dailyPhase2: NavItem[] = [
+// ── EBENE 2: Daily phases (Tagesgeschäft – minimal) ──
+const dailyNav: NavItem[] = [
+  { title: 'Potentialübersicht', path: '/projekt/:id', icon: ClipboardList, requiresProject: true },
   { title: 'Kalkulation', path: '/projekt/:id/kalkulation', icon: Calculator, requiresProject: true },
   { title: 'Angebot', path: '/projekt/:id/angebot', icon: ScrollText, requiresProject: true },
-  { title: 'Geräteliste', path: '/projekt/:id/geraete', icon: List, requiresProject: true },
-];
-const dailyPhase3: NavItem[] = [
-  { title: 'SOP / Vorrichten', path: '/projekt/:id/sop', icon: Wrench, requiresProject: true },
-  { title: 'Kalender', path: '/projekt/:id/kalender', icon: Calendar, requiresProject: true },
   { title: 'Abwicklung', path: '/projekt/:id/abwicklung', icon: ClipboardList, requiresProject: true },
 ];
 
@@ -298,34 +291,12 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
               </>
             )}
 
-            {/* Daily nav */}
+            {/* Daily nav – flat & minimal */}
             {isDaily && (
-              <>
-                {perms.canSeePhase1 && (
-                  <>
-                    <div className="mb-1">
-                      {phaseHeader('Auftrag')}
-                      <ul className="space-y-0.5">{dailyPhase1.map(renderItem)}</ul>
-                    </div>
-                    {phaseDivider()}
-                  </>
-                )}
-                {perms.canSeePhase2 && (
-                  <>
-                    <div className="mb-1">
-                      {phaseHeader('Planung')}
-                      <ul className="space-y-0.5">{dailyPhase2.map(renderItem)}</ul>
-                    </div>
-                    {phaseDivider()}
-                  </>
-                )}
-                {perms.canSeePhase3 && (
-                  <div className="mb-1">
-                    {phaseHeader('Ausführung')}
-                    <ul className="space-y-0.5">{dailyPhase3.map(renderItem)}</ul>
-                  </div>
-                )}
-              </>
+              <div className="mb-1">
+                {phaseHeader('Tagesgeschäft')}
+                <ul className="space-y-0.5">{dailyNav.map(renderItem)}</ul>
+              </div>
             )}
           </>
         )}

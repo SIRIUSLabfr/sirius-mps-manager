@@ -259,6 +259,7 @@ export type Database = {
           device_number: number | null
           final_check: string | null
           final_check_notes: string | null
+          from_quote_item_id: string | null
           gegebenheiten: string | null
           id: string
           ist_building: string | null
@@ -279,6 +280,7 @@ export type Database = {
           preparation_status: string
           prepared_by: string | null
           project_id: string
+          pushed_to_sop_at: string | null
           rollout_day: number | null
           soll_accessories: string | null
           soll_building: string | null
@@ -299,6 +301,7 @@ export type Database = {
           device_number?: number | null
           final_check?: string | null
           final_check_notes?: string | null
+          from_quote_item_id?: string | null
           gegebenheiten?: string | null
           id?: string
           ist_building?: string | null
@@ -319,6 +322,7 @@ export type Database = {
           preparation_status?: string
           prepared_by?: string | null
           project_id: string
+          pushed_to_sop_at?: string | null
           rollout_day?: number | null
           soll_accessories?: string | null
           soll_building?: string | null
@@ -339,6 +343,7 @@ export type Database = {
           device_number?: number | null
           final_check?: string | null
           final_check_notes?: string | null
+          from_quote_item_id?: string | null
           gegebenheiten?: string | null
           id?: string
           ist_building?: string | null
@@ -359,6 +364,7 @@ export type Database = {
           preparation_status?: string
           prepared_by?: string | null
           project_id?: string
+          pushed_to_sop_at?: string | null
           rollout_day?: number | null
           soll_accessories?: string | null
           soll_building?: string | null
@@ -971,6 +977,8 @@ export type Database = {
           updated_at: string
           warehouse_address: string | null
           zoho_deal_id: string | null
+          zoho_estimate_id: string | null
+          zoho_sales_order_id: string | null
         }
         Insert: {
           created_at?: string
@@ -996,6 +1004,8 @@ export type Database = {
           updated_at?: string
           warehouse_address?: string | null
           zoho_deal_id?: string | null
+          zoho_estimate_id?: string | null
+          zoho_sales_order_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1021,6 +1031,8 @@ export type Database = {
           updated_at?: string
           warehouse_address?: string | null
           zoho_deal_id?: string | null
+          zoho_estimate_id?: string | null
+          zoho_sales_order_id?: string | null
         }
         Relationships: [
           {
