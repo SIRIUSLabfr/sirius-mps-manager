@@ -291,34 +291,12 @@ export default function SiriusSidebar({ mobileOpen, onMobileClose }: SiriusSideb
               </>
             )}
 
-            {/* Daily nav */}
+            {/* Daily nav – flat & minimal */}
             {isDaily && (
-              <>
-                {perms.canSeePhase1 && (
-                  <>
-                    <div className="mb-1">
-                      {phaseHeader('Auftrag')}
-                      <ul className="space-y-0.5">{dailyPhase1.map(renderItem)}</ul>
-                    </div>
-                    {phaseDivider()}
-                  </>
-                )}
-                {perms.canSeePhase2 && (
-                  <>
-                    <div className="mb-1">
-                      {phaseHeader('Planung')}
-                      <ul className="space-y-0.5">{dailyPhase2.map(renderItem)}</ul>
-                    </div>
-                    {phaseDivider()}
-                  </>
-                )}
-                {perms.canSeePhase3 && (
-                  <div className="mb-1">
-                    {phaseHeader('Ausführung')}
-                    <ul className="space-y-0.5">{dailyPhase3.map(renderItem)}</ul>
-                  </div>
-                )}
-              </>
+              <div className="mb-1">
+                {phaseHeader('Tagesgeschäft')}
+                <ul className="space-y-0.5">{dailyNav.map(renderItem)}</ul>
+              </div>
             )}
           </>
         )}
