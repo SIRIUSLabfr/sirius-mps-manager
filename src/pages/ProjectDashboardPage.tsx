@@ -61,6 +61,11 @@ export default function ProjectDashboardPage() {
     return items.sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 10);
   }, [devices, sopOrders]);
 
+  // Tagesgeschäft: zeige Potentialübersicht statt MPS-Dashboard (nach allen Hooks!)
+  if (project && (project as any).project_type === 'daily') {
+    return <PotentialOverviewPage />;
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-6">
