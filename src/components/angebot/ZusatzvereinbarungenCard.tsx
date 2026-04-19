@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, Lock } from 'lucide-react';
 
 export interface ZusatzItem {
   active: boolean;
@@ -62,9 +62,24 @@ interface Props {
   value: Zusatzvereinbarungen;
   onChange: (v: Zusatzvereinbarungen) => void;
   defaultOpen?: boolean;
+  /** Read-only values from active calculation (Single Source of Truth) */
+  contractStart?: string | null;
+  deliveryDate?: string | null;
 }
 
-export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen = false }: Props) {
+const formatDateDe = (iso: string | null | undefined) => {
+  if (!iso) return null;
+  try { return new Date(iso).toLocaleDateString('de-DE'); }
+  catch { return iso; }
+};
+
+export default function ZusatzvereinbarungenCard({
+  value,
+  onChange,
+  defaultOpen = false,
+  contractStart,
+  deliveryDate,
+}: Props) {
   // Migration: ensure at least 12 base items
   const items: ZusatzItem[] = value.items && value.items.length >= 12
     ? value.items
