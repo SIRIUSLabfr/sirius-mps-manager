@@ -114,17 +114,34 @@ export default function PotentialOverviewPage() {
         if (devErr) throw devErr;
       }
 
-      // 2. Projekt-Status updaten
+      // 2. Zoho Quote → Sales Order konvertieren (sofern Quote vorhanden)
+      let newSalesOrderId: string | null = null;
+      if (estimateId && !salesOrderId) {
+        try {
+          const conv = await zohoClient.convertQuoteToSalesOrder(estimateId);
+          newSalesOrderId = conv?.data?.[0]?.details?.SalesOrder?.id
+            || conv?.data?.[0]?.details?.id
+            || null;
+          if (newSalesOrderId) {
+            toast.success(`Auftrag in Zoho angelegt: #${newSalesOrderId}`);
+          }
+        } catch (convErr: any) {
+          console.warn('Zoho-Convert fehlgeschlagen:', convErr);
+          toast.warning('Auftrag lokal erteilt – Zoho-Convert fehlgeschlagen: ' + (convErr.message || convErr));
+        }
+      }
+
+      // 3. Projekt-Status updaten
       const { error: projErr } = await supabase
         .from('projects')
         .update({
           order_confirmed_at: new Date().toISOString(),
           status: 'in_progress',
+          ...(newSalesOrderId ? { zoho_sales_order_id: newSalesOrderId } : {}),
         })
         .eq('id', projectId);
       if (projErr) throw projErr;
 
-      // TODO: Zoho Estimate → Sales Order convert (folgt im nächsten Schritt)
       toast.success(`${toInsert.length} Gerät(e) übernommen. Auftrag erteilt.`);
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       queryClient.invalidateQueries({ queryKey: ['devices', projectId] });
