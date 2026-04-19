@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, Building2, User, Euro, FileText, CheckCircle2, Send, ExternalLink, Package } from 'lucide-react';
+import { ClipboardList, Building2, User, Euro, FileText, CheckCircle2, Send, ExternalLink, Package, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -311,7 +311,82 @@ export default function PotentialOverviewPage() {
         </CardContent>
       </Card>
 
-      {/* Tabs */}
+      {/* MPS Manager Details aus Zoho Deal */}
+      {dealId && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-heading flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              MPS Manager Details
+              <span className="text-xs font-normal text-muted-foreground">(aus Zoho-Potential)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!dealRecord ? (
+              <Skeleton className="h-20 w-full" />
+            ) : (() => {
+              // Try multiple known API name variants for each MPS field
+              const pick = (...keys: string[]) => {
+                for (const k of keys) {
+                  const v = dealRecord?.[k];
+                  if (v !== null && v !== undefined && v !== '') return v;
+                }
+                return null;
+              };
+              const fmtNum = (v: any) =>
+                v === null || v === undefined || v === '' ? '–'
+                  : new Intl.NumberFormat('de-DE').format(Number(v));
+              const fmtPrice4 = (v: any) =>
+                v === null || v === undefined || v === '' ? '–'
+                  : new Intl.NumberFormat('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(Number(v)) + ' €';
+              const fmtPrice2 = (v: any) =>
+                v === null || v === undefined || v === '' ? '–'
+                  : new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(v));
+              const fmtDate = (v: any) =>
+                !v ? '–' : new Date(v).toLocaleDateString('de-DE');
+
+              const fields = [
+                {
+                  label: 'Vertragsbeginn',
+                  value: fmtDate(pick('Vertragsbeginn', 'MPS_Vertragsbeginn', 'Contract_Start', 'cf_vertragsbeginn')),
+                },
+                {
+                  label: 'S/W-Folgeseitenpreis',
+                  value: fmtPrice4(pick('S_W_Folgeseitenpreis', 'SW_Folgeseitenpreis', 'MPS_SW_Folgeseitenpreis', 'Folgeseitenpreis_SW')),
+                },
+                {
+                  label: 'S/W-Seitenmenge',
+                  value: fmtNum(pick('S_W_Seitenmenge', 'SW_Seitenmenge', 'MPS_Volumen_SW', 'MPS_SW_Seitenmenge', 'Seitenmenge_SW')),
+                },
+                {
+                  label: 'Farbfolgeseitenpreis',
+                  value: fmtPrice4(pick('Farbfolgeseitenpreis', 'MPS_Farb_Folgeseitenpreis', 'Folgeseitenpreis_Farbe')),
+                },
+                {
+                  label: 'Farbseitenmenge',
+                  value: fmtNum(pick('Farbseitenmenge', 'MPS_Volumen_Farbe', 'MPS_Farbseitenmenge', 'Seitenmenge_Farbe')),
+                },
+                {
+                  label: 'Summe UHG',
+                  value: fmtPrice2(pick('Summe_UHG', 'MPS_Summe_UHG', 'UHG_Summe', 'UHG')),
+                },
+              ];
+
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                  {fields.map(f => (
+                    <div key={f.label} className="flex items-center justify-between border-b border-border/50 pb-1.5">
+                      <span className="text-muted-foreground">{f.label}</span>
+                      <span className="font-medium">{f.value}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="devices">
         <TabsList>
           <TabsTrigger value="devices">
