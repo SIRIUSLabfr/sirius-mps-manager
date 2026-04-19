@@ -144,7 +144,29 @@ export default function ZusatzvereinbarungenCard({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="space-y-4">
-            {/* Global settings */}
+            {/* Read-only values from Kalkulation (Single Source of Truth) */}
+            {(contractStart || deliveryDate) && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary mb-2">
+                  <Lock className="h-3 w-3" />
+                  Aus Kalkulation übernommen (nicht editierbar)
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Lieferdatum</p>
+                    <p className="font-medium">{formatDateDe(deliveryDate) || '–'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Vertragsbeginn</p>
+                    <p className="font-medium">{formatDateDe(contractStart) || '–'}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Änderungen erfolgen ausschließlich in der Kalkulation.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b">
               <div>
                 <Label>Mietfreie Startphase</Label>
