@@ -234,13 +234,10 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
               </div>
             </div>
 
-            {/* PDF Options */}
-            <div className="border rounded-lg p-3 space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">PDF-Optionen (lokales PDF)</p>
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">Einzelpreise anzeigen</Label>
-                <Switch checked={showPrices} onCheckedChange={setShowPrices} />
-              </div>
+            {/* Show prices toggle (used in HTML preview) */}
+            <div className="flex items-center justify-between border rounded-lg px-3 py-2">
+              <Label className="text-sm">Einzelpreise in Vorschau anzeigen</Label>
+              <Switch checked={showPrices} onCheckedChange={setShowPrices} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -283,6 +280,24 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {calcData && (
+        <AngebotPreviewDialog
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          projectId={projectId}
+          projectName={projectName}
+          customerName={customerName}
+          customerNumber={customerNumber}
+          customerAddress={customerAddress}
+          contactPerson={contactPerson}
+          angebotNumber={angebotNumber}
+          ansprechpartner={ansprechpartner}
+          calcData={calcData}
+          zusatz={zusatz}
+          quoteId={existingQuoteId}
+        />
+      )}
     </Card>
   );
 }
