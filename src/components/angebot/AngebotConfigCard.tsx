@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { FileText, Loader2, Send } from 'lucide-react';
+import { Eye, Loader2, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import {
 import type { Zusatzvereinbarungen } from './ZusatzvereinbarungenCard';
 import { buildQuotePayload } from '@/lib/zohoQuoteBuilder';
 import { zohoClient, QUOTE_INVENTORY_TEMPLATE_ID } from '@/lib/zohoClient';
+import AngebotPreviewDialog from './AngebotPreviewDialog';
 
 interface CalcData {
   finance_type: string;
@@ -49,10 +50,10 @@ const financeLabels: Record<string, string> = {
 const fmt = (v: number) => v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function AngebotConfigCard({ projectId, projectName, calcData, zusatz, customerName, contactPerson, customerAddress, customerNumber, angebotNumber, ansprechpartner }: Props) {
-  const [generating, setGenerating] = useState(false);
   const [zohoBusy, setZohoBusy] = useState(false);
   const [showPrices, setShowPrices] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const groups = calcData?.config_json?.device_groups || calcData?.config_json?.deviceGroups || [];
@@ -76,64 +77,6 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
   });
 
   const existingQuoteId = projectRow?.zoho_estimate_id;
-
-  const handleGenerate = async () => {
-    if (!calcData) {
-      toast.error('Bitte zuerst eine Kalkulation erstellen.');
-      return;
-    }
-    setGenerating(true);
-    try {
-      const { generateAngebotPdf } = await import('@/lib/angebotPdfGenerator');
-      const blob = await generateAngebotPdf({
-        projectName,
-        projectId,
-        calcData,
-        zusatz,
-        showPrices,
-        customerName,
-        contactPerson,
-        customerAddress,
-        customerNumber,
-        angebotNumber,
-        ansprechpartner,
-      });
-
-      const fileName = `KV_${projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-
-      const filePath = `${projectId}/angebote/${Date.now()}_${fileName}`;
-      const { error: uploadErr } = await supabase.storage
-        .from('project-documents')
-        .upload(filePath, blob);
-      if (uploadErr) throw uploadErr;
-
-      const { data: urlData } = supabase.storage
-        .from('project-documents')
-        .getPublicUrl(filePath);
-
-      await supabase.from('documents').insert({
-        project_id: projectId,
-        document_type: 'angebot',
-        file_name: fileName,
-        file_url: urlData.publicUrl,
-        file_size: blob.size,
-      });
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
-      toast.success('Angebot wurde generiert und gespeichert (lokal).');
-    } catch (err: any) {
-      toast.error('Fehler beim Generieren: ' + err.message);
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   /** Create or update Zoho Quote, generate template PDF, attach + store. */
   const runZohoQuoteFlow = async (mode: 'create' | 'update') => {
@@ -291,19 +234,16 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
               </div>
             </div>
 
-            {/* PDF Options */}
-            <div className="border rounded-lg p-3 space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">PDF-Optionen (lokales PDF)</p>
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">Einzelpreise anzeigen</Label>
-                <Switch checked={showPrices} onCheckedChange={setShowPrices} />
-              </div>
+            {/* Show prices toggle (used in HTML preview) */}
+            <div className="flex items-center justify-between border rounded-lg px-3 py-2">
+              <Label className="text-sm">Einzelpreise in Vorschau anzeigen</Label>
+              <Switch checked={showPrices} onCheckedChange={setShowPrices} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Button onClick={handleGenerate} disabled={generating} variant="outline">
-                {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-                Lokales PDF
+              <Button onClick={() => setPreviewOpen(true)} variant="outline">
+                <Eye className="h-4 w-4 mr-2" />
+                PDF Vorschau
               </Button>
               <Button onClick={handleZohoClick} disabled={zohoBusy}>
                 {zohoBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
@@ -340,6 +280,24 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {calcData && (
+        <AngebotPreviewDialog
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          projectId={projectId}
+          projectName={projectName}
+          customerName={customerName}
+          customerNumber={customerNumber}
+          customerAddress={customerAddress}
+          contactPerson={contactPerson}
+          angebotNumber={angebotNumber}
+          ansprechpartner={ansprechpartner}
+          calcData={calcData}
+          zusatz={zusatz}
+          quoteId={existingQuoteId}
+        />
+      )}
     </Card>
   );
 }

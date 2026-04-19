@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, Lock } from 'lucide-react';
 
 export interface ZusatzItem {
   active: boolean;
@@ -62,9 +62,24 @@ interface Props {
   value: Zusatzvereinbarungen;
   onChange: (v: Zusatzvereinbarungen) => void;
   defaultOpen?: boolean;
+  /** Read-only values from active calculation (Single Source of Truth) */
+  contractStart?: string | null;
+  deliveryDate?: string | null;
 }
 
-export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen = false }: Props) {
+const formatDateDe = (iso: string | null | undefined) => {
+  if (!iso) return null;
+  try { return new Date(iso).toLocaleDateString('de-DE'); }
+  catch { return iso; }
+};
+
+export default function ZusatzvereinbarungenCard({
+  value,
+  onChange,
+  defaultOpen = false,
+  contractStart,
+  deliveryDate,
+}: Props) {
   // Migration: ensure at least 12 base items
   const items: ZusatzItem[] = value.items && value.items.length >= 12
     ? value.items
@@ -129,7 +144,29 @@ export default function ZusatzvereinbarungenCard({ value, onChange, defaultOpen 
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="space-y-4">
-            {/* Global settings */}
+            {/* Read-only values from Kalkulation (Single Source of Truth) */}
+            {(contractStart || deliveryDate) && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary mb-2">
+                  <Lock className="h-3 w-3" />
+                  Aus Kalkulation übernommen (nicht editierbar)
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Lieferdatum</p>
+                    <p className="font-medium">{formatDateDe(deliveryDate) || '–'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Vertragsbeginn</p>
+                    <p className="font-medium">{formatDateDe(contractStart) || '–'}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Änderungen erfolgen ausschließlich in der Kalkulation.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b">
               <div>
                 <Label>Mietfreie Startphase</Label>

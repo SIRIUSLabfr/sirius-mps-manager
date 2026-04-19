@@ -186,6 +186,8 @@ export default function AngebotPage() {
         value={zusatz}
         onChange={handleZusatzChange}
         defaultOpen={isDaily}
+        contractStart={(calcData?.config_json as any)?.contract_start || null}
+        deliveryDate={(calcData?.config_json as any)?.delivery_date || null}
       />
 
       <AuftragErteiltCard
