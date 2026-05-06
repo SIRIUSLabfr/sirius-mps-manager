@@ -93,10 +93,13 @@ function buildPreviewHtml(p: Props): string {
     })
     .join('');
 
-  // Active Zusatzvereinbarungen
+  // Active Zusatzvereinbarungen (preserve newlines, escape HTML)
+  const escapeHtml = (s: string) => s
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const activeZusatz = (p.zusatz?.items || [])
     .filter(it => it.active && it.text?.trim())
-    .map((it, i) => `<div class="z-item"><span class="z-num">${i + 1}</span>${it.text}</div>`)
+    .map((it, i) => `<div class="z-item"><span class="z-num">${i + 1}</span>${escapeHtml(it.text).replace(/\n/g, '<br>')}</div>`)
     .join('');
 
   return `
