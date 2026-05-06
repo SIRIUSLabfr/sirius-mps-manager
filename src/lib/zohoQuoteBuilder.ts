@@ -74,7 +74,8 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
 
   // ---- Quote payload (only safe-default fields) ----
   const payload: Record<string, any> = {
-    Subject: input.projectName || 'Angebot',
+    Subject: input.projectName?.trim() || `Angebot ${new Date().toLocaleDateString('de-DE')}`,
+    Quote_Stage: 'Draft',
     Valid_Till: input.validity
       ? new Date(Date.now() + input.validity * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       : undefined,
