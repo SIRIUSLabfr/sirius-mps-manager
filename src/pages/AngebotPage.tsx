@@ -196,6 +196,8 @@ export default function AngebotPage() {
         orderConfirmedBy={(project as any)?.order_confirmed_by || null}
         signedDocumentUrl={signedDoc?.file_url || null}
         signedDocZohoId={signedDoc?.zoho_attachment_id || null}
+        zohoEstimateId={(project as any)?.zoho_estimate_id || null}
+        zohoSalesOrderId={(project as any)?.zoho_sales_order_id || null}
       />
 
       <DocumentsList projectId={projectId} />
