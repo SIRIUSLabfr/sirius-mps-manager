@@ -4,6 +4,9 @@
  */
 
 export const QUOTE_INVENTORY_TEMPLATE_ID = '842083000013892883';
+export const QUOTE_LAYOUT_NAME = 'Standard';
+
+let _quoteLayoutIdCache: string | null = null;
 
 export const zohoClient = {
   login: () => {
@@ -148,6 +151,28 @@ export const zohoClient = {
     }
     const result = await zohoClient.api('users?type=AllUsers');
     return (result?.users || []).map((u: any) => ({ ...u, _source: 'crm' }));
+  },
+
+  // ==================== LAYOUTS ====================
+
+  /** List layouts for a module (e.g. Quotes). */
+  getLayouts: async (module: string) => {
+    return zohoClient.api(`settings/layouts?module=${encodeURIComponent(module)}`);
+  },
+
+  /**
+   * Resolve a Layout ID by name (e.g. "Standard") for the Quotes module.
+   * Result is cached for the session.
+   */
+  getQuoteLayoutId: async (layoutName: string = QUOTE_LAYOUT_NAME): Promise<string | null> => {
+    if (_quoteLayoutIdCache) return _quoteLayoutIdCache;
+    const res = await zohoClient.getLayouts('Quotes');
+    const layouts: any[] = res?.layouts || [];
+    const match = layouts.find(l =>
+      l?.name === layoutName || l?.display_label === layoutName || l?.api_name === layoutName,
+    );
+    _quoteLayoutIdCache = match?.id || null;
+    return _quoteLayoutIdCache;
   },
 
   // ==================== QUOTES ====================

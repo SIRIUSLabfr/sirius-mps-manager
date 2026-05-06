@@ -372,10 +372,18 @@ export default function KalkulationPage() {
         `Monatliche Rate: ${fmt2(c.total_rate || 0)} €`,
       ];
 
+      const layoutId = await zohoClient.getQuoteLayoutId();
+      if (!layoutId) {
+        setStatusMsg({ type: 'error', text: 'Zoho-Layout "Standard" nicht gefunden – bitte in Zoho CRM Quote-Layout "Standard" anlegen.' });
+        setCreating(false);
+        return;
+      }
+
       // zohoClient.createQuote wraps the payload in { data: [...] } itself.
       const quotePayload = {
         Subject: `MPS Kostenvoranschlag`,
         Quote_Stage: 'In Arbeit',
+        Layout: { id: layoutId },
         Deal_Name: { id: dealId },
         Valid_Till: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
         Description: summaryLines.join('\n'),
