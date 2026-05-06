@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { zohoClient } from '@/lib/zohoClient';
+import { zohoClient, isZohoIdFresh } from '@/lib/zohoClient';
 import { toast } from 'sonner';
 
 const FIELDS: Array<{ column: 'zoho_estimate_id' | 'zoho_sales_order_id' | 'zoho_deal_id'; module: string; label: string }> = [
@@ -59,6 +59,10 @@ export function useZohoIdValidation(projectId: string | null | undefined) {
       for (const { column, module, label } of FIELDS) {
         const id = (row as any)[column];
         if (!id) continue;
+        // Skip just-created/updated IDs: Zoho's read pipeline can briefly
+        // 404/empty a brand-new record. Without this the validation hook
+        // would dissolve the link the user just created.
+        if (isZohoIdFresh(id)) continue;
         const exists = await zohoClient.recordExists(module, id);
         // null = network/auth issue -> don't touch the field this run
         if (exists === false) {

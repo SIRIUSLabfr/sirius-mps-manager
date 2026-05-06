@@ -8,6 +8,26 @@ export const QUOTE_LAYOUT_NAME = 'Standard';
 
 let _quoteLayoutIdCache: string | null = null;
 
+// IDs the user has just created/updated this session. Validation hooks
+// must NOT clear these for a short grace period, otherwise a freshly
+// created record can be wrongly judged "missing" before Zoho's read
+// pipeline catches up.
+const _freshIds = new Map<string, number>();
+const FRESH_TTL_MS = 5 * 60 * 1000;
+
+export function markZohoIdFresh(id: string | null | undefined) {
+  if (!id) return;
+  _freshIds.set(String(id), Date.now() + FRESH_TTL_MS);
+}
+
+export function isZohoIdFresh(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const exp = _freshIds.get(String(id));
+  if (!exp) return false;
+  if (Date.now() > exp) { _freshIds.delete(String(id)); return false; }
+  return true;
+}
+
 export const zohoClient = {
   login: () => {
     window.location.href = '/.netlify/functions/zoho-auth';
@@ -118,12 +138,14 @@ export const zohoClient = {
 
   /**
    * Check whether a CRM record still exists (not deleted / recycled).
-   * Uses the Search API: a record present in Zoho's recycle bin or hard
-   * deleted will not show up in search results, so an empty result is a
-   * reliable "no longer exists" signal.
+   *
+   * Uses GET /{module}/{id}?fields=id,Record_Status__s — a direct primary-
+   * key lookup with no search-index delay. The fields param ensures Zoho
+   * returns Record_Status__s so we can distinguish "Available" from
+   * recycled records.
    *
    * Returns:
-   *   true  – record found and accessible
+   *   true  – record found and Record_Status__s is Available (or absent)
    *   false – record gone (deleted / recycled / never existed)
    *   null  – network or auth issue, caller should not act on this
    */
@@ -135,7 +157,7 @@ export const zohoClient = {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          endpoint: `${module}/search?criteria=(id:equals:${id})`,
+          endpoint: `${module}/${id}?fields=id,Record_Status__s`,
           method: 'GET',
           api: 'crm',
         }),
@@ -145,8 +167,8 @@ export const zohoClient = {
       // Proxy maps Zoho 204 (empty) to { __empty: true } with HTTP 200.
       if (json?.__empty) return false;
       if (!response.ok) {
-        // INVALID_DATA on a deleted/unknown id is also "gone".
         const code = json?.code || json?.data?.[0]?.code;
+        // INVALID_DATA / NO_DATA on a known-bad id means "gone".
         if (code === 'INVALID_DATA' || code === 'NO_DATA') return false;
         return null;
       }

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject, useProjectDevices } from '@/hooks/useProjectData';
 import { useActiveProject } from '@/hooks/useActiveProject';
-import { zohoClient } from '@/lib/zohoClient';
+import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -124,6 +124,7 @@ export default function PotentialOverviewPage() {
         try {
           const conv = await zohoClient.convertQuoteToSalesOrder(estimateId);
           newSalesOrderId = zohoClient.extractSalesOrderId(conv);
+          markZohoIdFresh(newSalesOrderId);
           if (newSalesOrderId) {
             toast.success(`Auftrag in Zoho angelegt: #${newSalesOrderId}`);
           }

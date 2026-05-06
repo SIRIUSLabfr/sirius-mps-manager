@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Zusatzvereinbarungen } from './ZusatzvereinbarungenCard';
 import { buildQuotePayload } from '@/lib/zohoQuoteBuilder';
-import { zohoClient, QUOTE_INVENTORY_TEMPLATE_ID } from '@/lib/zohoClient';
+import { zohoClient, QUOTE_INVENTORY_TEMPLATE_ID, markZohoIdFresh } from '@/lib/zohoClient';
 import AngebotPreviewDialog from './AngebotPreviewDialog';
 
 interface CalcData {
@@ -139,6 +139,9 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         quoteId = createdResp.details.id;
         await supabase.from('projects').update({ zoho_estimate_id: quoteId }).eq('id', projectId);
       }
+      // Karenz: validation hook darf diese ID 5 min nicht antasten,
+      // bis Zoho's read pipeline den frischen Record sicher serviert.
+      markZohoIdFresh(quoteId);
 
       // 2. Generate PDF via Zoho Inventory Template
       toast.message('Generiere PDF aus Zoho-Vorlage...');

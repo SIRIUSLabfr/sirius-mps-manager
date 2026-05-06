@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useZoho } from '@/hooks/useZoho';
-import { zohoClient } from '@/lib/zohoClient';
+import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
 import { buildQuotePayload } from '@/lib/zohoQuoteBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -347,18 +347,28 @@ export default function KalkulationPage() {
       quotePayload.Terms_and_Conditions = `Laufzeit: ${form.term_months} Monate ab Lieferung. Preise zzgl. MwSt.`;
 
       const result = await zohoClient.createQuote(quotePayload);
-      if (result?.data?.[0]?.status === 'success' || result?.data?.[0]?.code === 'SUCCESS') {
+      const created = result?.data?.[0];
+      if (created?.status === 'success' || created?.code === 'SUCCESS') {
+        const newQuoteId = created?.details?.id;
+        if (newQuoteId) {
+          markZohoIdFresh(newQuoteId);
+          if (activeProjectId) {
+            await supabase.from('projects').update({ zoho_estimate_id: newQuoteId }).eq('id', activeProjectId);
+          }
+        }
         toast.success('Kostenvoranschlag in Zoho CRM erstellt!');
-        // Update deal fields
+        const cfg = (calcDataLike.config_json as any) || {};
+        const calc = cfg.calculated || {};
+        const grps = cfg.device_groups || [];
         await zohoClient.updateDeal(dealId, {
-          MPS_Monatliche_Rate: c.total_rate,
-          MPS_Geraeteanzahl: groups.reduce((s: number, g: any) => s + (g.mainQuantity || 1), 0),
+          MPS_Monatliche_Rate: calc.total_rate ?? calcDataLike.total_monthly_rate,
+          MPS_Geraeteanzahl: grps.reduce((s: number, g: any) => s + (g.mainQuantity || 1), 0),
           MPS_Laufzeit_Monate: form.term_months,
           MPS_Finanzierungsart: form.finance_type,
-          MPS_Volumen_SW: c.total_volume_bw,
-          MPS_Volumen_Farbe: c.total_volume_color,
-          MPS_Mischklick_SW: c.mischklick_bw,
-          MPS_Mischklick_Farbe: c.mischklick_color,
+          MPS_Volumen_SW: calc.total_volume_bw,
+          MPS_Volumen_Farbe: calc.total_volume_color,
+          MPS_Mischklick_SW: calc.mischklick_bw,
+          MPS_Mischklick_Farbe: calc.mischklick_color,
         });
         setStatusMsg({ type: 'success', text: 'Kostenvoranschlag erstellt!' });
       } else {
