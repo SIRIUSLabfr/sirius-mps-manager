@@ -105,8 +105,17 @@ export default async (req: Request) => {
     });
   }
 
-  const result = await zohoResponse.json();
+  const text = await zohoResponse.text();
+  let result: any;
+  if (!text) {
+    // Zoho returns 204 No Content for "record not found / deleted".
+    result = { __empty: true, status: zohoResponse.status };
+  } else {
+    try { result = JSON.parse(text); }
+    catch { result = { __nonJson: true, body: text, status: zohoResponse.status }; }
+  }
   return new Response(JSON.stringify(result), {
+    status: zohoResponse.ok ? 200 : zohoResponse.status,
     headers: { ...corsHeaders, 'Set-Cookie': cookieHeaderOut },
   });
 };

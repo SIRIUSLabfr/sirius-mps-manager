@@ -9,6 +9,7 @@ interface BuildQuotePayloadInput {
   calcData: any;
   zusatz: any;
   validity?: number; // days
+  layoutId?: string;
 }
 
 /**
@@ -81,7 +82,8 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
   // ---- Quote payload ----
   const payload: Record<string, any> = {
     Subject: input.projectName?.trim() || `Angebot ${new Date().toLocaleDateString('de-DE')}`,
-    Quote_Stage: 'Draft',
+    Quote_Stage: 'In Arbeit',
+    Layout: input.layoutId ? { id: input.layoutId } : undefined,
     Valid_Till: input.validity
       ? new Date(Date.now() + input.validity * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       : undefined,

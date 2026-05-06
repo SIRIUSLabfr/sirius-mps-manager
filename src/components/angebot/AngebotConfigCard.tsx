@@ -97,6 +97,15 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         accountId = deal?.Account_Name?.id;
       }
 
+      // Resolve "Standard" Layout ID once per session – the Inventory PDF
+      // template is bound to that layout, otherwise the rendered PDF is wrong.
+      const layoutId = await zohoClient.getQuoteLayoutId();
+      if (!layoutId) {
+        throw new Error(
+          `Zoho-Layout "Standard" nicht gefunden. Bitte in Zoho CRM unter Einstellungen → Layouts ein Layout mit Namen "Standard" für das Modul Angebote anlegen.`,
+        );
+      }
+
       const payload = buildQuotePayload({
         projectName: projectName,
         customerName,
@@ -106,12 +115,15 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         calcData,
         zusatz,
         validity: 30,
+        layoutId,
       });
 
-      // 1. Create or update quote
+      // 1. Create or update quote – Layout only on create (Zoho rejects
+      //    layout changes on existing records unless required fields match).
       let quoteId: string;
       if (mode === 'update' && existingQuoteId) {
-        const upd = await zohoClient.updateQuote(existingQuoteId, payload);
+        const { Layout: _layout, ...updatePayload } = payload;
+        const upd = await zohoClient.updateQuote(existingQuoteId, updatePayload);
         const updResp = upd?.data?.[0];
         if (!updResp || (updResp.code && updResp.code !== 'SUCCESS')) {
           throw new Error(updResp?.message || 'Quote-Update fehlgeschlagen');
@@ -252,9 +264,31 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
             </div>
 
             {existingQuoteId && (
-              <p className="text-xs text-muted-foreground text-center">
-                Bestehendes Zoho-Angebot: <strong>#{existingQuoteId}</strong>
-              </p>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3 py-2">
+                <p className="text-xs text-muted-foreground">
+                  Verknüpft mit Zoho-Angebot <strong>#{existingQuoteId}</strong>
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={async () => {
+                    if (!confirm('Verknüpfung zum Zoho-Angebot wirklich entfernen?\n\nLokale Daten (Kalkulation, Zusatzvereinbarungen, Dokumente) bleiben unverändert. Anschließend kannst du ein neues Angebot in Zoho anlegen.')) return;
+                    const { error } = await supabase
+                      .from('projects')
+                      .update({ zoho_estimate_id: null })
+                      .eq('id', projectId);
+                    if (error) { toast.error('Fehler: ' + error.message); return; }
+                    queryClient.invalidateQueries({ queryKey: ['project_zoho_ids', projectId] });
+                    queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+                    queryClient.invalidateQueries({ queryKey: ['projects'] });
+                    toast.success('Verknüpfung entfernt. Du kannst jetzt ein neues Angebot in Zoho anlegen.');
+                  }}
+                >
+                  Verknüpfung entfernen
+                </Button>
+              </div>
             )}
           </div>
         )}

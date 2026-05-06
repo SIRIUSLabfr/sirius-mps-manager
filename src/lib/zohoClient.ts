@@ -4,6 +4,9 @@
  */
 
 export const QUOTE_INVENTORY_TEMPLATE_ID = '842083000013892883';
+export const QUOTE_LAYOUT_NAME = 'Standard';
+
+let _quoteLayoutIdCache: string | null = null;
 
 export const zohoClient = {
   login: () => {
@@ -113,6 +116,50 @@ export const zohoClient = {
     return zohoClient.api(`Deals/${dealId}`);
   },
 
+  /**
+   * Check whether a CRM record still exists (not deleted / recycled).
+   * Uses the Search API: a record present in Zoho's recycle bin or hard
+   * deleted will not show up in search results, so an empty result is a
+   * reliable "no longer exists" signal.
+   *
+   * Returns:
+   *   true  – record found and accessible
+   *   false – record gone (deleted / recycled / never existed)
+   *   null  – network or auth issue, caller should not act on this
+   */
+  recordExists: async (module: string, id: string): Promise<boolean | null> => {
+    if (!/^\d{6,}$/.test(id)) return false; // garbage / non-Zoho id
+    try {
+      const response = await fetch('/.netlify/functions/zoho-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          endpoint: `${module}/search?criteria=(id:equals:${id})`,
+          method: 'GET',
+          api: 'crm',
+        }),
+      });
+      if (response.status === 401) return null;
+      const json = await response.json().catch(() => ({}));
+      // Proxy maps Zoho 204 (empty) to { __empty: true } with HTTP 200.
+      if (json?.__empty) return false;
+      if (!response.ok) {
+        // INVALID_DATA on a deleted/unknown id is also "gone".
+        const code = json?.code || json?.data?.[0]?.code;
+        if (code === 'INVALID_DATA' || code === 'NO_DATA') return false;
+        return null;
+      }
+      const rec = json?.data?.[0];
+      if (!rec) return false;
+      if (rec.Record_Status__s && rec.Record_Status__s !== 'Available') return false;
+      return true;
+    } catch (e) {
+      console.warn('[Zoho recordExists] network error', e);
+      return null;
+    }
+  },
+
   searchProducts: async (query: string) => {
     return zohoClient.api(`Products/search?word=${encodeURIComponent(query)}`);
   },
@@ -148,6 +195,28 @@ export const zohoClient = {
     }
     const result = await zohoClient.api('users?type=AllUsers');
     return (result?.users || []).map((u: any) => ({ ...u, _source: 'crm' }));
+  },
+
+  // ==================== LAYOUTS ====================
+
+  /** List layouts for a module (e.g. Quotes). */
+  getLayouts: async (module: string) => {
+    return zohoClient.api(`settings/layouts?module=${encodeURIComponent(module)}`);
+  },
+
+  /**
+   * Resolve a Layout ID by name (e.g. "Standard") for the Quotes module.
+   * Result is cached for the session.
+   */
+  getQuoteLayoutId: async (layoutName: string = QUOTE_LAYOUT_NAME): Promise<string | null> => {
+    if (_quoteLayoutIdCache) return _quoteLayoutIdCache;
+    const res = await zohoClient.getLayouts('Quotes');
+    const layouts: any[] = res?.layouts || [];
+    const match = layouts.find(l =>
+      l?.name === layoutName || l?.display_label === layoutName || l?.api_name === layoutName,
+    );
+    _quoteLayoutIdCache = match?.id || null;
+    return _quoteLayoutIdCache;
   },
 
   // ==================== QUOTES ====================
@@ -189,13 +258,13 @@ export const zohoClient = {
 
   /**
    * Convert a Quote to a Sales Order (Zoho CRM convert action).
-   * Returns the new Sales Order ID.
+   * v7 response shape: { data: [{ Sales_Order: "<id>" }] }
    */
   convertQuoteToSalesOrder: async (quoteId: string) => {
     const result = await zohoClient.api(
       `Quotes/${quoteId}/actions/convert`,
       'POST',
-      { data: [{ overwrite: true, notify: false }] },
+      { data: [{ overwrite: true, notify_lead_owner: false, notify_new_entity_owner: false }] },
       'crm',
       { throwOnError: true }
     );
@@ -204,5 +273,20 @@ export const zohoClient = {
       throw new Error(`Zoho Convert: ${item.message || item.code}`);
     }
     return result;
+  },
+
+  /**
+   * Extract the new Sales Order ID from a Quote-convert response.
+   * Tolerates both v7 (Sales_Order: "<id>") and older shapes.
+   */
+  extractSalesOrderId: (conv: any): string | null => {
+    const item = conv?.data?.[0];
+    if (!item) return null;
+    if (typeof item.Sales_Order === 'string') return item.Sales_Order;
+    if (typeof item.SalesOrder === 'string') return item.SalesOrder;
+    return item.details?.Sales_Order?.id
+      || item.details?.SalesOrder?.id
+      || item.details?.id
+      || null;
   },
 };
