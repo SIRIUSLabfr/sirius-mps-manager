@@ -357,29 +357,58 @@ export const zohoClient = {
    * mode the user observed) are treated as miss and the next variant
    * is attempted.
    */
+  /**
+   * List inventory templates available for a module. Useful for diagnosing
+   * "PDF returns {}" – usually means the configured template id doesn't
+   * actually exist in the org or isn't bound to this module.
+   */
+  listInventoryTemplates: async (module: string = 'Quotes') => {
+    return zohoClient.api(`settings/inventory_templates?module=${encodeURIComponent(module)}`);
+  },
+
   getQuotePdf: async (quoteId: string, templateId: string = QUOTE_INVENTORY_TEMPLATE_ID): Promise<Blob | null> => {
-    // Diagnostics from prior runs:
-    //   download_inventory_template -> 400 "relation name invalid" (endpoint doesn't exist)
-    //   POST actions/print          -> 400 INVALID_REQUEST_METHOD
-    //   GET  actions/print?inventory_template_id=  -> 200 with body "{}"
-    // i.e. only GET actions/print is accepted, but the query param doesn't
-    // bind. v7 inventory templates are typically passed as headers; we
-    // also try alternative param names in case the org uses a custom one.
+    // Up to now ALL GET variants of /actions/print returned HTTP 200 with
+    // body "{}" (zero PDF bytes). The endpoint exists but the template
+    // binding clearly isn't working. Two suspected root causes:
+    //   a) Zoho only emits the PDF when the Accept: application/pdf header
+    //      is set – without it, content negotiation may fall back to JSON.
+    //   b) The configured templateId isn't actually a valid inventory
+    //      template for the Quotes module in this org.
+    // We log the available templates for diagnostics, then try a wider
+    // grid of variants including Accept-header forms.
+    try {
+      const tpls = await zohoClient.listInventoryTemplates('Quotes');
+      const list = tpls?.inventory_templates || tpls?.data || [];
+      console.log('[Zoho PDF] available Quote inventory templates:',
+        list.map((t: any) => ({ id: t.id, name: t.name, module: t.module })));
+      const match = list.find((t: any) => String(t.id) === String(templateId));
+      if (!match) {
+        console.error(`[Zoho PDF] configured templateId ${templateId} NOT found in org's Quote inventory templates. Verify QUOTE_INVENTORY_TEMPLATE_ID against the list above.`);
+      }
+    } catch (e) {
+      console.warn('[Zoho PDF] could not list templates', e);
+    }
+
+    const acceptPdf = { Accept: 'application/pdf' };
     const variants: Array<{ label: string; endpoint: string; opts?: any }> = [
-      { label: 'GET actions/print + header inventory_template',
+      { label: 'GET actions/print ?inventory_template_id + Accept:pdf',
+        endpoint: `Quotes/${quoteId}/actions/print?inventory_template_id=${templateId}`,
+        opts: { extraHeaders: acceptPdf } },
+      { label: 'GET actions/download_pdf ?inventory_template_id',
+        endpoint: `Quotes/${quoteId}/actions/download_pdf?inventory_template_id=${templateId}`,
+        opts: { extraHeaders: acceptPdf } },
+      { label: 'GET ?inventory_template_id (no /actions/) + Accept:pdf',
+        endpoint: `Quotes/${quoteId}?inventory_template_id=${templateId}`,
+        opts: { extraHeaders: acceptPdf } },
+      { label: 'GET actions/print ?inventory_template (no _id) + Accept:pdf',
+        endpoint: `Quotes/${quoteId}/actions/print?inventory_template=${templateId}`,
+        opts: { extraHeaders: acceptPdf } },
+      { label: 'GET actions/print ?inventory_template_id + Accept */*',
+        endpoint: `Quotes/${quoteId}/actions/print?inventory_template_id=${templateId}`,
+        opts: { extraHeaders: { Accept: '*/*' } } },
+      { label: 'GET actions/print + header inventory_template + Accept:pdf',
         endpoint: `Quotes/${quoteId}/actions/print`,
-        opts: { extraHeaders: { 'inventory_template': templateId } } },
-      { label: 'GET actions/print + header X-Inventory-Template-Id',
-        endpoint: `Quotes/${quoteId}/actions/print`,
-        opts: { extraHeaders: { 'X-Inventory-Template-Id': templateId } } },
-      { label: 'GET actions/print + ?template_id',
-        endpoint: `Quotes/${quoteId}/actions/print?template_id=${templateId}` },
-      { label: 'GET actions/preview + ?inventory_template_id',
-        endpoint: `Quotes/${quoteId}/actions/preview?inventory_template_id=${templateId}` },
-      { label: 'GET actions/print + ?inventory_template_id (legacy fallback)',
-        endpoint: `Quotes/${quoteId}/actions/print?inventory_template_id=${templateId}` },
-      { label: 'GET InventoryTemplates/{tpl}/actions/render?id={quote}',
-        endpoint: `InventoryTemplates/${templateId}/actions/render?id=${quoteId}` },
+        opts: { extraHeaders: { ...acceptPdf, 'inventory_template': templateId } } },
     ];
     for (let i = 0; i < variants.length; i++) {
       const v = variants[i];
