@@ -118,25 +118,40 @@ export const zohoClient = {
 
   /**
    * Check whether a CRM record still exists (not deleted / recycled).
-   * Returns false on 204 / not-found, true on a populated GET, null on
-   * unauthenticated or network errors so callers can skip silently.
+   * Uses the Search API: a record present in Zoho's recycle bin or hard
+   * deleted will not show up in search results, so an empty result is a
+   * reliable "no longer exists" signal.
+   *
+   * Returns:
+   *   true  – record found and accessible
+   *   false – record gone (deleted / recycled / never existed)
+   *   null  – network or auth issue, caller should not act on this
    */
   recordExists: async (module: string, id: string): Promise<boolean | null> => {
+    if (!/^\d{6,}$/.test(id)) return false; // garbage / non-Zoho id
     try {
       const response = await fetch('/.netlify/functions/zoho-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ endpoint: `${module}/${id}`, method: 'GET', api: 'crm' }),
+        body: JSON.stringify({
+          endpoint: `${module}/search?criteria=(id:equals:${id})`,
+          method: 'GET',
+          api: 'crm',
+        }),
       });
       if (response.status === 401) return null;
-      if (response.status === 404) return false;
       const json = await response.json().catch(() => ({}));
+      // Proxy maps Zoho 204 (empty) to { __empty: true } with HTTP 200.
       if (json?.__empty) return false;
-      if (!response.ok) return null;
+      if (!response.ok) {
+        // INVALID_DATA on a deleted/unknown id is also "gone".
+        const code = json?.code || json?.data?.[0]?.code;
+        if (code === 'INVALID_DATA' || code === 'NO_DATA') return false;
+        return null;
+      }
       const rec = json?.data?.[0];
       if (!rec) return false;
-      // Zoho marks recycled records with Record_Status__s = 'Trash'.
       if (rec.Record_Status__s && rec.Record_Status__s !== 'Available') return false;
       return true;
     } catch (e) {
