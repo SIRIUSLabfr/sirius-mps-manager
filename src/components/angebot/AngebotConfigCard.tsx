@@ -264,15 +264,17 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
             </div>
 
             {existingQuoteId && (
-              <div className="text-xs text-muted-foreground text-center space-y-1">
-                <p>
-                  Bestehendes Zoho-Angebot: <strong>#{existingQuoteId}</strong>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3 py-2">
+                <p className="text-xs text-muted-foreground">
+                  Verknüpft mit Zoho-Angebot <strong>#{existingQuoteId}</strong>
                 </p>
-                <button
+                <Button
                   type="button"
-                  className="text-[11px] underline hover:text-foreground"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={async () => {
-                    if (!confirm('Verknüpfung zum Zoho-Angebot wirklich entfernen? Lokale Daten (Kalkulation, Zusatzvereinbarungen, Dokumente) bleiben unverändert.')) return;
+                    if (!confirm('Verknüpfung zum Zoho-Angebot wirklich entfernen?\n\nLokale Daten (Kalkulation, Zusatzvereinbarungen, Dokumente) bleiben unverändert. Anschließend kannst du ein neues Angebot in Zoho anlegen.')) return;
                     const { error } = await supabase
                       .from('projects')
                       .update({ zoho_estimate_id: null })
@@ -285,7 +287,7 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
                   }}
                 >
                   Verknüpfung entfernen
-                </button>
+                </Button>
               </div>
             )}
           </div>
