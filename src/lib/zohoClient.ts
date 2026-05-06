@@ -119,7 +119,7 @@ export const zohoClient = {
   apiBinary: async (
     endpoint: string,
     api: string = 'crm',
-    opts?: { method?: 'GET' | 'POST'; data?: any },
+    opts?: { method?: 'GET' | 'POST'; data?: any; extraHeaders?: Record<string, string> },
   ): Promise<Blob | null> => {
     const response = await fetch('/.netlify/functions/zoho-api', {
       method: 'POST',
@@ -131,6 +131,7 @@ export const zohoClient = {
         data: opts?.data,
         api,
         responseType: 'binary',
+        extraHeaders: opts?.extraHeaders,
       }),
     });
     const json = await response.json().catch(() => null);
@@ -357,32 +358,40 @@ export const zohoClient = {
    * is attempted.
    */
   getQuotePdf: async (quoteId: string, templateId: string = QUOTE_INVENTORY_TEMPLATE_ID): Promise<Blob | null> => {
-    const tries: Array<() => Promise<Blob | null>> = [
-      // 1) GET download_inventory_template – the canonical v7 PDF endpoint
-      () => zohoClient.apiBinary(
-        `Quotes/${quoteId}/download_inventory_template?inventory_template_id=${templateId}`,
-      ),
-      // 2) GET actions/print with query param – legacy variant
-      () => zohoClient.apiBinary(
-        `Quotes/${quoteId}/actions/print?inventory_template_id=${templateId}`,
-      ),
-      // 3) POST actions/print with JSON body – v7 standard for some orgs
-      () => zohoClient.apiBinary(
-        `Quotes/${quoteId}/actions/print`,
-        'crm',
-        { method: 'POST', data: { data: [{ inventory_template_id: templateId }] } },
-      ),
+    // Diagnostics from prior runs:
+    //   download_inventory_template -> 400 "relation name invalid" (endpoint doesn't exist)
+    //   POST actions/print          -> 400 INVALID_REQUEST_METHOD
+    //   GET  actions/print?inventory_template_id=  -> 200 with body "{}"
+    // i.e. only GET actions/print is accepted, but the query param doesn't
+    // bind. v7 inventory templates are typically passed as headers; we
+    // also try alternative param names in case the org uses a custom one.
+    const variants: Array<{ label: string; endpoint: string; opts?: any }> = [
+      { label: 'GET actions/print + header inventory_template',
+        endpoint: `Quotes/${quoteId}/actions/print`,
+        opts: { extraHeaders: { 'inventory_template': templateId } } },
+      { label: 'GET actions/print + header X-Inventory-Template-Id',
+        endpoint: `Quotes/${quoteId}/actions/print`,
+        opts: { extraHeaders: { 'X-Inventory-Template-Id': templateId } } },
+      { label: 'GET actions/print + ?template_id',
+        endpoint: `Quotes/${quoteId}/actions/print?template_id=${templateId}` },
+      { label: 'GET actions/preview + ?inventory_template_id',
+        endpoint: `Quotes/${quoteId}/actions/preview?inventory_template_id=${templateId}` },
+      { label: 'GET actions/print + ?inventory_template_id (legacy fallback)',
+        endpoint: `Quotes/${quoteId}/actions/print?inventory_template_id=${templateId}` },
+      { label: 'GET InventoryTemplates/{tpl}/actions/render?id={quote}',
+        endpoint: `InventoryTemplates/${templateId}/actions/render?id=${quoteId}` },
     ];
-    for (let i = 0; i < tries.length; i++) {
+    for (let i = 0; i < variants.length; i++) {
+      const v = variants[i];
       try {
-        const blob = await tries[i]();
+        const blob = await zohoClient.apiBinary(v.endpoint, 'crm', v.opts);
         if (blob && blob.size > 1024 && blob.type.includes('pdf')) {
-          console.log('[Zoho PDF] variant', i + 1, 'succeeded:', blob.size, 'bytes');
+          console.log(`[Zoho PDF] variant ${i + 1} (${v.label}) succeeded:`, blob.size, 'bytes');
           return blob;
         }
-        console.warn('[Zoho PDF] variant', i + 1, 'returned no usable PDF', blob?.size, blob?.type);
+        console.warn(`[Zoho PDF] variant ${i + 1} (${v.label}) no PDF:`, blob?.size, blob?.type);
       } catch (e: any) {
-        console.warn('[Zoho PDF] variant', i + 1, 'failed:', e?.message || e);
+        console.warn(`[Zoho PDF] variant ${i + 1} (${v.label}) failed:`, e?.message || e);
       }
     }
     return null;
