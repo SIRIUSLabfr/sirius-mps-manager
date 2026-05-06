@@ -30,11 +30,22 @@ export const zohoClient = {
 
     const json = await response.json().catch(() => ({}));
 
+    const formatErr = (item: any, fallback: string) => {
+      const msg = item?.message || fallback;
+      let detailStr = '';
+      if (item?.details) {
+        try {
+          detailStr = typeof item.details === 'string'
+            ? item.details
+            : JSON.stringify(item.details);
+        } catch { detailStr = String(item.details); }
+      }
+      return detailStr ? `${msg} – ${detailStr}` : msg;
+    };
+
     if (!response.ok) {
-      const item = json?.data?.[0] || {};
-      const apiName = item?.details?.api_name || item?.details?.expected_data_type || '';
-      const msg = item?.message || json?.message || json?.error || `HTTP ${response.status}`;
-      const full = apiName ? `${msg} (Feld: ${apiName})` : msg;
+      const item = json?.data?.[0] || json || {};
+      const full = formatErr(item, json?.message || json?.error || `HTTP ${response.status}`);
       console.error('Zoho API error', { endpoint, method, status: response.status, json });
       if (opts?.throwOnError) throw new Error(`Zoho ${response.status}: ${full}`);
       return null;
@@ -43,9 +54,7 @@ export const zohoClient = {
     // Zoho often returns 200 with per-record errors
     if (json?.data?.[0]?.code && json.data[0].code !== 'SUCCESS') {
       const item = json.data[0];
-      const apiName = item?.details?.api_name || '';
-      const msg = item?.message || item?.code;
-      const full = apiName ? `${msg} (Feld: ${apiName})` : msg;
+      const full = formatErr(item, item.code);
       console.error('Zoho API record error', { endpoint, method, json });
       if (opts?.throwOnError) throw new Error(`Zoho: ${full}`);
       return null;
