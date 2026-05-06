@@ -72,9 +72,7 @@ export default function AuftragErteiltCard({ projectId, orderConfirmedAt, orderC
       if (zohoEstimateId && !zohoSalesOrderId) {
         try {
           const conv = await zohoClient.convertQuoteToSalesOrder(zohoEstimateId);
-          newSalesOrderId = conv?.data?.[0]?.details?.SalesOrder?.id
-            || conv?.data?.[0]?.details?.id
-            || null;
+          newSalesOrderId = zohoClient.extractSalesOrderId(conv);
           if (newSalesOrderId) {
             toast.success(`Auftrag in Zoho angelegt: #${newSalesOrderId}`);
           }

@@ -330,22 +330,34 @@ export default function KalkulationPage() {
       const fmt2 = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const fmt4d = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 
-      // Build line items
+      // Build line items (Zoho v7 Quoted_Items requires Product_Name.id per row)
+      const isZohoId = (v: any) => /^\d{6,}$/.test(String(v ?? ''));
       const lineItems: any[] = [];
       groups.forEach((group: any) => {
-        lineItems.push({ Product_Description: `── STANDORT: ${group.label || 'Unbenannt'} ──`, quantity: 0, list_price: 0, Discount: 0, net_total: 0 });
-        if (group.mainDevice?.name) {
-          lineItems.push({ product: group.mainDevice.id && !group.mainDevice.id.startsWith('manual-') ? { id: group.mainDevice.id } : undefined, Product_Description: group.mainDevice.name, quantity: group.mainQuantity || 1, list_price: group.mainDevice.price || 0, Discount: 0 });
+        if (group.mainDevice?.name && isZohoId(group.mainDevice.id)) {
+          lineItems.push({
+            Product_Name: { id: group.mainDevice.id, name: group.mainDevice.name },
+            Quantity: group.mainQuantity || 1,
+            List_Price: group.mainDevice.price || 0,
+            Discount: 0,
+          });
         }
         (group.accessories || []).forEach((acc: any) => {
-          if (acc.product?.name) {
-            lineItems.push({ product: acc.product.id && !acc.product.id.startsWith('manual-') ? { id: acc.product.id } : undefined, Product_Description: acc.product.name, quantity: acc.quantity || 1, list_price: acc.product.price || 0, Discount: 0 });
+          if (acc.product?.name && isZohoId(acc.product.id)) {
+            lineItems.push({
+              Product_Name: { id: acc.product.id, name: acc.product.name },
+              Quantity: acc.quantity || 1,
+              List_Price: acc.product.price || 0,
+              Discount: 0,
+            });
           }
         });
-        const pp = group.page_prices;
-        if (pp?.bw) lineItems.push({ Product_Description: `Seitenpreis S/W (${pp.bw.volume?.toLocaleString('de-DE')} S/M)`, quantity: pp.bw.volume || 0, list_price: pp.bw.price || 0, Discount: 0 });
-        if (pp?.color) lineItems.push({ Product_Description: `Seitenpreis Farbe (${pp.color.volume?.toLocaleString('de-DE')} S/M)`, quantity: pp.color.volume || 0, list_price: pp.color.price || 0, Discount: 0 });
       });
+      if (lineItems.length === 0) {
+        setStatusMsg({ type: 'error', text: 'Keine mit Zoho verknüpften Produkte – bitte mindestens ein Gerät über die Zoho-Produktsuche zuweisen.' });
+        setCreating(false);
+        return;
+      }
 
       // Summary description
       const financeLabels: Record<string, string> = { leasing: 'Leasing (Bank)', miete: 'Miete (Eigen)', eigenmiete: 'Eigenmiete (SIRIUS)', kauf_wv: 'Kauf + Wartungsvertrag', all_in: 'All-In-Vertrag' };
@@ -360,19 +372,19 @@ export default function KalkulationPage() {
         `Monatliche Rate: ${fmt2(c.total_rate || 0)} €`,
       ];
 
+      // zohoClient.createQuote wraps the payload in { data: [...] } itself.
       const quotePayload = {
-        data: [{
-          Subject: `MPS Kostenvoranschlag`,
-          Deal_Name: { id: dealId },
-          Valid_Till: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
-          Description: summaryLines.join('\n'),
-          Terms_and_Conditions: `Laufzeit: ${form.term_months} Monate ab Lieferung. Preise zzgl. MwSt.`,
-          Quoted_Items: lineItems,
-        }],
+        Subject: `MPS Kostenvoranschlag`,
+        Quote_Stage: 'In Arbeit',
+        Deal_Name: { id: dealId },
+        Valid_Till: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+        Description: summaryLines.join('\n'),
+        Terms_and_Conditions: `Laufzeit: ${form.term_months} Monate ab Lieferung. Preise zzgl. MwSt.`,
+        Quoted_Items: lineItems,
       };
 
       const result = await zohoClient.createQuote(quotePayload);
-      if (result?.data?.[0]?.status === 'success') {
+      if (result?.data?.[0]?.status === 'success' || result?.data?.[0]?.code === 'SUCCESS') {
         toast.success('Kostenvoranschlag in Zoho CRM erstellt!');
         // Update deal fields
         await zohoClient.updateDeal(dealId, {

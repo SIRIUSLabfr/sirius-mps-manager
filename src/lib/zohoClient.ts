@@ -189,13 +189,13 @@ export const zohoClient = {
 
   /**
    * Convert a Quote to a Sales Order (Zoho CRM convert action).
-   * Returns the new Sales Order ID.
+   * v7 response shape: { data: [{ Sales_Order: "<id>" }] }
    */
   convertQuoteToSalesOrder: async (quoteId: string) => {
     const result = await zohoClient.api(
       `Quotes/${quoteId}/actions/convert`,
       'POST',
-      { data: [{ overwrite: true, notify: false }] },
+      { data: [{ overwrite: true, notify_lead_owner: false, notify_new_entity_owner: false }] },
       'crm',
       { throwOnError: true }
     );
@@ -204,5 +204,20 @@ export const zohoClient = {
       throw new Error(`Zoho Convert: ${item.message || item.code}`);
     }
     return result;
+  },
+
+  /**
+   * Extract the new Sales Order ID from a Quote-convert response.
+   * Tolerates both v7 (Sales_Order: "<id>") and older shapes.
+   */
+  extractSalesOrderId: (conv: any): string | null => {
+    const item = conv?.data?.[0];
+    if (!item) return null;
+    if (typeof item.Sales_Order === 'string') return item.Sales_Order;
+    if (typeof item.SalesOrder === 'string') return item.SalesOrder;
+    return item.details?.Sales_Order?.id
+      || item.details?.SalesOrder?.id
+      || item.details?.id
+      || null;
   },
 };
