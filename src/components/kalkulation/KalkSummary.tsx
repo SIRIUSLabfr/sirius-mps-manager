@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,17 @@ export default function KalkSummary({
   onFolgeseitenpreisChange,
 }: KalkSummaryProps) {
   const investTotal = hardwareEkTotal + marginTotal + abloeseTotal;
+
+  const formatPrice = (v: number) =>
+    v === 0 ? '' : v.toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
+  const [swInput, setSwInput] = useState(formatPrice(folgeseitenpreisSw));
+  const [farbeInput, setFarbeInput] = useState(formatPrice(folgeseitenpreisFarbe));
+  const [swFocused, setSwFocused] = useState(false);
+  const [farbeFocused, setFarbeFocused] = useState(false);
+
+  useEffect(() => { if (!swFocused) setSwInput(formatPrice(folgeseitenpreisSw)); }, [folgeseitenpreisSw, swFocused]);
+  useEffect(() => { if (!farbeFocused) setFarbeInput(formatPrice(folgeseitenpreisFarbe)); }, [folgeseitenpreisFarbe, farbeFocused]);
 
   const Row = ({
     label,
@@ -114,14 +126,21 @@ export default function KalkSummary({
               <Input
                 type="text"
                 inputMode="decimal"
-                value={folgeseitenpreisSw || ''}
+                value={swInput}
                 onChange={(e) => {
-                  const v = e.target.value.replace(',', '.');
+                  const raw = e.target.value;
+                  const v = raw.replace(',', '.');
                   if (v === '' || /^\d*\.?\d{0,4}$/.test(v)) {
-                    onFolgeseitenpreisChange('sw', parseFloat(v) || 0);
+                    setSwInput(raw);
+                    if (v !== '' && v !== '.') {
+                      onFolgeseitenpreisChange('sw', parseFloat(v));
+                    } else if (v === '') {
+                      onFolgeseitenpreisChange('sw', 0);
+                    }
                   }
                 }}
-                onFocus={(e) => e.target.select()}
+                onFocus={(e) => { setSwFocused(true); e.target.select(); }}
+                onBlur={() => { setSwFocused(false); setSwInput(formatPrice(folgeseitenpreisSw)); }}
                 className="h-8 text-center text-sm font-heading font-bold border-0 bg-transparent shadow-none px-1"
                 style={{ color: '#00A3E0' }}
                 placeholder="0,0000"
@@ -132,14 +151,21 @@ export default function KalkSummary({
               <Input
                 type="text"
                 inputMode="decimal"
-                value={folgeseitenpreisFarbe || ''}
+                value={farbeInput}
                 onChange={(e) => {
-                  const v = e.target.value.replace(',', '.');
+                  const raw = e.target.value;
+                  const v = raw.replace(',', '.');
                   if (v === '' || /^\d*\.?\d{0,4}$/.test(v)) {
-                    onFolgeseitenpreisChange('farbe', parseFloat(v) || 0);
+                    setFarbeInput(raw);
+                    if (v !== '' && v !== '.') {
+                      onFolgeseitenpreisChange('farbe', parseFloat(v));
+                    } else if (v === '') {
+                      onFolgeseitenpreisChange('farbe', 0);
+                    }
                   }
                 }}
-                onFocus={(e) => e.target.select()}
+                onFocus={(e) => { setFarbeFocused(true); e.target.select(); }}
+                onBlur={() => { setFarbeFocused(false); setFarbeInput(formatPrice(folgeseitenpreisFarbe)); }}
                 className="h-8 text-center text-sm font-heading font-bold border-0 bg-transparent shadow-none px-1"
                 style={{ color: '#00A3E0' }}
                 placeholder="0,0000"

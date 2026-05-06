@@ -106,7 +106,7 @@ export default function ServiceCard({ config, onChange, mischklick }: Props) {
       </CardHeader>
       <CardContent className="space-y-3">
         {config.items.map((it, i) => (
-          <div key={it.id} className="grid grid-cols-[90px_1fr_100px_100px_28px] gap-2 items-end">
+          <div key={it.id} className="grid grid-cols-[80px_minmax(0,1fr)_90px_90px_28px] gap-2 items-end min-w-0">
             <Select
               value={it.type}
               onValueChange={(v) => updateItem(i, { type: v as 'bw' | 'color' })}
@@ -124,6 +124,7 @@ export default function ServiceCard({ config, onChange, mischklick }: Props) {
               onChange={(p) => updateItem(i, { product: p })}
               filterType={it.type === 'bw' ? 'service_bw' : 'service_color'}
               placeholder="Klick-Modell suchen..."
+              className="min-w-0"
             />
             <Input
               type="number"
