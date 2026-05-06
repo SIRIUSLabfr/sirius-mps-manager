@@ -19,51 +19,62 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
   const cfg = input.calcData?.config_json || {};
   const groups = cfg.device_groups || cfg.deviceGroups || [];
   const calc = cfg.calculated || {};
+  const mixServiceItems: any[] = cfg.mix_service_items || cfg.service?.items || [];
 
-  // ---- Line items: one per device group ----
+  // ---- Line items: every line MUST have a Zoho product reference ----
   const productDetails: any[] = [];
 
   groups.forEach((g: any, idx: number) => {
+    const main = g.mainDevice || null;
+    const productId = main?.id && !String(main.id).startsWith('manual-') ? main.id : g.zoho_product_id;
+    if (!productId) return; // Zoho rejects product details without product id
+
     const qty = g.mainQuantity || g.quantity || 1;
-    const unitPrice = g.priceVk || g.vk || g.priceEk || g.ek || 0;
-    const productName = `${g.manufacturer || ''} ${g.model || ''}`.trim() || `Gerät ${idx + 1}`;
+    const unitPrice = main?.price ?? g.priceVk ?? g.vk ?? g.priceEk ?? g.ek ?? 0;
+    const productName =
+      main?.name || `${g.manufacturer || ''} ${g.model || ''}`.trim() || `Gerät ${idx + 1}`;
 
     productDetails.push({
-      product: g.zoho_product_id ? { id: g.zoho_product_id } : undefined,
+      product: { id: productId, name: productName },
       product_name: productName,
       quantity: qty,
       list_price: unitPrice,
       Discount: 0,
       Tax: 0,
-      product_description: [g.options, g.accessories].filter(Boolean).join(' · ') || undefined,
+    });
+
+    // Accessories (each may have its own zoho product)
+    (g.accessories || []).forEach((acc: any) => {
+      const accId = acc?.id && !String(acc.id).startsWith('manual-') ? acc.id : null;
+      if (!accId) return;
+      productDetails.push({
+        product: { id: accId, name: acc.name },
+        product_name: acc.name,
+        quantity: acc.quantity || qty,
+        list_price: acc.price || 0,
+        Discount: 0,
+        Tax: 0,
+      });
     });
   });
 
-  // ---- Service / Leasing block as separate lines ----
-  if (input.calcData?.service_rate) {
+  // Mischkalkulation service items as additional line items (only if linked to Zoho product)
+  mixServiceItems.forEach((it: any) => {
+    const p = it.product;
+    if (!p?.id || String(p.id).startsWith('manual-')) return;
     productDetails.push({
-      product_name: 'Service-Pauschale (monatlich)',
-      quantity: 1,
-      list_price: input.calcData.service_rate,
+      product: { id: p.id, name: p.name },
+      product_name: p.name,
+      quantity: it.quantity || 1,
+      list_price: p.price || 0,
       Discount: 0,
       Tax: 0,
     });
-  }
+  });
 
-  if (input.calcData?.total_monthly_rate) {
-    productDetails.push({
-      product_name: `Monatliche Gesamtrate (${input.calcData.term_months || 60} Monate)`,
-      quantity: 1,
-      list_price: input.calcData.total_monthly_rate,
-      Discount: 0,
-      Tax: 0,
-    });
-  }
-
-  // ---- Quote payload ----
+  // ---- Quote payload (only safe-default fields) ----
   const payload: Record<string, any> = {
     Subject: input.projectName || 'Angebot',
-    Quote_Stage: 'Draft',
     Valid_Till: input.validity
       ? new Date(Date.now() + input.validity * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       : undefined,
@@ -71,18 +82,17 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     Contact_Name: input.contactZohoId ? { id: input.contactZohoId } : undefined,
     Account_Name: input.accountZohoId ? { id: input.accountZohoId } : undefined,
     Product_Details: productDetails,
-    Sub_Total: calc.total_hardware_ek || input.calcData?.total_hardware_ek || 0,
-    Grand_Total: input.calcData?.total_monthly_rate || 0,
-    // Custom fields (snake_cf_*) – names depend on Zoho org config; Zoho ignores unknown fields
     Description: [
       `Vertragsart: ${input.calcData?.finance_type || '–'}`,
       `Laufzeit: ${input.calcData?.term_months || '–'} Monate`,
       `Leasingfaktor: ${input.calcData?.leasing_factor || '–'}`,
       `Marge: ${input.calcData?.margin_total || '–'}`,
+      `Monatliche Gesamtrate: ${input.calcData?.total_monthly_rate || 0} €`,
+      `Service-Pauschale: ${input.calcData?.service_rate || 0} €`,
       `S/W-Volumen: ${calc.total_volume_bw || 0} Seiten/Monat`,
       `Farb-Volumen: ${calc.total_volume_color || 0} Seiten/Monat`,
-      `Folgeseiten S/W: ${calc.folgeseitenpreis_sw || 0} €`,
-      `Folgeseiten Farbe: ${calc.folgeseitenpreis_farbe || 0} €`,
+      `Folgeseiten S/W: ${calc.folgeseitenpreis_sw || cfg.folgeseitenpreis_sw || 0} €`,
+      `Folgeseiten Farbe: ${calc.folgeseitenpreis_farbe || cfg.folgeseitenpreis_farbe || 0} €`,
       input.zusatz?.mietfreie_startphase ? `Mietfreie Startphase: ${input.zusatz.mietfreie_startphase}` : '',
       input.zusatz?.berechnungsintervall ? `Berechnungsintervall: ${input.zusatz.berechnungsintervall}` : '',
     ].filter(Boolean).join('\n'),

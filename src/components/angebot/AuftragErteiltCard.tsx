@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { zohoClient } from '@/lib/zohoClient';
 
 interface Props {
   projectId: string;
@@ -17,9 +18,11 @@ interface Props {
   orderConfirmedBy: string | null;
   signedDocumentUrl: string | null;
   signedDocZohoId: string | null;
+  zohoEstimateId?: string | null;
+  zohoSalesOrderId?: string | null;
 }
 
-export default function AuftragErteiltCard({ projectId, orderConfirmedAt, orderConfirmedBy, signedDocumentUrl, signedDocZohoId }: Props) {
+export default function AuftragErteiltCard({ projectId, orderConfirmedAt, orderConfirmedBy, signedDocumentUrl, signedDocZohoId, zohoEstimateId, zohoSalesOrderId }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
@@ -64,6 +67,23 @@ export default function AuftragErteiltCard({ projectId, orderConfirmedAt, orderC
         .single();
       if (docErr) throw docErr;
 
+      // Convert Zoho Quote → Sales Order (if not yet converted)
+      let newSalesOrderId: string | null = null;
+      if (zohoEstimateId && !zohoSalesOrderId) {
+        try {
+          const conv = await zohoClient.convertQuoteToSalesOrder(zohoEstimateId);
+          newSalesOrderId = conv?.data?.[0]?.details?.SalesOrder?.id
+            || conv?.data?.[0]?.details?.id
+            || null;
+          if (newSalesOrderId) {
+            toast.success(`Auftrag in Zoho angelegt: #${newSalesOrderId}`);
+          }
+        } catch (convErr: any) {
+          console.warn('Zoho-Convert fehlgeschlagen:', convErr);
+          toast.warning('Lokal bestätigt – Zoho-Convert fehlgeschlagen: ' + (convErr.message || convErr));
+        }
+      }
+
       // Update project
       const { error: projErr } = await supabase
         .from('projects')
@@ -72,6 +92,7 @@ export default function AuftragErteiltCard({ projectId, orderConfirmedAt, orderC
           order_confirmed_by: 'Aktueller Benutzer',
           signed_document_id: doc.id,
           status: 'preparation',
+          ...(newSalesOrderId ? { zoho_sales_order_id: newSalesOrderId } : {}),
         })
         .eq('id', projectId);
       if (projErr) throw projErr;

@@ -10,25 +10,37 @@ export const zohoClient = {
     window.location.href = '/.netlify/functions/zoho-auth';
   },
 
-  api: async (endpoint: string, method: string = 'GET', data?: any, api: string = 'crm'): Promise<any | null> => {
-    try {
-      const response = await fetch('/.netlify/functions/zoho-api', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ endpoint, method, data, api }),
-      });
+  api: async (endpoint: string, method: string = 'GET', data?: any, api: string = 'crm', opts?: { throwOnError?: boolean }): Promise<any | null> => {
+    const response = await fetch('/.netlify/functions/zoho-api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ endpoint, method, data, api }),
+    }).catch((e) => {
+      console.warn('Zoho network error:', e);
+      if (opts?.throwOnError) throw e;
+      return null as any;
+    });
+    if (!response) return null;
 
-      if (response.status === 401) {
-        return null;
-      }
-
-      return await response.json();
-    } catch (e) {
-      console.warn('Zoho API Fehler:', e);
+    if (response.status === 401) {
+      if (opts?.throwOnError) throw new Error('Zoho 401: nicht authentifiziert. Bitte erneut mit Zoho verbinden.');
       return null;
     }
+
+    const json = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const msg = json?.message || json?.error || json?.data?.[0]?.message || `HTTP ${response.status}`;
+      console.error('Zoho API error', { endpoint, method, status: response.status, json });
+      if (opts?.throwOnError) throw new Error(`Zoho ${response.status}: ${msg}`);
+      return null;
+    }
+
+    return json;
   },
+
+
 
   /** Download a binary asset (PDF) from Zoho */
   apiBinary: async (endpoint: string, api: string = 'crm'): Promise<Blob | null> => {
@@ -116,12 +128,12 @@ export const zohoClient = {
 
   /** Create a Zoho CRM Quote. Pass full payload (will be wrapped in {data:[]}). */
   createQuote: async (quote: Record<string, any>) => {
-    return zohoClient.api('Quotes', 'POST', { data: [quote] });
+    return zohoClient.api('Quotes', 'POST', { data: [quote] }, 'crm', { throwOnError: true });
   },
 
   /** Update an existing Quote. */
   updateQuote: async (quoteId: string, fields: Record<string, any>) => {
-    return zohoClient.api('Quotes', 'PUT', { data: [{ id: quoteId, ...fields }] });
+    return zohoClient.api('Quotes', 'PUT', { data: [{ id: quoteId, ...fields }] }, 'crm', { throwOnError: true });
   },
 
   /** Get a Quote record */
@@ -154,8 +166,17 @@ export const zohoClient = {
    * Returns the new Sales Order ID.
    */
   convertQuoteToSalesOrder: async (quoteId: string) => {
-    return zohoClient.api(`Quotes/${quoteId}/actions/convert`, 'POST', {
-      data: [{ overwrite: true }],
-    });
+    const result = await zohoClient.api(
+      `Quotes/${quoteId}/actions/convert`,
+      'POST',
+      { data: [{ overwrite: true, notify: false }] },
+      'crm',
+      { throwOnError: true }
+    );
+    const item = result?.data?.[0];
+    if (item?.code && item.code !== 'SUCCESS') {
+      throw new Error(`Zoho Convert: ${item.message || item.code}`);
+    }
+    return result;
   },
 };
