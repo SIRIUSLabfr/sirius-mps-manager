@@ -143,7 +143,20 @@ export default function ZusatzvereinbarungenCard({
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
             <CardTitle className="flex items-center justify-between text-base">
-              <span>📋 Zusatzvereinbarungen</span>
+              <span className="flex items-center gap-2">
+                <span>📋 Zusatzvereinbarungen</span>
+                {saving ? (
+                  <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Speichert…
+                  </span>
+                ) : dirty ? (
+                  <span className="text-xs font-normal text-amber-600">● Ungespeicherte Änderungen</span>
+                ) : (
+                  <span className="text-xs font-normal text-emerald-600 inline-flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Gespeichert
+                  </span>
+                )}
+              </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
             </CardTitle>
           </CardHeader>
