@@ -303,6 +303,22 @@ export default function ZusatzvereinbarungenCard({
             >
               <Plus className="h-3.5 w-3.5 mr-1" /> Weitere Vereinbarung hinzufügen
             </Button>
+
+            {onSaveNow && (
+              <Button
+                size="sm"
+                className="w-full h-9"
+                onClick={onSaveNow}
+                disabled={saving || !dirty}
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {saving ? 'Speichert…' : dirty ? 'Jetzt speichern' : 'Gespeichert'}
+              </Button>
+            )}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
