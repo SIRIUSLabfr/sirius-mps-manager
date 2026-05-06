@@ -24,9 +24,15 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
   // ---- Line items: every line MUST have a Zoho product reference ----
   const quotedItems: any[] = [];
 
+  // Zoho IDs are numeric strings (long). Reject UUIDs, "manual-…", empty.
+  const isZohoId = (v: any): boolean => {
+    if (v === null || v === undefined) return false;
+    return /^\d{6,}$/.test(String(v));
+  };
+
   groups.forEach((g: any, idx: number) => {
     const main = g.mainDevice || null;
-    const productId = main?.id && !String(main.id).startsWith('manual-') ? main.id : g.zoho_product_id;
+    const productId = isZohoId(main?.id) ? main.id : (isZohoId(g.zoho_product_id) ? g.zoho_product_id : null);
     if (!productId) return;
 
     const qty = g.mainQuantity || g.quantity || 1;
@@ -42,10 +48,9 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     });
 
     (g.accessories || []).forEach((acc: any) => {
-      const accId = acc?.id && !String(acc.id).startsWith('manual-') ? acc.id : null;
-      if (!accId) return;
+      if (!isZohoId(acc?.id)) return;
       quotedItems.push({
-        Product_Name: { id: accId, name: acc.name },
+        Product_Name: { id: acc.id, name: acc.name },
         Quantity: acc.quantity || qty,
         List_Price: acc.price || 0,
         Discount: 0,
@@ -55,7 +60,7 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
 
   mixServiceItems.forEach((it: any) => {
     const p = it.product;
-    if (!p?.id || String(p.id).startsWith('manual-')) return;
+    if (!isZohoId(p?.id)) return;
     quotedItems.push({
       Product_Name: { id: p.id, name: p.name },
       Quantity: it.quantity || 1,
