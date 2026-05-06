@@ -111,13 +111,27 @@ export const zohoClient = {
 
 
 
-  /** Download a binary asset (PDF) from Zoho */
-  apiBinary: async (endpoint: string, api: string = 'crm'): Promise<Blob | null> => {
+  /**
+   * Download a binary asset (PDF) from Zoho.
+   * Supports GET and POST – v7 print endpoints typically expect POST
+   * with a JSON body containing the template id.
+   */
+  apiBinary: async (
+    endpoint: string,
+    api: string = 'crm',
+    opts?: { method?: 'GET' | 'POST'; data?: any },
+  ): Promise<Blob | null> => {
     const response = await fetch('/.netlify/functions/zoho-api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ endpoint, method: 'GET', api, responseType: 'binary' }),
+      body: JSON.stringify({
+        endpoint,
+        method: opts?.method || 'GET',
+        data: opts?.data,
+        api,
+        responseType: 'binary',
+      }),
     });
     const json = await response.json().catch(() => null);
     if (json?.__binaryError) {
@@ -332,12 +346,46 @@ export const zohoClient = {
 
   /**
    * Generate a PDF of the Quote using the given Inventory template.
-   * Returns a Blob (application/pdf).
+   * Tries multiple endpoint variants because Zoho's v7 print API has
+   * inconsistent shapes across modules / regions:
+   *   1) GET  /Quotes/{id}/download_inventory_template?inventory_template_id=...
+   *   2) GET  /Quotes/{id}/actions/print?inventory_template_id=...
+   *   3) POST /Quotes/{id}/actions/print  body { data:[{inventory_template_id}] }
+   * The first variant that returns a real PDF blob (>1 KB,
+   * content-type application/pdf) wins. JSON {} responses (the failure
+   * mode the user observed) are treated as miss and the next variant
+   * is attempted.
    */
   getQuotePdf: async (quoteId: string, templateId: string = QUOTE_INVENTORY_TEMPLATE_ID): Promise<Blob | null> => {
-    return zohoClient.apiBinary(
-      `Quotes/${quoteId}/actions/print?inventory_template_id=${templateId}`
-    );
+    const tries: Array<() => Promise<Blob | null>> = [
+      // 1) GET download_inventory_template – the canonical v7 PDF endpoint
+      () => zohoClient.apiBinary(
+        `Quotes/${quoteId}/download_inventory_template?inventory_template_id=${templateId}`,
+      ),
+      // 2) GET actions/print with query param – legacy variant
+      () => zohoClient.apiBinary(
+        `Quotes/${quoteId}/actions/print?inventory_template_id=${templateId}`,
+      ),
+      // 3) POST actions/print with JSON body – v7 standard for some orgs
+      () => zohoClient.apiBinary(
+        `Quotes/${quoteId}/actions/print`,
+        'crm',
+        { method: 'POST', data: { data: [{ inventory_template_id: templateId }] } },
+      ),
+    ];
+    for (let i = 0; i < tries.length; i++) {
+      try {
+        const blob = await tries[i]();
+        if (blob && blob.size > 1024 && blob.type.includes('pdf')) {
+          console.log('[Zoho PDF] variant', i + 1, 'succeeded:', blob.size, 'bytes');
+          return blob;
+        }
+        console.warn('[Zoho PDF] variant', i + 1, 'returned no usable PDF', blob?.size, blob?.type);
+      } catch (e: any) {
+        console.warn('[Zoho PDF] variant', i + 1, 'failed:', e?.message || e);
+      }
+    }
+    return null;
   },
 
   /** Upload an attachment file to a Quote */
