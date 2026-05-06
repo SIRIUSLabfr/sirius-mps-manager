@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useProject } from '@/hooks/useProjectData';
