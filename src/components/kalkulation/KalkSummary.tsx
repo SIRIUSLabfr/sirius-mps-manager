@@ -49,6 +49,17 @@ export default function KalkSummary({
 }: KalkSummaryProps) {
   const investTotal = hardwareEkTotal + marginTotal + abloeseTotal;
 
+  const formatPrice = (v: number) =>
+    v === 0 ? '' : v.toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
+  const [swInput, setSwInput] = useState(formatPrice(folgeseitenpreisSw));
+  const [farbeInput, setFarbeInput] = useState(formatPrice(folgeseitenpreisFarbe));
+  const [swFocused, setSwFocused] = useState(false);
+  const [farbeFocused, setFarbeFocused] = useState(false);
+
+  useEffect(() => { if (!swFocused) setSwInput(formatPrice(folgeseitenpreisSw)); }, [folgeseitenpreisSw, swFocused]);
+  useEffect(() => { if (!farbeFocused) setFarbeInput(formatPrice(folgeseitenpreisFarbe)); }, [folgeseitenpreisFarbe, farbeFocused]);
+
   const Row = ({
     label,
     value,
