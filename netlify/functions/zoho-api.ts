@@ -93,13 +93,40 @@ export default async (req: Request) => {
 
   // Binary response (PDF)
   if (responseType === 'binary') {
+    const contentType = zohoResponse.headers.get('content-type') || '';
+    // Zoho returned an error (JSON, not PDF) - surface it instead of
+    // silently producing a 0-byte / corrupted "PDF".
+    if (!zohoResponse.ok || contentType.includes('application/json')) {
+      const errText = await zohoResponse.text();
+      let errJson: any;
+      try { errJson = JSON.parse(errText); } catch { errJson = { raw: errText }; }
+      return new Response(JSON.stringify({
+        __binaryError: true,
+        status: zohoResponse.status,
+        contentType,
+        body: errJson,
+      }), {
+        status: zohoResponse.status || 500,
+        headers: { ...corsHeaders, 'Set-Cookie': cookieHeaderOut },
+      });
+    }
+
     const buf = await zohoResponse.arrayBuffer();
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    // Chunked base64 encoding - String.fromCharCode(...uint8array) blows
+    // the call stack for buffers larger than ~100 KB on most JS engines.
+    const bytes = new Uint8Array(buf);
+    const chunkSize = 0x8000;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+    }
+    const b64 = btoa(binary);
     return new Response(JSON.stringify({
       __binary: true,
       base64: b64,
-      contentType: zohoResponse.headers.get('content-type') || 'application/pdf',
+      contentType: contentType || 'application/pdf',
       status: zohoResponse.status,
+      size: buf.byteLength,
     }), {
       headers: { ...corsHeaders, 'Set-Cookie': cookieHeaderOut },
     });

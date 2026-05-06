@@ -140,12 +140,13 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     ? Math.max(0, monthlyRate - serviceRate)
     : undefined;
 
-  // Rate je nach Vertragsart in das passende Feld
+  // Rate je nach Vertragsart in das passende Feld (case-insensitive)
   const rateFields: Record<string, number | undefined> = {};
-  if (monthlyRate !== undefined && financeType) {
-    if (financeType === 'leasing') rateFields.Leasingrate = monthlyRate;
-    else if (financeType === 'eigenmiete' || financeType === 'miete') rateFields.Mietrate = monthlyRate;
-    else if (financeType === 'allin' || financeType === 'all_in') rateFields.All_In_Rate = monthlyRate;
+  const ft = financeType?.toLowerCase();
+  if (monthlyRate !== undefined && ft) {
+    if (ft === 'leasing') rateFields.Leasingrate = monthlyRate;
+    else if (ft === 'eigenmiete' || ft === 'miete') rateFields.Mietrate = monthlyRate;
+    else if (ft === 'allin' || ft === 'all_in' || ft === 'all-in') rateFields.All_In_Rate = monthlyRate;
   }
 
   // Zusatzvereinbarungen-Block als Fließtext für Zoho-Feld
@@ -171,7 +172,7 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     Quoted_Items: quotedItems,
 
     // -------- Layout "Details Kalkulation" (Custom Fields) --------
-    Auswahlliste_1: financeType ? (FINANCE_TYPE_TO_PICKLIST[financeType] || financeType) : undefined,
+    Auswahlliste_1: financeType ? (FINANCE_TYPE_TO_PICKLIST[financeType.toLowerCase()] || financeType) : undefined,
     Vertragsbeginn: isoDate(input.contractStart),
     Vertragslaufzeit: termMonths !== undefined ? `${termMonths} Monate` : undefined, // text
     Laufzeit_Vertrag: intOrUndef(termMonths),   // bigint
