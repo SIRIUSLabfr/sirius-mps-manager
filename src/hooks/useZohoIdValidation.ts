@@ -14,11 +14,18 @@ const checkedThisSession = new Set<string>();
 
 /**
  * Verify that the Zoho IDs stored on the project still resolve in Zoho CRM.
- * Stale IDs (record deleted / recycled) are cleared in Supabase so that the
- * UI can offer a fresh "Angebot in Zoho erstellen" instead of a broken update.
  *
- * Runs once per (projectId, session) on mount. Failures are silent except
- * for a user-facing toast when an ID is actually cleared.
+ * Only the three FK columns (zoho_deal_id, zoho_estimate_id,
+ * zoho_sales_order_id) are touched. All other project data — Kalkulation,
+ * Zusatzvereinbarungen, Kundendaten, Auftrags-Bestätigung, Dokumente — is
+ * the source of truth in this app and is never modified by this hook.
+ *
+ * If a referenced Zoho record was deleted (e.g. user trashed the Quote in
+ * Zoho CRM), only the link is severed, so the UI offers a fresh
+ * "Angebot in Zoho erstellen" instead of trying to update a tombstone.
+ *
+ * Runs once per (projectId, session). Network / auth errors leave the IDs
+ * untouched (we never clear on uncertainty).
  */
 export function useZohoIdValidation(projectId: string | null | undefined) {
   const queryClient = useQueryClient();
@@ -68,7 +75,8 @@ export function useZohoIdValidation(projectId: string | null | undefined) {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
 
       toast.info(
-        `Zoho-Verknüpfung aktualisiert: ${cleared.join(', ')} in Zoho nicht mehr vorhanden – Verknüpfung wurde entfernt.`,
+        `${cleared.join(' / ')} in Zoho nicht mehr vorhanden – Verknüpfung gelöst. Alle lokalen Daten bleiben erhalten; ein neuer Zoho-Datensatz kann jetzt angelegt werden.`,
+        { duration: 6000 },
       );
     })().catch(e => console.warn('[useZohoIdValidation] error', e));
 
