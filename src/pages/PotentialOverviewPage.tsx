@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ClipboardList, Building2, User, Euro, FileText, CheckCircle2, Send, ExternalLink, Package, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useZohoIdValidation } from '@/hooks/useZohoIdValidation';
 
 export default function PotentialOverviewPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -25,6 +26,9 @@ export default function PotentialOverviewPage() {
   useEffect(() => {
     if (projectId) setActiveProjectId(projectId);
   }, [projectId, setActiveProjectId]);
+
+  // Drop stale Quote/Sales-Order/Deal IDs if the records were deleted in Zoho.
+  useZohoIdValidation(projectId || null);
 
   const dealId = (project as any)?.zoho_deal_id;
   const orderConfirmedAt = (project as any)?.order_confirmed_at;

@@ -11,6 +11,7 @@ import AngebotConfigCard from '@/components/angebot/AngebotConfigCard';
 import ZusatzvereinbarungenCard, { type Zusatzvereinbarungen, defaultZusatzvereinbarungen } from '@/components/angebot/ZusatzvereinbarungenCard';
 import AuftragErteiltCard from '@/components/angebot/AuftragErteiltCard';
 import DocumentsList from '@/components/angebot/DocumentsList';
+import { useZohoIdValidation } from '@/hooks/useZohoIdValidation';
 
 export default function AngebotPage() {
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
@@ -24,6 +25,11 @@ export default function AngebotPage() {
   const projectId = urlProjectId || activeProjectId;
   const { data: project } = useProject(projectId || null);
   const isDaily = (project as any)?.project_type === 'daily';
+
+  // Re-validate stored Zoho IDs (Quote / Sales Order / Deal) on mount.
+  // Stale IDs (record deleted in Zoho) are cleared so the UI offers a
+  // fresh "Angebot in Zoho erstellen" instead of a broken update flow.
+  useZohoIdValidation(projectId || null);
 
   // Load active calculation
   const { data: calcData } = useQuery({

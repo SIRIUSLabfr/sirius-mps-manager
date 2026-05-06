@@ -116,6 +116,35 @@ export const zohoClient = {
     return zohoClient.api(`Deals/${dealId}`);
   },
 
+  /**
+   * Check whether a CRM record still exists (not deleted / recycled).
+   * Returns false on 204 / not-found, true on a populated GET, null on
+   * unauthenticated or network errors so callers can skip silently.
+   */
+  recordExists: async (module: string, id: string): Promise<boolean | null> => {
+    try {
+      const response = await fetch('/.netlify/functions/zoho-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ endpoint: `${module}/${id}`, method: 'GET', api: 'crm' }),
+      });
+      if (response.status === 401) return null;
+      if (response.status === 404) return false;
+      const json = await response.json().catch(() => ({}));
+      if (json?.__empty) return false;
+      if (!response.ok) return null;
+      const rec = json?.data?.[0];
+      if (!rec) return false;
+      // Zoho marks recycled records with Record_Status__s = 'Trash'.
+      if (rec.Record_Status__s && rec.Record_Status__s !== 'Available') return false;
+      return true;
+    } catch (e) {
+      console.warn('[Zoho recordExists] network error', e);
+      return null;
+    }
+  },
+
   searchProducts: async (query: string) => {
     return zohoClient.api(`Products/search?word=${encodeURIComponent(query)}`);
   },
