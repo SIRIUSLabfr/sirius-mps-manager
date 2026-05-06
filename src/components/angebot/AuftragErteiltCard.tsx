@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { zohoClient } from '@/lib/zohoClient';
+import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
 
 interface Props {
   projectId: string;
@@ -73,6 +73,7 @@ export default function AuftragErteiltCard({ projectId, orderConfirmedAt, orderC
         try {
           const conv = await zohoClient.convertQuoteToSalesOrder(zohoEstimateId);
           newSalesOrderId = zohoClient.extractSalesOrderId(conv);
+          markZohoIdFresh(newSalesOrderId);
           if (newSalesOrderId) {
             toast.success(`Auftrag in Zoho angelegt: #${newSalesOrderId}`);
           }

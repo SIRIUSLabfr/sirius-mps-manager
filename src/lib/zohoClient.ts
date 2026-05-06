@@ -8,6 +8,46 @@ export const QUOTE_LAYOUT_NAME = 'Standard';
 
 let _quoteLayoutIdCache: string | null = null;
 
+// IDs the user has just created/updated. Validation hooks must NOT clear
+// these for a short grace period, otherwise a freshly created record can
+// be wrongly judged "missing" before Zoho's read pipeline catches up.
+//
+// Persisted in sessionStorage so module reloads / HMR / focus events
+// across tabs don't lose the marker.
+const FRESH_TTL_MS = 10 * 60 * 1000;
+const FRESH_STORAGE_KEY = 'zoho:fresh-ids';
+
+function _loadFresh(): Record<string, number> {
+  try {
+    const raw = sessionStorage.getItem(FRESH_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+function _saveFresh(map: Record<string, number>) {
+  try { sessionStorage.setItem(FRESH_STORAGE_KEY, JSON.stringify(map)); } catch {}
+}
+
+export function markZohoIdFresh(id: string | null | undefined) {
+  if (!id) return;
+  const map = _loadFresh();
+  map[String(id)] = Date.now() + FRESH_TTL_MS;
+  _saveFresh(map);
+  console.log('[zoho] markFresh', id, 'expires', new Date(map[String(id)]).toISOString());
+}
+
+export function isZohoIdFresh(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const map = _loadFresh();
+  const exp = map[String(id)];
+  if (!exp) return false;
+  if (Date.now() > exp) {
+    delete map[String(id)];
+    _saveFresh(map);
+    return false;
+  }
+  return true;
+}
+
 export const zohoClient = {
   login: () => {
     window.location.href = '/.netlify/functions/zoho-auth';
@@ -118,12 +158,14 @@ export const zohoClient = {
 
   /**
    * Check whether a CRM record still exists (not deleted / recycled).
-   * Uses the Search API: a record present in Zoho's recycle bin or hard
-   * deleted will not show up in search results, so an empty result is a
-   * reliable "no longer exists" signal.
+   *
+   * Uses GET /{module}/{id}?fields=id,Record_Status__s — a direct primary-
+   * key lookup with no search-index delay. The fields param ensures Zoho
+   * returns Record_Status__s so we can distinguish "Available" from
+   * recycled records.
    *
    * Returns:
-   *   true  – record found and accessible
+   *   true  – record found and Record_Status__s is Available (or absent)
    *   false – record gone (deleted / recycled / never existed)
    *   null  – network or auth issue, caller should not act on this
    */
@@ -135,7 +177,7 @@ export const zohoClient = {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          endpoint: `${module}/search?criteria=(id:equals:${id})`,
+          endpoint: `${module}/${id}`,
           method: 'GET',
           api: 'crm',
         }),
@@ -143,16 +185,25 @@ export const zohoClient = {
       if (response.status === 401) return null;
       const json = await response.json().catch(() => ({}));
       // Proxy maps Zoho 204 (empty) to { __empty: true } with HTTP 200.
-      if (json?.__empty) return false;
+      if (json?.__empty) {
+        console.log('[zoho recordExists]', module, id, 'EMPTY -> gone');
+        return false;
+      }
       if (!response.ok) {
-        // INVALID_DATA on a deleted/unknown id is also "gone".
         const code = json?.code || json?.data?.[0]?.code;
+        console.log('[zoho recordExists]', module, id, 'HTTP', response.status, 'code', code);
         if (code === 'INVALID_DATA' || code === 'NO_DATA') return false;
         return null;
       }
       const rec = json?.data?.[0];
-      if (!rec) return false;
-      if (rec.Record_Status__s && rec.Record_Status__s !== 'Available') return false;
+      if (!rec) {
+        console.log('[zoho recordExists]', module, id, 'no data[0]');
+        return false;
+      }
+      if (rec.Record_Status__s && rec.Record_Status__s !== 'Available') {
+        console.log('[zoho recordExists]', module, id, 'Record_Status__s', rec.Record_Status__s);
+        return false;
+      }
       return true;
     } catch (e) {
       console.warn('[Zoho recordExists] network error', e);

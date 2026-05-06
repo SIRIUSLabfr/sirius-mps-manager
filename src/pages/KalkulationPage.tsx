@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useZoho } from '@/hooks/useZoho';
-import { zohoClient } from '@/lib/zohoClient';
+import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
+import { buildQuotePayload } from '@/lib/zohoQuoteBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -322,55 +323,7 @@ export default function KalkulationPage() {
     if (!ok) { setCreating(false); return; }
 
     try {
-      const payload = buildPayload();
-      const cfg = payload.config_json as any;
-      const c = cfg.calculated;
-      const groups = cfg.device_groups || [];
-
-      const fmt2 = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const fmt4d = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-
-      // Build line items (Zoho v7 Quoted_Items requires Product_Name.id per row)
-      const isZohoId = (v: any) => /^\d{6,}$/.test(String(v ?? ''));
-      const lineItems: any[] = [];
-      groups.forEach((group: any) => {
-        if (group.mainDevice?.name && isZohoId(group.mainDevice.id)) {
-          lineItems.push({
-            Product_Name: { id: group.mainDevice.id, name: group.mainDevice.name },
-            Quantity: group.mainQuantity || 1,
-            List_Price: group.mainDevice.price || 0,
-            Discount: 0,
-          });
-        }
-        (group.accessories || []).forEach((acc: any) => {
-          if (acc.product?.name && isZohoId(acc.product.id)) {
-            lineItems.push({
-              Product_Name: { id: acc.product.id, name: acc.product.name },
-              Quantity: acc.quantity || 1,
-              List_Price: acc.product.price || 0,
-              Discount: 0,
-            });
-          }
-        });
-      });
-      if (lineItems.length === 0) {
-        setStatusMsg({ type: 'error', text: 'Keine mit Zoho verknüpften Produkte – bitte mindestens ein Gerät über die Zoho-Produktsuche zuweisen.' });
-        setCreating(false);
-        return;
-      }
-
-      // Summary description
-      const financeLabels: Record<string, string> = { leasing: 'Leasing (Bank)', miete: 'Miete (Eigen)', eigenmiete: 'Eigenmiete (SIRIUS)', kauf_wv: 'Kauf + Wartungsvertrag', all_in: 'All-In-Vertrag' };
-      const summaryLines = [
-        'ZUSAMMENFASSUNG',
-        `Gesamtvolumen S/W: ${c.total_volume_bw?.toLocaleString('de-DE')} S/M`,
-        `Gesamtvolumen Farbe: ${c.total_volume_color?.toLocaleString('de-DE')} S/M`,
-        `Mischklick S/W: ${fmt4d(c.mischklick_bw || 0)} €`,
-        `Mischklick Farbe: ${fmt4d(c.mischklick_color || 0)} €`,
-        `Vertragsart: ${financeLabels[form.finance_type] || form.finance_type}`,
-        `Laufzeit: ${form.term_months} Monate`,
-        `Monatliche Rate: ${fmt2(c.total_rate || 0)} €`,
-      ];
+      const calcDataLike = buildPayload();
 
       const layoutId = await zohoClient.getQuoteLayoutId();
       if (!layoutId) {
@@ -379,31 +332,43 @@ export default function KalkulationPage() {
         return;
       }
 
-      // zohoClient.createQuote wraps the payload in { data: [...] } itself.
-      const quotePayload = {
-        Subject: `MPS Kostenvoranschlag`,
-        Quote_Stage: 'In Arbeit',
-        Layout: { id: layoutId },
-        Deal_Name: { id: dealId },
-        Valid_Till: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
-        Description: summaryLines.join('\n'),
-        Terms_and_Conditions: `Laufzeit: ${form.term_months} Monate ab Lieferung. Preise zzgl. MwSt.`,
-        Quoted_Items: lineItems,
-      };
+      // Build payload via shared mapper so all custom Kalkulation fields
+      // (Auswahlliste_1, Anzahl_Monate, Leasingfaktor, S_W_*, Farb*, etc.)
+      // are populated consistently across both flows.
+      const quotePayload = buildQuotePayload({
+        projectName: 'MPS Kostenvoranschlag',
+        dealId,
+        calcData: calcDataLike,
+        zusatz: {},
+        validity: 30,
+        layoutId,
+        contractStart: (calcDataLike.config_json as any)?.contract_start || undefined,
+      });
+      quotePayload.Terms_and_Conditions = `Laufzeit: ${form.term_months} Monate ab Lieferung. Preise zzgl. MwSt.`;
 
       const result = await zohoClient.createQuote(quotePayload);
-      if (result?.data?.[0]?.status === 'success' || result?.data?.[0]?.code === 'SUCCESS') {
+      const created = result?.data?.[0];
+      if (created?.status === 'success' || created?.code === 'SUCCESS') {
+        const newQuoteId = created?.details?.id;
+        if (newQuoteId) {
+          markZohoIdFresh(newQuoteId);
+          if (activeProjectId) {
+            await supabase.from('projects').update({ zoho_estimate_id: newQuoteId }).eq('id', activeProjectId);
+          }
+        }
         toast.success('Kostenvoranschlag in Zoho CRM erstellt!');
-        // Update deal fields
+        const cfg = (calcDataLike.config_json as any) || {};
+        const calc = cfg.calculated || {};
+        const grps = cfg.device_groups || [];
         await zohoClient.updateDeal(dealId, {
-          MPS_Monatliche_Rate: c.total_rate,
-          MPS_Geraeteanzahl: groups.reduce((s: number, g: any) => s + (g.mainQuantity || 1), 0),
+          MPS_Monatliche_Rate: calc.total_rate ?? calcDataLike.total_monthly_rate,
+          MPS_Geraeteanzahl: grps.reduce((s: number, g: any) => s + (g.mainQuantity || 1), 0),
           MPS_Laufzeit_Monate: form.term_months,
           MPS_Finanzierungsart: form.finance_type,
-          MPS_Volumen_SW: c.total_volume_bw,
-          MPS_Volumen_Farbe: c.total_volume_color,
-          MPS_Mischklick_SW: c.mischklick_bw,
-          MPS_Mischklick_Farbe: c.mischklick_color,
+          MPS_Volumen_SW: calc.total_volume_bw,
+          MPS_Volumen_Farbe: calc.total_volume_color,
+          MPS_Mischklick_SW: calc.mischklick_bw,
+          MPS_Mischklick_Farbe: calc.mischklick_color,
         });
         setStatusMsg({ type: 'success', text: 'Kostenvoranschlag erstellt!' });
       } else {
