@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { zohoClient } from '@/lib/zohoClient';
@@ -10,7 +10,8 @@ const FIELDS: Array<{ column: 'zoho_estimate_id' | 'zoho_sales_order_id' | 'zoho
   { column: 'zoho_deal_id', module: 'Deals', label: 'Potential' },
 ];
 
-const checkedThisSession = new Set<string>();
+// Throttle so a quick tab-blur/focus storm doesn't trigger N parallel runs.
+const MIN_INTERVAL_MS = 5_000;
 
 /**
  * Verify that the Zoho IDs stored on the project still resolve in Zoho CRM.
@@ -24,29 +25,33 @@ const checkedThisSession = new Set<string>();
  * Zoho CRM), only the link is severed, so the UI offers a fresh
  * "Angebot in Zoho erstellen" instead of trying to update a tombstone.
  *
- * Runs once per (projectId, session). Network / auth errors leave the IDs
- * untouched (we never clear on uncertainty).
+ * Runs:
+ *   - on mount,
+ *   - on window focus / tab visibility change (covers "delete in Zoho tab,
+ *     switch back to app tab" without a full reload),
+ *   - throttled to one run per 5s per project.
+ *
+ * Network / auth errors leave the IDs untouched (we never clear on uncertainty).
  */
 export function useZohoIdValidation(projectId: string | null | undefined) {
   const queryClient = useQueryClient();
-  const ranFor = useRef<string | null>(null);
+  const inFlight = useRef(false);
+  const lastRunAt = useRef(0);
 
-  useEffect(() => {
-    if (!projectId || ranFor.current === projectId) return;
-    ranFor.current = projectId;
+  const validate = useCallback(async () => {
+    if (!projectId) return;
+    if (inFlight.current) return;
+    if (Date.now() - lastRunAt.current < MIN_INTERVAL_MS) return;
+    inFlight.current = true;
+    lastRunAt.current = Date.now();
 
-    const cacheKey = `zoho-validation:${projectId}`;
-    if (checkedThisSession.has(cacheKey)) return;
-    checkedThisSession.add(cacheKey);
-
-    let cancelled = false;
-    (async () => {
+    try {
       const { data: row } = await supabase
         .from('projects')
         .select('zoho_deal_id, zoho_estimate_id, zoho_sales_order_id')
         .eq('id', projectId)
         .maybeSingle();
-      if (!row || cancelled) return;
+      if (!row) return;
 
       const updates: Record<string, null> = {};
       const cleared: string[] = [];
@@ -55,14 +60,14 @@ export function useZohoIdValidation(projectId: string | null | undefined) {
         const id = (row as any)[column];
         if (!id) continue;
         const exists = await zohoClient.recordExists(module, id);
-        // null = network/auth issue -> don't touch the field this session
+        // null = network/auth issue -> don't touch the field this run
         if (exists === false) {
           updates[column] = null;
           cleared.push(label);
         }
       }
 
-      if (Object.keys(updates).length === 0 || cancelled) return;
+      if (Object.keys(updates).length === 0) return;
 
       const { error } = await supabase.from('projects').update(updates).eq('id', projectId);
       if (error) {
@@ -78,8 +83,28 @@ export function useZohoIdValidation(projectId: string | null | undefined) {
         `${cleared.join(' / ')} in Zoho nicht mehr vorhanden – Verknüpfung gelöst. Alle lokalen Daten bleiben erhalten; ein neuer Zoho-Datensatz kann jetzt angelegt werden.`,
         { duration: 6000 },
       );
-    })().catch(e => console.warn('[useZohoIdValidation] error', e));
-
-    return () => { cancelled = true; };
+    } catch (e) {
+      console.warn('[useZohoIdValidation] error', e);
+    } finally {
+      inFlight.current = false;
+    }
   }, [projectId, queryClient]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    // Reset throttle when switching projects so the new one validates immediately.
+    lastRunAt.current = 0;
+    validate();
+
+    const onFocus = () => { void validate(); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void validate();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [projectId, validate]);
 }
