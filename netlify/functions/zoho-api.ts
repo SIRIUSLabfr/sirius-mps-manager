@@ -79,15 +79,22 @@ export default async (req: Request) => {
 
   // === JSON / PDF DOWNLOAD ===
   const body = await req.json();
-  const { endpoint, method = 'GET', data, api = 'crm', responseType } = body;
+  const { endpoint, method = 'GET', data, api = 'crm', responseType, extraHeaders } = body;
   const baseUrl = baseUrls[api] || baseUrls.crm;
+
+  const headers: Record<string, string> = {
+    Authorization: `Zoho-oauthtoken ${tokens.access_token}`,
+    'Content-Type': 'application/json',
+  };
+  if (extraHeaders && typeof extraHeaders === 'object') {
+    for (const [k, v] of Object.entries(extraHeaders)) {
+      if (typeof v === 'string') headers[k] = v;
+    }
+  }
 
   const zohoResponse = await fetch(`${baseUrl}/${endpoint}`, {
     method,
-    headers: {
-      Authorization: `Zoho-oauthtoken ${tokens.access_token}`,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: data ? JSON.stringify(data) : undefined,
   });
 
