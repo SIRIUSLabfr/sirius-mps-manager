@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { zohoClient } from '@/lib/zohoClient';
 
 interface Props {
   projectId: string;
@@ -17,9 +18,11 @@ interface Props {
   orderConfirmedBy: string | null;
   signedDocumentUrl: string | null;
   signedDocZohoId: string | null;
+  zohoEstimateId?: string | null;
+  zohoSalesOrderId?: string | null;
 }
 
-export default function AuftragErteiltCard({ projectId, orderConfirmedAt, orderConfirmedBy, signedDocumentUrl, signedDocZohoId }: Props) {
+export default function AuftragErteiltCard({ projectId, orderConfirmedAt, orderConfirmedBy, signedDocumentUrl, signedDocZohoId, zohoEstimateId, zohoSalesOrderId }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
