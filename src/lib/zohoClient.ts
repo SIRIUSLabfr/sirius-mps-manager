@@ -128,12 +128,12 @@ export const zohoClient = {
 
   /** Create a Zoho CRM Quote. Pass full payload (will be wrapped in {data:[]}). */
   createQuote: async (quote: Record<string, any>) => {
-    return zohoClient.api('Quotes', 'POST', { data: [quote] });
+    return zohoClient.api('Quotes', 'POST', { data: [quote] }, 'crm', { throwOnError: true });
   },
 
   /** Update an existing Quote. */
   updateQuote: async (quoteId: string, fields: Record<string, any>) => {
-    return zohoClient.api('Quotes', 'PUT', { data: [{ id: quoteId, ...fields }] });
+    return zohoClient.api('Quotes', 'PUT', { data: [{ id: quoteId, ...fields }] }, 'crm', { throwOnError: true });
   },
 
   /** Get a Quote record */
@@ -166,8 +166,17 @@ export const zohoClient = {
    * Returns the new Sales Order ID.
    */
   convertQuoteToSalesOrder: async (quoteId: string) => {
-    return zohoClient.api(`Quotes/${quoteId}/actions/convert`, 'POST', {
-      data: [{ overwrite: true }],
-    });
+    const result = await zohoClient.api(
+      `Quotes/${quoteId}/actions/convert`,
+      'POST',
+      { data: [{ overwrite: true, notify: false }] },
+      'crm',
+      { throwOnError: true }
+    );
+    const item = result?.data?.[0];
+    if (item?.code && item.code !== 'SUCCESS') {
+      throw new Error(`Zoho Convert: ${item.message || item.code}`);
+    }
+    return result;
   },
 };
