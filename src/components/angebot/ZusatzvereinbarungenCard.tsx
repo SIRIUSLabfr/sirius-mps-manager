@@ -65,6 +65,9 @@ interface Props {
   /** Read-only values from active calculation (Single Source of Truth) */
   contractStart?: string | null;
   deliveryDate?: string | null;
+  saving?: boolean;
+  dirty?: boolean;
+  onSaveNow?: () => void;
 }
 
 const formatDateDe = (iso: string | null | undefined) => {
@@ -79,6 +82,9 @@ export default function ZusatzvereinbarungenCard({
   defaultOpen = false,
   contractStart,
   deliveryDate,
+  saving,
+  dirty,
+  onSaveNow,
 }: Props) {
   // Migration: ensure at least 12 base items
   const items: ZusatzItem[] = value.items && value.items.length >= 12
