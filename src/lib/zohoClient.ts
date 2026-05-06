@@ -295,17 +295,32 @@ export const zohoClient = {
    *
    * Zoho v7 PUT with Quoted_Items APPENDS by default; to replace, the
    * caller must mark each existing row with `_delete: true` AND append
-   * the new rows. This helper fetches the current rows, builds the
+   * the new rows. This helper fetches the current rows (explicitly
+   * requesting the subform field so it's never missing), builds the
    * delete-markers, then sends a single PUT.
+   *
+   * If the GET returns no items but the layout has them, we still send
+   * the new items without delete markers - that yields the old append
+   * behaviour, which is at least no worse than the previous flow.
    */
   updateQuoteReplaceItems: async (quoteId: string, fields: Record<string, any>) => {
     const newItems: any[] = Array.isArray(fields.Quoted_Items) ? fields.Quoted_Items : [];
 
-    // Pull existing line items
-    const current = await zohoClient.api(`Quotes/${quoteId}`);
+    // Explicitly request the subform field. Some Zoho v7 layouts
+    // omit subforms from the default GET response.
+    const current = await zohoClient.api(`Quotes/${quoteId}?fields=Quoted_Items`);
     const existing: any[] = current?.data?.[0]?.Quoted_Items || [];
+    console.log('[zoho updateQuoteReplaceItems] GET Quoted_Items returned', existing.length, 'rows');
+    if (existing.length === 0) {
+      // Fallback: pull whole record once more without fields filter
+      const fullCurrent = await zohoClient.api(`Quotes/${quoteId}`);
+      const fullExisting: any[] = fullCurrent?.data?.[0]?.Quoted_Items || [];
+      console.log('[zoho updateQuoteReplaceItems] full GET returned', fullExisting.length, 'rows');
+      existing.push(...fullExisting);
+    }
+
     const deleteMarkers = existing
-      .map((row: any) => row?.id ? { id: row.id, _delete: true } : null)
+      .map((row: any) => row?.id ? { id: String(row.id), _delete: true } : null)
       .filter(Boolean);
 
     const merged = [...deleteMarkers, ...newItems];
