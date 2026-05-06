@@ -62,8 +62,12 @@ export function useZohoIdValidation(projectId: string | null | undefined) {
         // Skip just-created/updated IDs: Zoho's read pipeline can briefly
         // 404/empty a brand-new record. Without this the validation hook
         // would dissolve the link the user just created.
-        if (isZohoIdFresh(id)) continue;
+        if (isZohoIdFresh(id)) {
+          console.log('[zoho-validation] skip fresh', module, id);
+          continue;
+        }
         const exists = await zohoClient.recordExists(module, id);
+        console.log('[zoho-validation]', module, id, 'exists=', exists);
         // null = network/auth issue -> don't touch the field this run
         if (exists === false) {
           updates[column] = null;
