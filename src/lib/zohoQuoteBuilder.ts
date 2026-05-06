@@ -22,57 +22,59 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
   const mixServiceItems: any[] = cfg.mix_service_items || cfg.service?.items || [];
 
   // ---- Line items: every line MUST have a Zoho product reference ----
-  const productDetails: any[] = [];
+  const quotedItems: any[] = [];
 
   groups.forEach((g: any, idx: number) => {
     const main = g.mainDevice || null;
     const productId = main?.id && !String(main.id).startsWith('manual-') ? main.id : g.zoho_product_id;
-    if (!productId) return; // Zoho rejects product details without product id
+    if (!productId) return;
 
     const qty = g.mainQuantity || g.quantity || 1;
     const unitPrice = main?.price ?? g.priceVk ?? g.vk ?? g.priceEk ?? g.ek ?? 0;
     const productName =
       main?.name || `${g.manufacturer || ''} ${g.model || ''}`.trim() || `Gerät ${idx + 1}`;
 
-    productDetails.push({
-      product: { id: productId, name: productName },
-      product_name: productName,
-      quantity: qty,
-      list_price: unitPrice,
+    quotedItems.push({
+      Product_Name: { id: productId, name: productName },
+      Quantity: qty,
+      List_Price: unitPrice,
       Discount: 0,
-      Tax: 0,
     });
 
-    // Accessories (each may have its own zoho product)
     (g.accessories || []).forEach((acc: any) => {
       const accId = acc?.id && !String(acc.id).startsWith('manual-') ? acc.id : null;
       if (!accId) return;
-      productDetails.push({
-        product: { id: accId, name: acc.name },
-        product_name: acc.name,
-        quantity: acc.quantity || qty,
-        list_price: acc.price || 0,
+      quotedItems.push({
+        Product_Name: { id: accId, name: acc.name },
+        Quantity: acc.quantity || qty,
+        List_Price: acc.price || 0,
         Discount: 0,
-        Tax: 0,
       });
     });
   });
 
-  // Mischkalkulation service items as additional line items (only if linked to Zoho product)
   mixServiceItems.forEach((it: any) => {
     const p = it.product;
     if (!p?.id || String(p.id).startsWith('manual-')) return;
-    productDetails.push({
-      product: { id: p.id, name: p.name },
-      product_name: p.name,
-      quantity: it.quantity || 1,
-      list_price: p.price || 0,
+    quotedItems.push({
+      Product_Name: { id: p.id, name: p.name },
+      Quantity: it.quantity || 1,
+      List_Price: p.price || 0,
       Discount: 0,
-      Tax: 0,
     });
   });
 
-  // ---- Quote payload (only safe-default fields) ----
+  // Quoted_Items is mandatory and must have ≥1 entry
+  if (quotedItems.length === 0) {
+    quotedItems.push({
+      Product_Name: { name: 'Position' },
+      Quantity: 1,
+      List_Price: 0,
+      Discount: 0,
+    });
+  }
+
+  // ---- Quote payload ----
   const payload: Record<string, any> = {
     Subject: input.projectName?.trim() || `Angebot ${new Date().toLocaleDateString('de-DE')}`,
     Quote_Stage: 'Draft',
@@ -82,7 +84,7 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     Deal_Name: input.dealId ? { id: input.dealId } : undefined,
     Contact_Name: input.contactZohoId ? { id: input.contactZohoId } : undefined,
     Account_Name: input.accountZohoId ? { id: input.accountZohoId } : undefined,
-    Product_Details: productDetails,
+    Quoted_Items: quotedItems,
     Description: [
       `Vertragsart: ${input.calcData?.finance_type || '–'}`,
       `Laufzeit: ${input.calcData?.term_months || '–'} Monate`,
@@ -102,7 +104,6 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     ].filter(Boolean).join('\n'),
   };
 
-  // Strip undefined values
   Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
   return payload;
