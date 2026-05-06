@@ -11,6 +11,9 @@ export const zohoClient = {
   },
 
   api: async (endpoint: string, method: string = 'GET', data?: any, api: string = 'crm', opts?: { throwOnError?: boolean }): Promise<any | null> => {
+    if (method !== 'GET' && data) {
+      console.log('[Zoho →]', endpoint, JSON.stringify(data, null, 2));
+    }
     const response = await fetch('/.netlify/functions/zoho-api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
