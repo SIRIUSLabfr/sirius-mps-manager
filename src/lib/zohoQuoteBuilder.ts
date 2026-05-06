@@ -152,10 +152,9 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     // -------- Layout "Details Kalkulation" (Custom Fields) --------
     Auswahlliste_1: financeType ? (FINANCE_TYPE_TO_PICKLIST[financeType] || financeType) : undefined,
     Vertragsbeginn: input.contractStart || undefined,
-    Vertragslaufzeit: termMonths !== undefined ? `${termMonths} Monate` : undefined,
-    Laufzeit_Vertrag: termMonths !== undefined ? `${termMonths} Monate` : undefined,
+    Vertragslaufzeit: termMonths !== undefined ? `${termMonths} Monate` : undefined, // text
+    Laufzeit_Vertrag: termMonths,   // bigint
     Anzahl_Monate: termMonths,
-    Laufzeit_Monate: termMonths,
     Leasingfaktor: leasingFactor,
     Leasinganteil: leasingPortion,
     Wartungsanteil: serviceRate,
