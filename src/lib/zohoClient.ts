@@ -10,34 +10,36 @@ export const zohoClient = {
     window.location.href = '/.netlify/functions/zoho-auth';
   },
 
-  api: async (endpoint: string, method: string = 'GET', data?: any, api: string = 'crm'): Promise<any | null> => {
-    try {
-      const response = await fetch('/.netlify/functions/zoho-api', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ endpoint, method, data, api }),
-      });
+  api: async (endpoint: string, method: string = 'GET', data?: any, api: string = 'crm', opts?: { throwOnError?: boolean }): Promise<any | null> => {
+    const response = await fetch('/.netlify/functions/zoho-api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ endpoint, method, data, api }),
+    }).catch((e) => {
+      console.warn('Zoho network error:', e);
+      if (opts?.throwOnError) throw e;
+      return null as any;
+    });
+    if (!response) return null;
 
-      if (response.status === 401) {
-        return null;
-      }
-
-      const json = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        // Bubble up Zoho/server errors so callers can show meaningful messages
-        const msg = json?.message || json?.error || json?.data?.[0]?.message || `HTTP ${response.status}`;
-        console.error('Zoho API error', { endpoint, method, status: response.status, json });
-        throw new Error(`Zoho ${response.status}: ${msg}`);
-      }
-
-      return json;
-    } catch (e) {
-      console.warn('Zoho API Fehler:', e);
-      throw e;
+    if (response.status === 401) {
+      if (opts?.throwOnError) throw new Error('Zoho 401: nicht authentifiziert. Bitte erneut mit Zoho verbinden.');
+      return null;
     }
+
+    const json = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const msg = json?.message || json?.error || json?.data?.[0]?.message || `HTTP ${response.status}`;
+      console.error('Zoho API error', { endpoint, method, status: response.status, json });
+      if (opts?.throwOnError) throw new Error(`Zoho ${response.status}: ${msg}`);
+      return null;
+    }
+
+    return json;
   },
+
 
 
   /** Download a binary asset (PDF) from Zoho */
