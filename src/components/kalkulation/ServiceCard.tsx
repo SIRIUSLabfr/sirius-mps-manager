@@ -124,6 +124,7 @@ export default function ServiceCard({ config, onChange, mischklick }: Props) {
               onChange={(p) => updateItem(i, { product: p })}
               filterType={it.type === 'bw' ? 'service_bw' : 'service_color'}
               placeholder="Klick-Modell suchen..."
+              className="min-w-0"
             />
             <Input
               type="number"
