@@ -113,14 +113,14 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
       if (mode === 'update' && existingQuoteId) {
         const upd = await zohoClient.updateQuote(existingQuoteId, payload);
         const updResp = upd?.data?.[0];
-        if (updResp?.code && updResp.code !== 'SUCCESS') {
+        if (!updResp || (updResp.code && updResp.code !== 'SUCCESS')) {
           throw new Error(updResp?.message || 'Quote-Update fehlgeschlagen');
         }
         quoteId = existingQuoteId;
       } else {
         const created = await zohoClient.createQuote(payload);
         const createdResp = created?.data?.[0];
-        if (createdResp?.code !== 'SUCCESS') {
+        if (!createdResp || createdResp.code !== 'SUCCESS') {
           throw new Error(createdResp?.message || 'Quote-Erstellung fehlgeschlagen');
         }
         quoteId = createdResp.details.id;
