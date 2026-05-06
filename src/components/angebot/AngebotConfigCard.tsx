@@ -116,6 +116,7 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         zusatz,
         validity: 30,
         layoutId,
+        contractStart: calcData?.config_json?.contract_start || undefined,
       });
 
       // 1. Create or update quote – Layout only on create (Zoho rejects
