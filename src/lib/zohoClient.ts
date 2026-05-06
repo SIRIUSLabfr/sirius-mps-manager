@@ -23,12 +23,22 @@ export const zohoClient = {
         return null;
       }
 
-      return await response.json();
+      const json = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        // Bubble up Zoho/server errors so callers can show meaningful messages
+        const msg = json?.message || json?.error || json?.data?.[0]?.message || `HTTP ${response.status}`;
+        console.error('Zoho API error', { endpoint, method, status: response.status, json });
+        throw new Error(`Zoho ${response.status}: ${msg}`);
+      }
+
+      return json;
     } catch (e) {
       console.warn('Zoho API Fehler:', e);
-      return null;
+      throw e;
     }
   },
+
 
   /** Download a binary asset (PDF) from Zoho */
   apiBinary: async (endpoint: string, api: string = 'crm'): Promise<Blob | null> => {
