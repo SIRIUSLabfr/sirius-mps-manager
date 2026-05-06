@@ -31,6 +31,27 @@ const num = (v: any): number | undefined => {
   return Number.isFinite(n) ? n : undefined;
 };
 
+const intOrUndef = (v: any): number | undefined => {
+  const n = num(v);
+  return n === undefined ? undefined : Math.round(n);
+};
+
+// Zoho date fields expect "YYYY-MM-DD". Tolerate Date, ISO datetime,
+// and "DD.MM.YYYY" inputs, otherwise drop.
+const isoDate = (v: any): string | undefined => {
+  if (!v) return undefined;
+  if (v instanceof Date && !isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  if (typeof v === 'string') {
+    const trimmed = v.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+    const m = trimmed.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  }
+  return undefined;
+};
+
 /**
  * Build a Zoho CRM Quote payload from the local calculation.
  * Includes line items (Product_Details), service block, and custom fields.
@@ -151,21 +172,21 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
 
     // -------- Layout "Details Kalkulation" (Custom Fields) --------
     Auswahlliste_1: financeType ? (FINANCE_TYPE_TO_PICKLIST[financeType] || financeType) : undefined,
-    Vertragsbeginn: input.contractStart || undefined,
+    Vertragsbeginn: isoDate(input.contractStart),
     Vertragslaufzeit: termMonths !== undefined ? `${termMonths} Monate` : undefined, // text
-    Laufzeit_Vertrag: termMonths,   // bigint
-    Anzahl_Monate: termMonths,
+    Laufzeit_Vertrag: intOrUndef(termMonths),   // bigint
+    Anzahl_Monate: intOrUndef(termMonths),       // bigint
     Leasingfaktor: leasingFactor,
     Leasinganteil: leasingPortion,
     Wartungsanteil: serviceRate,
     Marge: marginTotal,
     Summe_UHG: hardwareEk,
-    S_W_Seitenmenge: volumeBw,
-    Farbseitenmenge: volumeColor,
+    S_W_Seitenmenge: intOrUndef(volumeBw),       // bigint
+    Farbseitenmenge: intOrUndef(volumeColor),    // bigint
     S_W_Seitenpreis: folgeBw,
     Farbseitenpreis: folgeColor,
     Folgeseite_Scan: scanPrice,
-    Scans: scanVolume,
+    Scans: intOrUndef(scanVolume),               // bigint
     Zusatzvereinbarungen: zusatzText || undefined,
     ...rateFields,
 
