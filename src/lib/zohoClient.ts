@@ -120,16 +120,20 @@ export const zohoClient = {
         credentials: 'include',
         body: JSON.stringify({ endpoint, method: 'GET', api, responseType: 'binary' }),
       });
-      if (!response.ok) return null;
-      const json = await response.json();
-      if (!json?.__binary) return null;
+      const json = await response.json().catch(() => null);
+      if (json?.__binaryError) {
+        console.error('[Zoho binary error]', json);
+        throw new Error(`Zoho ${json.status}: ${JSON.stringify(json.body)?.slice(0, 400)}`);
+      }
+      if (!response.ok || !json?.__binary) return null;
       const byteChars = atob(json.base64);
       const bytes = new Uint8Array(byteChars.length);
       for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+      console.log('[Zoho PDF] received', bytes.length, 'bytes,', json.contentType);
       return new Blob([bytes], { type: json.contentType || 'application/pdf' });
     } catch (e) {
       console.warn('Zoho binary fetch error:', e);
-      return null;
+      throw e;
     }
   },
 
