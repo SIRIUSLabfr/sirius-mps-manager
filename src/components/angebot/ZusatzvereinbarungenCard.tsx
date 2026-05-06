@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, Plus, Trash2, Lock } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, Lock, Save, Loader2, Check } from 'lucide-react';
 
 export interface ZusatzItem {
   active: boolean;
@@ -65,6 +65,9 @@ interface Props {
   /** Read-only values from active calculation (Single Source of Truth) */
   contractStart?: string | null;
   deliveryDate?: string | null;
+  saving?: boolean;
+  dirty?: boolean;
+  onSaveNow?: () => void;
 }
 
 const formatDateDe = (iso: string | null | undefined) => {
@@ -79,6 +82,9 @@ export default function ZusatzvereinbarungenCard({
   defaultOpen = false,
   contractStart,
   deliveryDate,
+  saving,
+  dirty,
+  onSaveNow,
 }: Props) {
   // Migration: ensure at least 12 base items
   const items: ZusatzItem[] = value.items && value.items.length >= 12
@@ -137,7 +143,20 @@ export default function ZusatzvereinbarungenCard({
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
             <CardTitle className="flex items-center justify-between text-base">
-              <span>📋 Zusatzvereinbarungen</span>
+              <span className="flex items-center gap-2">
+                <span>📋 Zusatzvereinbarungen</span>
+                {saving ? (
+                  <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Speichert…
+                  </span>
+                ) : dirty ? (
+                  <span className="text-xs font-normal text-amber-600">● Ungespeicherte Änderungen</span>
+                ) : (
+                  <span className="text-xs font-normal text-emerald-600 inline-flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Gespeichert
+                  </span>
+                )}
+              </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
             </CardTitle>
           </CardHeader>
@@ -284,6 +303,22 @@ export default function ZusatzvereinbarungenCard({
             >
               <Plus className="h-3.5 w-3.5 mr-1" /> Weitere Vereinbarung hinzufügen
             </Button>
+
+            {onSaveNow && (
+              <Button
+                size="sm"
+                className="w-full h-9"
+                onClick={onSaveNow}
+                disabled={saving || !dirty}
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {saving ? 'Speichert…' : dirty ? 'Jetzt speichern' : 'Gespeichert'}
+              </Button>
+            )}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>

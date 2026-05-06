@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { useProject } from '@/hooks/useProjectData';
@@ -94,19 +94,58 @@ export default function AngebotPage() {
     setZusatzLoaded(true);
   }, [project, calcData, zusatzLoaded]);
 
-  const handleZusatzChange = async (v: Zusatzvereinbarungen) => {
-    setZusatz(v);
-    if (projectId) {
-      const existingConfig = ((project as any)?.quote_config as any) || {};
-      await supabase
+  const [zusatzSaving, setZusatzSaving] = useState(false);
+  const [zusatzDirty, setZusatzDirty] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const latestZusatzRef = useRef<Zusatzvereinbarungen>(zusatz);
+
+  const persistZusatz = async (v: Zusatzvereinbarungen) => {
+    if (!projectId) return;
+    setZusatzSaving(true);
+    try {
+      const { data: fresh } = await supabase
         .from('projects')
-        .update({
-          quote_config: { ...existingConfig, zusatzvereinbarungen: v },
-        } as any)
+        .select('quote_config')
+        .eq('id', projectId)
+        .maybeSingle();
+      const existingConfig = (fresh?.quote_config as any) || {};
+      const { error } = await supabase
+        .from('projects')
+        .update({ quote_config: { ...existingConfig, zusatzvereinbarungen: v } } as any)
         .eq('id', projectId);
+      if (error) throw error;
+      setZusatzDirty(false);
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    } catch (e: any) {
+      toast.error('Zusatzvereinbarungen konnten nicht gespeichert werden: ' + (e.message || e));
+    } finally {
+      setZusatzSaving(false);
     }
   };
+
+  const handleZusatzChange = (v: Zusatzvereinbarungen) => {
+    setZusatz(v);
+    latestZusatzRef.current = v;
+    setZusatzDirty(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => persistZusatz(v), 800);
+  };
+
+  // Save on unmount / page hide so nothing is lost on reload
+  useEffect(() => {
+    const flush = () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        persistZusatz(latestZusatzRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('beforeunload', flush);
+      flush();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   // Build Ansprechpartner: prefer Zoho deal owner, fallback to customer contact
   const ansprechpartner = dealOwner
@@ -188,6 +227,12 @@ export default function AngebotPage() {
         defaultOpen={isDaily}
         contractStart={(calcData?.config_json as any)?.contract_start || null}
         deliveryDate={(calcData?.config_json as any)?.delivery_date || null}
+        saving={zusatzSaving}
+        dirty={zusatzDirty}
+        onSaveNow={() => {
+          if (debounceRef.current) clearTimeout(debounceRef.current);
+          persistZusatz(latestZusatzRef.current);
+        }}
       />
 
       <AuftragErteiltCard
