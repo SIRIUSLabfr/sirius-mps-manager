@@ -93,18 +93,18 @@ export default async (req: Request) => {
 
   // Binary response (PDF)
   if (responseType === 'binary') {
-    const contentType = zohoResponse.headers.get('content-type') || '';
+    const ct = zohoResponse.headers.get('content-type') || '';
     // Zoho returned an error (JSON, not PDF) - surface it instead of
-    // silently producing a 0-byte / corrupted "PDF".
-    if (!zohoResponse.ok || contentType.includes('application/json')) {
+    // silently producing a 0/2-byte "PDF". Same for any non-OK status.
+    if (!zohoResponse.ok || ct.includes('application/json')) {
       const errText = await zohoResponse.text();
-      let errJson: any;
-      try { errJson = JSON.parse(errText); } catch { errJson = { raw: errText }; }
+      let errBody: any;
+      try { errBody = JSON.parse(errText); } catch { errBody = { raw: errText }; }
       return new Response(JSON.stringify({
         __binaryError: true,
         status: zohoResponse.status,
-        contentType,
-        body: errJson,
+        contentType: ct,
+        body: errBody,
       }), {
         status: zohoResponse.status || 500,
         headers: { ...corsHeaders, 'Set-Cookie': cookieHeaderOut },
@@ -124,7 +124,7 @@ export default async (req: Request) => {
     return new Response(JSON.stringify({
       __binary: true,
       base64: b64,
-      contentType: contentType || 'application/pdf',
+      contentType: ct || 'application/pdf',
       status: zohoResponse.status,
       size: buf.byteLength,
     }), {

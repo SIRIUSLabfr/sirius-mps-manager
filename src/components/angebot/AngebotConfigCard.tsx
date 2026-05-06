@@ -121,10 +121,11 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
 
       // 1. Create or update quote – Layout only on create (Zoho rejects
       //    layout changes on existing records unless required fields match).
+      //    On update we must REPLACE Quoted_Items, not append (Zoho default).
       let quoteId: string;
       if (mode === 'update' && existingQuoteId) {
         const { Layout: _layout, ...updatePayload } = payload;
-        const upd = await zohoClient.updateQuote(existingQuoteId, updatePayload);
+        const upd = await zohoClient.updateQuoteReplaceItems(existingQuoteId, updatePayload);
         const updResp = upd?.data?.[0];
         if (!updResp || (updResp.code && updResp.code !== 'SUCCESS')) {
           throw new Error(updResp?.message || 'Quote-Update fehlgeschlagen');

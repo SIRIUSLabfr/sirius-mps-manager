@@ -113,28 +113,27 @@ export const zohoClient = {
 
   /** Download a binary asset (PDF) from Zoho */
   apiBinary: async (endpoint: string, api: string = 'crm'): Promise<Blob | null> => {
-    try {
-      const response = await fetch('/.netlify/functions/zoho-api', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ endpoint, method: 'GET', api, responseType: 'binary' }),
-      });
-      const json = await response.json().catch(() => null);
-      if (json?.__binaryError) {
-        console.error('[Zoho binary error]', json);
-        throw new Error(`Zoho ${json.status}: ${JSON.stringify(json.body)?.slice(0, 400)}`);
-      }
-      if (!response.ok || !json?.__binary) return null;
-      const byteChars = atob(json.base64);
-      const bytes = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-      console.log('[Zoho PDF] received', bytes.length, 'bytes,', json.contentType);
-      return new Blob([bytes], { type: json.contentType || 'application/pdf' });
-    } catch (e) {
-      console.warn('Zoho binary fetch error:', e);
-      throw e;
+    const response = await fetch('/.netlify/functions/zoho-api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ endpoint, method: 'GET', api, responseType: 'binary' }),
+    });
+    const json = await response.json().catch(() => null);
+    if (json?.__binaryError) {
+      console.error('[Zoho binary error]', json);
+      const detail = typeof json.body === 'string' ? json.body : JSON.stringify(json.body)?.slice(0, 400);
+      throw new Error(`Zoho ${json.status} (${json.contentType || 'unknown'}): ${detail}`);
     }
+    if (!response.ok || !json?.__binary) {
+      console.warn('[Zoho binary] unexpected response', { status: response.status, json });
+      return null;
+    }
+    const byteChars = atob(json.base64);
+    const bytes = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+    console.log('[Zoho PDF] received', bytes.length, 'bytes,', json.contentType);
+    return new Blob([bytes], { type: json.contentType || 'application/pdf' });
   },
 
   /** Upload a file (multipart) to a Zoho record (e.g. Quote attachment) */
@@ -289,6 +288,31 @@ export const zohoClient = {
   /** Get a Quote record */
   getQuote: async (quoteId: string) => {
     return zohoClient.api(`Quotes/${quoteId}`);
+  },
+
+  /**
+   * Update a Quote *replacing* the line items rather than appending.
+   *
+   * Zoho v7 PUT with Quoted_Items APPENDS by default; to replace, the
+   * caller must mark each existing row with `_delete: true` AND append
+   * the new rows. This helper fetches the current rows, builds the
+   * delete-markers, then sends a single PUT.
+   */
+  updateQuoteReplaceItems: async (quoteId: string, fields: Record<string, any>) => {
+    const newItems: any[] = Array.isArray(fields.Quoted_Items) ? fields.Quoted_Items : [];
+
+    // Pull existing line items
+    const current = await zohoClient.api(`Quotes/${quoteId}`);
+    const existing: any[] = current?.data?.[0]?.Quoted_Items || [];
+    const deleteMarkers = existing
+      .map((row: any) => row?.id ? { id: row.id, _delete: true } : null)
+      .filter(Boolean);
+
+    const merged = [...deleteMarkers, ...newItems];
+    const payload = { ...fields, Quoted_Items: merged };
+
+    console.log('[zoho updateQuoteReplaceItems]', quoteId, 'delete', deleteMarkers.length, 'add', newItems.length);
+    return zohoClient.api('Quotes', 'PUT', { data: [{ id: quoteId, ...payload }] }, 'crm', { throwOnError: true });
   },
 
   /**
