@@ -64,14 +64,13 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     });
   });
 
-  // Quoted_Items is mandatory and must have ≥1 entry
+  // Quoted_Items is mandatory and Zoho requires a real Product_Name.id per row.
+  // If we have no linked Zoho product, throw a clear, actionable error instead
+  // of sending an invalid empty/idless subform.
   if (quotedItems.length === 0) {
-    quotedItems.push({
-      Product_Name: { name: 'Position' },
-      Quantity: 1,
-      List_Price: 0,
-      Discount: 0,
-    });
+    throw new Error(
+      'Keine mit Zoho verknüpften Produkte in der Kalkulation. Bitte mindestens ein Gerät über die Zoho-Produktsuche zuweisen, bevor das Angebot in Zoho erstellt wird.'
+    );
   }
 
   // ---- Quote payload ----
