@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Zusatzvereinbarungen } from './ZusatzvereinbarungenCard';
 import { buildQuotePayload } from '@/lib/zohoQuoteBuilder';
-import { zohoClient, QUOTE_INVENTORY_TEMPLATE_ID, markZohoIdFresh } from '@/lib/zohoClient';
+import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
 import AngebotPreviewDialog from './AngebotPreviewDialog';
 
 interface CalcData {
@@ -144,15 +144,31 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
       // bis Zoho's read pipeline den frischen Record sicher serviert.
       markZohoIdFresh(quoteId);
 
-      // 2. Generate PDF via Zoho Inventory Template
-      toast.message('Generiere PDF aus Zoho-Vorlage...');
-      const pdfBlob = await zohoClient.getQuotePdf(quoteId, QUOTE_INVENTORY_TEMPLATE_ID);
-      if (!pdfBlob) throw new Error('PDF konnte nicht aus Zoho geladen werden.');
+      // 2. Generate PDF locally (Zoho v7 print API returns 200 + {} for
+      //    inventory templates in this org regardless of params/headers,
+      //    so we use the bundled jsPDF generator instead and attach the
+      //    result back to the Zoho Quote).
+      toast.message('Generiere PDF...');
+      const { generateAngebotPdf } = await import('@/lib/angebotPdfGenerator');
+      const pdfBlob = await generateAngebotPdf({
+        projectId,
+        projectName,
+        calcData,
+        zusatz,
+        showPrices,
+        customerName,
+        contactPerson,
+        customerAddress,
+        customerNumber,
+        angebotNumber,
+        ansprechpartner,
+      });
+      if (!pdfBlob || pdfBlob.size < 1024) throw new Error('PDF-Generierung fehlgeschlagen.');
 
       const fileName = `Angebot_${projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
 
       // 3. Upload to Supabase storage
-      const filePath = `${projectId}/angebote/zoho_${Date.now()}_${fileName}`;
+      const filePath = `${projectId}/angebote/${Date.now()}_${fileName}`;
       const { error: upErr } = await supabase.storage
         .from('project-documents')
         .upload(filePath, pdfBlob, { contentType: 'application/pdf' });
