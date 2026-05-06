@@ -95,6 +95,9 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
       `Folgeseiten Farbe: ${calc.folgeseitenpreis_farbe || cfg.folgeseitenpreis_farbe || 0} €`,
       input.zusatz?.mietfreie_startphase ? `Mietfreie Startphase: ${input.zusatz.mietfreie_startphase}` : '',
       input.zusatz?.berechnungsintervall ? `Berechnungsintervall: ${input.zusatz.berechnungsintervall}` : '',
+      ...((input.zusatz?.items || [])
+        .filter((it: any) => it.active && it.text?.trim())
+        .map((it: any, i: number) => `\n${i + 1}. ${it.text}`)),
     ].filter(Boolean).join('\n'),
   };
 
