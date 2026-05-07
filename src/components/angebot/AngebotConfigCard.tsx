@@ -155,29 +155,37 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
       let pdfBlob: Blob | null = null;
       let fromZoho = false;
       try {
+        console.log('[Zoho PDF] calling Deluge function attach_quote_pdf for quote', quoteId);
         const fnResult = await zohoClient.executeFunction('attach_quote_pdf', { quote_id: quoteId });
-        const outputRaw = fnResult?.details?.output ?? fnResult?.data?.[0]?.details?.output;
+        console.log('[Zoho PDF] function full response:', JSON.stringify(fnResult, null, 2));
+        const outputRaw = fnResult?.details?.output
+          ?? fnResult?.data?.[0]?.details?.output
+          ?? (fnResult as any)?.output;
+        console.log('[Zoho PDF] outputRaw:', outputRaw, 'type:', typeof outputRaw);
         let attachmentId: string | undefined;
         if (typeof outputRaw === 'string') {
           try {
             const parsed = JSON.parse(outputRaw);
             attachmentId = parsed?.data?.[0]?.details?.id || parsed?.details?.id;
-          } catch { /* not JSON */ }
+            console.log('[Zoho PDF] parsed output, attachmentId =', attachmentId);
+          } catch { console.warn('[Zoho PDF] output is string but not JSON:', outputRaw); }
         } else if (outputRaw && typeof outputRaw === 'object') {
           attachmentId = (outputRaw as any)?.data?.[0]?.details?.id || (outputRaw as any)?.details?.id;
+          console.log('[Zoho PDF] object output, attachmentId =', attachmentId);
         }
-        console.log('[Zoho PDF] function returned attachmentId:', attachmentId, 'raw:', outputRaw);
         if (attachmentId) {
-          // brief delay so Zoho has the attachment indexed
           await new Promise(r => setTimeout(r, 800));
+          console.log('[Zoho PDF] downloading attachment', attachmentId);
           pdfBlob = await zohoClient.downloadQuoteAttachment(quoteId, attachmentId);
           if (pdfBlob && pdfBlob.size > 1024) {
             fromZoho = true;
-            console.log('[Zoho PDF] downloaded from Zoho:', pdfBlob.size, 'bytes');
+            console.log('[Zoho PDF] downloaded from Zoho:', pdfBlob.size, 'bytes,', pdfBlob.type);
           } else {
-            console.warn('[Zoho PDF] attachment too small / empty, falling back', pdfBlob?.size);
+            console.warn('[Zoho PDF] attachment too small / empty:', pdfBlob?.size, pdfBlob?.type);
             pdfBlob = null;
           }
+        } else {
+          console.warn('[Zoho PDF] no attachmentId could be extracted from function response - using local fallback');
         }
       } catch (fnErr: any) {
         console.warn('[Zoho PDF] function execution failed, falling back to local generator:', fnErr?.message || fnErr);
@@ -236,7 +244,10 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
       const url = URL.createObjectURL(pdfBlob);
       window.open(url, '_blank');
 
-      toast.success(mode === 'update' ? 'Angebot in Zoho aktualisiert.' : 'Angebot in Zoho erstellt.');
+      toast.success(
+        (mode === 'update' ? 'Angebot in Zoho aktualisiert' : 'Angebot in Zoho erstellt') +
+        (fromZoho ? ' (PDF aus Zoho-Vorlage).' : ' (PDF lokal generiert – Zoho-Vorlage nicht verfügbar).'),
+      );
     } catch (err: any) {
       console.error(err);
       toast.error('Zoho-Fehler: ' + (err.message || err));
