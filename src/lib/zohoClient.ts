@@ -431,6 +431,26 @@ export const zohoClient = {
     return zohoClient.uploadAttachment(`Quotes/${quoteId}/Attachments`, file, fileName);
   },
 
+  /** Download a specific attachment from a Quote as a Blob. */
+  downloadQuoteAttachment: async (quoteId: string, attachmentId: string): Promise<Blob | null> => {
+    return zohoClient.apiBinary(`Quotes/${quoteId}/Attachments/${attachmentId}`);
+  },
+
+  /**
+   * Execute a Zoho CRM Standalone Function via OAuth.
+   * Returns the parsed function output (the function's return string is
+   * delivered under data[0].details.output, sometimes JSON-stringified).
+   */
+  executeFunction: async (functionName: string, args: Record<string, any>) => {
+    return zohoClient.api(
+      `functions/${functionName}/actions/execute?auth_type=oauth`,
+      'POST',
+      { arguments: args },
+      'crm',
+      { throwOnError: true },
+    );
+  },
+
   /** Upload an attachment file to a Deal */
   attachToDeal: async (dealId: string, file: Blob, fileName: string) => {
     return zohoClient.uploadAttachment(`Deals/${dealId}/Attachments`, file, fileName);
