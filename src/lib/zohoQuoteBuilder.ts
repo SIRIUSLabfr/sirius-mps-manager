@@ -215,6 +215,18 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
 
   Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
+  console.log('[buildQuotePayload] calcData snapshot:', {
+    finance_type: input.calcData?.finance_type,
+    term_months: input.calcData?.term_months,
+    leasing_factor: input.calcData?.leasing_factor,
+    margin_total: input.calcData?.margin_total,
+    total_monthly_rate: input.calcData?.total_monthly_rate,
+    service_rate: input.calcData?.service_rate,
+    total_hardware_ek: input.calcData?.total_hardware_ek,
+  });
+  console.log('[buildQuotePayload] Leasingfaktor sent:', payload.Leasingfaktor,
+              'Gesamtrate:', payload.Gesamtrate, 'App_Version:', payload.App_Version);
+
   return payload;
 }
 
