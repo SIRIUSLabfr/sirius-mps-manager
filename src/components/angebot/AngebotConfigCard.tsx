@@ -108,7 +108,9 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
 
       // App_Version inkrementieren -> triggert den Zoho-Workflow, der das
       // Inventory-Template intern rendert und das PDF an die Quote anhängt.
-      const nextVersion = Date.now();
+      // Unix-SEKUNDEN, weil das Zoho-Feld 32-bit integer ist und Millisekunden
+      // den max-int-Wert sprengen würden.
+      const nextVersion = Math.floor(Date.now() / 1000);
 
       const payload = buildQuotePayload({
         projectName: projectName,
