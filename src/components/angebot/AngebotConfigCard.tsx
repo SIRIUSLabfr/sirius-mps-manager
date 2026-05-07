@@ -144,28 +144,62 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
       // bis Zoho's read pipeline den frischen Record sicher serviert.
       markZohoIdFresh(quoteId);
 
-      // 2. Generate PDF locally (Zoho v7 print API returns 200 + {} for
-      //    inventory templates in this org regardless of params/headers,
-      //    so we use the bundled jsPDF generator instead and attach the
-      //    result back to the Zoho Quote).
-      toast.message('Generiere PDF...');
-      const { generateAngebotPdf } = await import('@/lib/angebotPdfGenerator');
-      const pdfBlob = await generateAngebotPdf({
-        projectId,
-        projectName,
-        calcData,
-        zusatz,
-        showPrices,
-        customerName,
-        contactPerson,
-        customerAddress,
-        customerNumber,
-        angebotNumber,
-        ansprechpartner,
-      });
-      if (!pdfBlob || pdfBlob.size < 1024) throw new Error('PDF-Generierung fehlgeschlagen.');
-
+      // 2. PDF aus Zoho-Template generieren via Deluge-Standalone-Function.
+      //    Die Function rendert das Inventory-Template "Angebot Print All-In"
+      //    serverseitig (Admin-Scope) und hängt das PDF als Attachment an die
+      //    Quote. Wir holen das Attachment dann direkt zurück.
+      //    Falls die Function fehlt oder fehlschlägt -> Fallback auf den
+      //    lokalen jsPDF-Generator.
+      toast.message('Generiere PDF aus Zoho-Vorlage...');
       const fileName = `Angebot_${projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      let pdfBlob: Blob | null = null;
+      let fromZoho = false;
+      try {
+        const fnResult = await zohoClient.executeFunction('attach_quote_pdf', { quote_id: quoteId });
+        const outputRaw = fnResult?.details?.output ?? fnResult?.data?.[0]?.details?.output;
+        let attachmentId: string | undefined;
+        if (typeof outputRaw === 'string') {
+          try {
+            const parsed = JSON.parse(outputRaw);
+            attachmentId = parsed?.data?.[0]?.details?.id || parsed?.details?.id;
+          } catch { /* not JSON */ }
+        } else if (outputRaw && typeof outputRaw === 'object') {
+          attachmentId = (outputRaw as any)?.data?.[0]?.details?.id || (outputRaw as any)?.details?.id;
+        }
+        console.log('[Zoho PDF] function returned attachmentId:', attachmentId, 'raw:', outputRaw);
+        if (attachmentId) {
+          // brief delay so Zoho has the attachment indexed
+          await new Promise(r => setTimeout(r, 800));
+          pdfBlob = await zohoClient.downloadQuoteAttachment(quoteId, attachmentId);
+          if (pdfBlob && pdfBlob.size > 1024) {
+            fromZoho = true;
+            console.log('[Zoho PDF] downloaded from Zoho:', pdfBlob.size, 'bytes');
+          } else {
+            console.warn('[Zoho PDF] attachment too small / empty, falling back', pdfBlob?.size);
+            pdfBlob = null;
+          }
+        }
+      } catch (fnErr: any) {
+        console.warn('[Zoho PDF] function execution failed, falling back to local generator:', fnErr?.message || fnErr);
+      }
+
+      if (!pdfBlob) {
+        const { generateAngebotPdf } = await import('@/lib/angebotPdfGenerator');
+        pdfBlob = await generateAngebotPdf({
+          projectId,
+          projectName,
+          calcData,
+          zusatz,
+          showPrices,
+          customerName,
+          contactPerson,
+          customerAddress,
+          customerNumber,
+          angebotNumber,
+          ansprechpartner,
+        });
+        if (!pdfBlob || pdfBlob.size < 1024) throw new Error('PDF-Generierung fehlgeschlagen.');
+      }
 
       // 3. Upload to Supabase storage
       const filePath = `${projectId}/angebote/${Date.now()}_${fileName}`;
@@ -175,9 +209,13 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('project-documents').getPublicUrl(filePath);
 
-      // 4. Attach PDF back to Zoho Quote
-      const attachRes = await zohoClient.attachToQuote(quoteId, pdfBlob, fileName);
-      const zohoAttachmentId = attachRes?.data?.[0]?.details?.id;
+      // 4. Attach PDF back to Zoho Quote (only if not already attached via the
+      //    Zoho-side Deluge function, otherwise we'd duplicate the attachment).
+      let zohoAttachmentId: string | undefined;
+      if (!fromZoho) {
+        const attachRes = await zohoClient.attachToQuote(quoteId, pdfBlob, fileName);
+        zohoAttachmentId = attachRes?.data?.[0]?.details?.id;
+      }
 
       // 5. Save document record
       await supabase.from('documents').insert({
