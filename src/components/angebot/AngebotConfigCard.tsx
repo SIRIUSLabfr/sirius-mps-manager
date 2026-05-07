@@ -108,9 +108,10 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
 
       // App_Version inkrementieren -> triggert den Zoho-Workflow, der das
       // Inventory-Template intern rendert und das PDF an die Quote anhängt.
-      // Unix-SEKUNDEN, weil das Zoho-Feld 32-bit integer ist und Millisekunden
-      // den max-int-Wert sprengen würden.
-      const nextVersion = Math.floor(Date.now() / 1000);
+      // Zoho-Feld ist integer, max 9 Stellen. Unix-Sekunden ab 2020 -> 9 Stellen,
+      // monoton steigend, passt bis ~2051.
+      const EPOCH_2020 = 1577836800;
+      const nextVersion = Math.floor(Date.now() / 1000) - EPOCH_2020;
 
       const payload = buildQuotePayload({
         projectName: projectName,
