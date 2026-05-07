@@ -92,9 +92,29 @@ export default async (req: Request) => {
     }
   }
 
-  const zohoResponse = await fetch(`${baseUrl}/${endpoint}`, {
+  // Zoho Standalone-Function-Execution braucht Scope ZohoCRM.functions.execute.*,
+  // den der OAuth-Token oft nicht hat. Wenn die Anfrage auf functions/.../execute
+  // zielt UND ein API-Key per ENV gesetzt ist, schicken wir per API-Key statt OAuth.
+  let finalUrl = `${baseUrl}/${endpoint}`;
+  let finalHeaders = headers;
+  const fnApiKey = process.env.ZOHO_FUNCTION_API_KEY;
+  if (
+    fnApiKey &&
+    typeof endpoint === 'string' &&
+    endpoint.includes('functions/') &&
+    endpoint.includes('actions/execute')
+  ) {
+    finalUrl = `${baseUrl}/${endpoint.replace(/auth_type=oauth/, '')}`;
+    finalUrl += (finalUrl.includes('?') ? '&' : '?') + `auth_type=apikey&zapikey=${fnApiKey}`;
+    finalUrl = finalUrl.replace(/\?&/, '?').replace(/&&/g, '&');
+    // No OAuth header in this path - the apikey replaces it.
+    const { Authorization, ...rest } = headers;
+    finalHeaders = { ...rest };
+  }
+
+  const zohoResponse = await fetch(finalUrl, {
     method,
-    headers,
+    headers: finalHeaders,
     body: data ? JSON.stringify(data) : undefined,
   });
 
