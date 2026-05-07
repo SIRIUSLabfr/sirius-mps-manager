@@ -106,6 +106,10 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         );
       }
 
+      // App_Version inkrementieren -> triggert den Zoho-Workflow, der das
+      // Inventory-Template intern rendert und das PDF an die Quote anhängt.
+      const nextVersion = Date.now();
+
       const payload = buildQuotePayload({
         projectName: projectName,
         customerName,
@@ -117,6 +121,7 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         validity: 30,
         layoutId,
         contractStart: calcData?.config_json?.contract_start || undefined,
+        appVersion: nextVersion,
       });
 
       // 1. Create or update quote – Layout only on create (Zoho rejects
@@ -140,124 +145,28 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         quoteId = createdResp.details.id;
         await supabase.from('projects').update({ zoho_estimate_id: quoteId }).eq('id', projectId);
       }
-      // Karenz: validation hook darf diese ID 5 min nicht antasten,
-      // bis Zoho's read pipeline den frischen Record sicher serviert.
       markZohoIdFresh(quoteId);
 
-      // 2. PDF aus Zoho-Template generieren via Deluge-Standalone-Function.
-      //    Die Function rendert das Inventory-Template "Angebot Print All-In"
-      //    serverseitig (Admin-Scope) und hängt das PDF als Attachment an die
-      //    Quote. Wir holen das Attachment dann direkt zurück.
-      //    Falls die Function fehlt oder fehlschlägt -> Fallback auf den
-      //    lokalen jsPDF-Generator.
-      toast.message('Generiere PDF aus Zoho-Vorlage...');
-      const fileName = `Angebot_${projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-      let pdfBlob: Blob | null = null;
-      let fromZoho = false;
-      try {
-        // Snapshot der vorhandenen Attachment-IDs, damit wir nach dem
-        // Function-Call das NEUE Attachment finden (sortiert nach Created_Time
-        // ist nicht immer zuverlässig, weil Zoho die Sortierung bei brand-
-        // neuen Records manchmal mit Delay anwendet).
-        console.log('[Zoho PDF] snapshotting existing attachments before function call');
-        const before = await zohoClient.listQuoteAttachments(quoteId);
-        const beforeIds = new Set<string>(
-          (before?.data || []).map((a: any) => String(a.id)),
-        );
-        console.log('[Zoho PDF] existing attachments:', beforeIds.size);
-
-        console.log('[Zoho PDF] calling Deluge function attach_quote_pdf for quote', quoteId);
-        const fnResult = await zohoClient.executeFunction('attach_quote_pdf', { quote_id: quoteId });
-        console.log('[Zoho PDF] function full response:', JSON.stringify(fnResult)?.slice(0, 800));
-
-        // Function lief. Jetzt das NEUE Attachment auf der Quote finden -
-        // statt aus dem unklaren Response-Shape rauszuparsen.
-        let attachmentId: string | undefined;
-        for (let attempt = 0; attempt < 5 && !attachmentId; attempt++) {
-          await new Promise(r => setTimeout(r, attempt === 0 ? 600 : 1500));
-          const after = await zohoClient.listQuoteAttachments(quoteId);
-          const list: any[] = after?.data || [];
-          console.log('[Zoho PDF] attempt', attempt + 1, 'list size:', list.length);
-          const fresh = list.find((a: any) => !beforeIds.has(String(a.id)));
-          if (fresh?.id) {
-            attachmentId = String(fresh.id);
-            console.log('[Zoho PDF] new attachment id:', attachmentId, 'name:', fresh.File_Name);
-          }
-        }
-
-        if (attachmentId) {
-          console.log('[Zoho PDF] downloading attachment', attachmentId);
-          pdfBlob = await zohoClient.downloadQuoteAttachment(quoteId, attachmentId);
-          if (pdfBlob && pdfBlob.size > 1024) {
-            fromZoho = true;
-            console.log('[Zoho PDF] downloaded from Zoho:', pdfBlob.size, 'bytes,', pdfBlob.type);
-          } else {
-            console.warn('[Zoho PDF] attachment too small / empty:', pdfBlob?.size, pdfBlob?.type);
-            pdfBlob = null;
-          }
-        } else {
-          console.warn('[Zoho PDF] no NEW attachment appeared after function call - function may have failed silently');
-        }
-      } catch (fnErr: any) {
-        console.warn('[Zoho PDF] function execution failed, falling back to local generator:', fnErr?.message || fnErr);
-      }
-
-      if (!pdfBlob) {
-        const { generateAngebotPdf } = await import('@/lib/angebotPdfGenerator');
-        pdfBlob = await generateAngebotPdf({
-          projectId,
-          projectName,
-          calcData,
-          zusatz,
-          showPrices,
-          customerName,
-          contactPerson,
-          customerAddress,
-          customerNumber,
-          angebotNumber,
-          ansprechpartner,
-        });
-        if (!pdfBlob || pdfBlob.size < 1024) throw new Error('PDF-Generierung fehlgeschlagen.');
-      }
-
-      // 3. Upload to Supabase storage
-      const filePath = `${projectId}/angebote/${Date.now()}_${fileName}`;
-      const { error: upErr } = await supabase.storage
-        .from('project-documents')
-        .upload(filePath, pdfBlob, { contentType: 'application/pdf' });
-      if (upErr) throw upErr;
-      const { data: urlData } = supabase.storage.from('project-documents').getPublicUrl(filePath);
-
-      // 4. Attach PDF back to Zoho Quote (only if not already attached via the
-      //    Zoho-side Deluge function, otherwise we'd duplicate the attachment).
-      let zohoAttachmentId: string | undefined;
-      if (!fromZoho) {
-        const attachRes = await zohoClient.attachToQuote(quoteId, pdfBlob, fileName);
-        zohoAttachmentId = attachRes?.data?.[0]?.details?.id;
-      }
-
-      // 5. Save document record
+      // 2. Document-Record (ohne PDF-Blob - PDF-Erstellung läuft jetzt
+      //    asynchron via Zoho-Workflow auf der Quote selbst).
       await supabase.from('documents').insert({
         project_id: projectId,
         document_type: 'angebot',
-        file_name: fileName,
-        file_url: urlData.publicUrl,
-        file_size: pdfBlob.size,
-        zoho_attachment_id: zohoAttachmentId || null,
+        file_name: `Zoho Quote #${quoteId} (App_Version ${nextVersion})`,
+        file_url: `https://crm.zoho.eu/crm/org/Quotes/${quoteId}`,
+        file_size: 0,
+        zoho_attachment_id: null,
       });
 
-      // 6. Refresh queries
+      // 3. Refresh queries
       queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project_zoho_ids', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
 
-      // 7. Open PDF for user
-      const url = URL.createObjectURL(pdfBlob);
-      window.open(url, '_blank');
-
       toast.success(
-        (mode === 'update' ? 'Angebot in Zoho aktualisiert' : 'Angebot in Zoho erstellt') +
-        (fromZoho ? ' (PDF aus Zoho-Vorlage).' : ' (PDF lokal generiert – Zoho-Vorlage nicht verfügbar).'),
+        (mode === 'update' ? 'Angebot in Zoho aktualisiert.' : 'Angebot in Zoho erstellt.') +
+        ' Das PDF wird in Zoho per Workflow erstellt und an die Quote angehängt.',
+        { duration: 6000 },
       );
     } catch (err: any) {
       console.error(err);
