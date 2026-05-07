@@ -436,9 +436,20 @@ export const zohoClient = {
     return zohoClient.apiBinary(`Quotes/${quoteId}/Attachments/${attachmentId}`);
   },
 
-  /** List attachments on a Quote (newest first). */
+  /**
+   * List attachments on a Quote. Zoho v7 lehnt sort_by auf Related-Lists
+   * mit 400 ab; wir holen nur die per_page-Default-Liste und sortieren
+   * clientseitig nach Created_Time desc.
+   */
   listQuoteAttachments: async (quoteId: string) => {
-    return zohoClient.api(`Quotes/${quoteId}/Attachments?sort_by=Created_Time&sort_order=desc&per_page=20`);
+    const res = await zohoClient.api(`Quotes/${quoteId}/Attachments?per_page=200`);
+    const data: any[] = res?.data || [];
+    data.sort((a: any, b: any) => {
+      const ta = a?.Created_Time ? new Date(a.Created_Time).getTime() : 0;
+      const tb = b?.Created_Time ? new Date(b.Created_Time).getTime() : 0;
+      return tb - ta;
+    });
+    return res ? { ...res, data } : null;
   },
 
   /**
