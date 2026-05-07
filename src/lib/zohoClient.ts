@@ -436,6 +436,11 @@ export const zohoClient = {
     return zohoClient.apiBinary(`Quotes/${quoteId}/Attachments/${attachmentId}`);
   },
 
+  /** List attachments on a Quote (newest first). */
+  listQuoteAttachments: async (quoteId: string) => {
+    return zohoClient.api(`Quotes/${quoteId}/Attachments?sort_by=Created_Time&sort_order=desc&per_page=20`);
+  },
+
   /**
    * Execute a Zoho CRM Standalone Function via OAuth.
    * Returns the parsed function output (the function's return string is

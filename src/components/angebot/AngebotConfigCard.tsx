@@ -155,26 +155,37 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
       let pdfBlob: Blob | null = null;
       let fromZoho = false;
       try {
+        // Snapshot der vorhandenen Attachment-IDs, damit wir nach dem
+        // Function-Call das NEUE Attachment finden (sortiert nach Created_Time
+        // ist nicht immer zuverlässig, weil Zoho die Sortierung bei brand-
+        // neuen Records manchmal mit Delay anwendet).
+        console.log('[Zoho PDF] snapshotting existing attachments before function call');
+        const before = await zohoClient.listQuoteAttachments(quoteId);
+        const beforeIds = new Set<string>(
+          (before?.data || []).map((a: any) => String(a.id)),
+        );
+        console.log('[Zoho PDF] existing attachments:', beforeIds.size);
+
         console.log('[Zoho PDF] calling Deluge function attach_quote_pdf for quote', quoteId);
         const fnResult = await zohoClient.executeFunction('attach_quote_pdf', { quote_id: quoteId });
-        console.log('[Zoho PDF] function full response:', JSON.stringify(fnResult, null, 2));
-        const outputRaw = fnResult?.details?.output
-          ?? fnResult?.data?.[0]?.details?.output
-          ?? (fnResult as any)?.output;
-        console.log('[Zoho PDF] outputRaw:', outputRaw, 'type:', typeof outputRaw);
+        console.log('[Zoho PDF] function full response:', JSON.stringify(fnResult)?.slice(0, 800));
+
+        // Function lief. Jetzt das NEUE Attachment auf der Quote finden -
+        // statt aus dem unklaren Response-Shape rauszuparsen.
         let attachmentId: string | undefined;
-        if (typeof outputRaw === 'string') {
-          try {
-            const parsed = JSON.parse(outputRaw);
-            attachmentId = parsed?.data?.[0]?.details?.id || parsed?.details?.id;
-            console.log('[Zoho PDF] parsed output, attachmentId =', attachmentId);
-          } catch { console.warn('[Zoho PDF] output is string but not JSON:', outputRaw); }
-        } else if (outputRaw && typeof outputRaw === 'object') {
-          attachmentId = (outputRaw as any)?.data?.[0]?.details?.id || (outputRaw as any)?.details?.id;
-          console.log('[Zoho PDF] object output, attachmentId =', attachmentId);
+        for (let attempt = 0; attempt < 5 && !attachmentId; attempt++) {
+          await new Promise(r => setTimeout(r, attempt === 0 ? 600 : 1500));
+          const after = await zohoClient.listQuoteAttachments(quoteId);
+          const list: any[] = after?.data || [];
+          console.log('[Zoho PDF] attempt', attempt + 1, 'list size:', list.length);
+          const fresh = list.find((a: any) => !beforeIds.has(String(a.id)));
+          if (fresh?.id) {
+            attachmentId = String(fresh.id);
+            console.log('[Zoho PDF] new attachment id:', attachmentId, 'name:', fresh.File_Name);
+          }
         }
+
         if (attachmentId) {
-          await new Promise(r => setTimeout(r, 800));
           console.log('[Zoho PDF] downloading attachment', attachmentId);
           pdfBlob = await zohoClient.downloadQuoteAttachment(quoteId, attachmentId);
           if (pdfBlob && pdfBlob.size > 1024) {
@@ -185,7 +196,7 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
             pdfBlob = null;
           }
         } else {
-          console.warn('[Zoho PDF] no attachmentId could be extracted from function response - using local fallback');
+          console.warn('[Zoho PDF] no NEW attachment appeared after function call - function may have failed silently');
         }
       } catch (fnErr: any) {
         console.warn('[Zoho PDF] function execution failed, falling back to local generator:', fnErr?.message || fnErr);
