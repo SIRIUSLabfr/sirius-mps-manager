@@ -11,8 +11,6 @@ interface BuildQuotePayloadInput {
   validity?: number; // days
   layoutId?: string;
   contractStart?: string; // ISO date for Vertragsbeginn
-  /** Wird bei jedem Update inkrementiert -> triggert den Zoho-Workflow für PDF-Render. */
-  appVersion?: number;
 }
 
 // Local finance_type -> Zoho Auswahlliste_1 picklist value.
@@ -193,9 +191,6 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     Zusatzvereinbarungen: zusatzText || undefined,
     // Gesamtrate: monatliche All-In-Rate, unabhängig von Vertragsart.
     Gesamtrate: monthlyRate,
-    // App_Version: Trigger-Feld für den Zoho-Workflow, der intern das
-    // Inventory-Template rendert und das PDF an die Quote anhängt.
-    App_Version: input.appVersion,
     ...rateFields,
 
     Description: [
@@ -225,7 +220,7 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
     total_hardware_ek: input.calcData?.total_hardware_ek,
   });
   console.log('[buildQuotePayload] Leasingfaktor sent:', payload.Leasingfaktor,
-              'Gesamtrate:', payload.Gesamtrate, 'App_Version:', payload.App_Version);
+              'Gesamtrate:', payload.Gesamtrate);
 
   return payload;
 }
