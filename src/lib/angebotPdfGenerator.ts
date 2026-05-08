@@ -1,5 +1,7 @@
 import type { Zusatzvereinbarungen } from '@/components/angebot/ZusatzvereinbarungenCard';
 import { buildAngebotHtml } from './angebotPreviewHtml';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface PdfInput {
   projectName: string;
@@ -30,11 +32,13 @@ interface PdfInput {
  * Strategie: HTML in einem versteckten Container rendern, mit
  * html2canvas einmal komplett zur Bitmap machen, in A4-große Slices
  * schneiden und Slice für Slice als eigene PDF-Seite einfügen.
+ *
+ * `html2canvas` und `jspdf` werden statisch importiert — dynamische
+ * Imports erzeugen separate Vite-Chunks, die nach einem Deploy mit
+ * altem Browser-Cache zu "Failed to fetch dynamically imported module"
+ * führen.
  */
 export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
-  const html2canvas = (await import('html2canvas')).default;
-  const { jsPDF } = await import('jspdf');
-
   const html = buildAngebotHtml(
     {
       projectName: input.projectName,
