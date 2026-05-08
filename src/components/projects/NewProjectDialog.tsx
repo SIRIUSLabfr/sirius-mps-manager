@@ -19,6 +19,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useZoho } from '@/hooks/useZoho';
 import { Badge } from '@/components/ui/badge';
+import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
+import { buildDraftQuotePayload } from '@/lib/zohoQuoteBuilder';
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -232,6 +234,47 @@ export default function NewProjectDialog({ open, onOpenChange, defaultType = nul
           status: 'offen',
         } as any);
       }
+
+      // Bei MPS-Projekt mit verknüpftem Zoho-Deal: Draft-Quote in Zoho
+      // anlegen, damit Quote_Number/Kundennr. ab jetzt in der Vorschau
+      // verfügbar sind. Fehler hier blockieren das Projekt nicht — der
+      // User kann später aus der Vorschau nachsynchronisieren.
+      if (data?.id && selectedType === 'project' && data?.zoho_deal_id) {
+        try {
+          const dealRes = await zohoClient.getDeal(data.zoho_deal_id);
+          const deal = dealRes?.data?.[0];
+          const layoutId = await zohoClient.getQuoteLayoutId();
+          if (!layoutId) throw new Error('Zoho-Layout "Standard" nicht gefunden.');
+
+          const draftPayload = buildDraftQuotePayload({
+            projectName: data.project_name || data.customer_name || 'Angebot',
+            layoutId,
+            dealId: data.zoho_deal_id,
+            contactZohoId: deal?.Contact_Name?.id,
+            accountZohoId: deal?.Account_Name?.id,
+            validity: 30,
+          });
+          const created = await zohoClient.createQuote(draftPayload);
+          const cd = created?.data?.[0];
+          if (cd?.code === 'SUCCESS' && cd.details?.id) {
+            await supabase
+              .from('projects')
+              .update({ zoho_estimate_id: cd.details.id })
+              .eq('id', data.id);
+            markZohoIdFresh(cd.details.id);
+            queryClient.invalidateQueries({ queryKey: ['project_zoho_ids', data.id] });
+          } else {
+            console.warn('[NewProjectDialog] draft quote create response:', cd);
+          }
+        } catch (err: any) {
+          console.warn('[NewProjectDialog] draft quote creation failed:', err?.message || err);
+          toast.warning(
+            'Projekt angelegt, Zoho-Angebot konnte nicht erstellt werden. ' +
+              'Du kannst es später aus der Vorschau synchronisieren.',
+          );
+        }
+      }
+
       toast.success(selectedType === 'project' ? 'Angebot erstellt' : 'Angebot erstellt');
       onOpenChange(false);
       resetAll();

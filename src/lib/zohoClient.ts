@@ -6,6 +6,13 @@
 export const QUOTE_INVENTORY_TEMPLATE_ID = '842083000013892883';
 export const QUOTE_LAYOUT_NAME = 'Standard';
 
+/**
+ * API-Name des Custom-Felds am Zoho-Account, das die Kundennummer hält.
+ * Falls in der Org anders benannt, hier anpassen — wir lesen mit Fallback
+ * auf das Standard-Feld `Account_Number`.
+ */
+export const ZOHO_ACCOUNT_CUSTOMER_NUMBER_FIELD = 'Kundennummer';
+
 let _quoteLayoutIdCache: string | null = null;
 
 // IDs the user has just created/updated. Validation hooks must NOT clear
@@ -172,6 +179,10 @@ export const zohoClient = {
 
   getDeal: async (dealId: string) => {
     return zohoClient.api(`Deals/${dealId}`);
+  },
+
+  getAccount: async (accountId: string) => {
+    return zohoClient.api(`Accounts/${accountId}`);
   },
 
   /**
