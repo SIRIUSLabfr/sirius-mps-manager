@@ -141,11 +141,7 @@ function deviceSections(deviceGroups: any[], showPrices: boolean): string {
   for (const group of deviceGroups) {
     if (!group.mainDevice) continue;
 
-    const loc = group.label || 'Standort';
-    html += `<div data-pdf-section style="background:${C.dark};color:${C.white};padding:10px 16px;font-size:11px;font-weight:700;border-radius:4px;margin-bottom:16px;letter-spacing:0.5px;">
-      STANDORT: ${loc}
-    </div>`;
-
+    const loc = (group.label || '').trim();
     const mainName = group.mainDevice?.Product_Name || group.mainDevice?.name || 'Gerät';
     const mainQty = group.mainQuantity || 1;
     const imgUrl = group.mainDevice?.Bild_URL1 || group.mainDevice?.image_url || '';
@@ -160,6 +156,7 @@ function deviceSections(deviceGroups: any[], showPrices: boolean): string {
     }
     html += `<div style="flex:1;">
       <div style="font-size:14px;font-weight:700;color:${C.dark};margin-bottom:4px;">${mainName}</div>
+      ${loc ? `<div style="font-size:10px;color:${C.muted};margin-bottom:4px;">📍 ${loc}</div>` : ''}
       <div style="font-size:12px;color:${C.primary};font-weight:600;margin-bottom:6px;">${mainQty} Stück</div>
       ${description ? `<div style="font-size:11px;color:#4b5563;line-height:1.5;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;">${description}</div>` : ''}
       ${datasheetUrl ? `<div style="margin-top:6px;"><a href="${datasheetUrl}" style="font-size:10px;color:${C.accent};text-decoration:none;">📎 Datenblatt</a></div>` : ''}
