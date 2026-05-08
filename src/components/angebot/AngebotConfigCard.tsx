@@ -3,25 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Eye, Loader2, Send } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import type { Zusatzvereinbarungen } from './ZusatzvereinbarungenCard';
-import { buildQuotePayload } from '@/lib/zohoQuoteBuilder';
-import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
-import { generateAngebotPdf } from '@/lib/angebotPdfGenerator';
 import AngebotPreviewDialog from './AngebotPreviewDialog';
-
-/** Sortierbarer Timestamp YYYY-MM-DD_HH-mm-ss (lokale Zeit). */
-const timestampForFilename = (d = new Date()) => {
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
-};
 
 interface CalcData {
   finance_type: string;
@@ -54,12 +41,22 @@ const financeLabels: Record<string, string> = {
   allin: 'All-In-Vertrag',
 };
 
-const fmt = (v: number) => v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (v: number) =>
+  v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export default function AngebotConfigCard({ projectId, projectName, calcData, zusatz, customerName, contactPerson, customerAddress, customerNumber, angebotNumber, ansprechpartner }: Props) {
-  const [zohoBusy, setZohoBusy] = useState(false);
+export default function AngebotConfigCard({
+  projectId,
+  projectName,
+  calcData,
+  zusatz,
+  customerName,
+  contactPerson,
+  customerAddress,
+  customerNumber,
+  angebotNumber,
+  ansprechpartner,
+}: Props) {
   const [showPrices, setShowPrices] = useState(false);
-  const [confirmReplace, setConfirmReplace] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -71,11 +68,11 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
   const swVolume = calc.total_volume_bw || calc.totalSwVolume || 0;
   const colorVolume = calc.total_volume_color || calc.totalColorVolume || 0;
 
-  // Project context
   const { data: projectRow } = useQuery({
     queryKey: ['project_zoho_ids', projectId],
     queryFn: async () => {
-      const { data } = await supabase.from('projects')
+      const { data } = await supabase
+        .from('projects')
         .select('zoho_deal_id, zoho_estimate_id, zoho_sales_order_id')
         .eq('id', projectId)
         .maybeSingle();
@@ -85,142 +82,24 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
 
   const existingQuoteId = projectRow?.zoho_estimate_id;
 
-  /** Create or update Zoho Quote, generate template PDF, attach + store. */
-  const runZohoQuoteFlow = async (mode: 'create' | 'update') => {
-    if (!calcData) {
-      toast.error('Bitte zuerst eine Kalkulation erstellen.');
-      return;
-    }
-    setZohoBusy(true);
-    try {
-      // Fetch deal data for contact/account refs
-      const dealId = projectRow?.zoho_deal_id || undefined;
-      let contactId: string | undefined;
-      let accountId: string | undefined;
-      if (dealId) {
-        const dealRes = await zohoClient.getDeal(dealId);
-        const deal = dealRes?.data?.[0];
-        contactId = deal?.Contact_Name?.id;
-        accountId = deal?.Account_Name?.id;
-      }
-
-      // Resolve "Standard" Layout ID once per session – the Inventory PDF
-      // template is bound to that layout, otherwise the rendered PDF is wrong.
-      const layoutId = await zohoClient.getQuoteLayoutId();
-      if (!layoutId) {
-        throw new Error(
-          `Zoho-Layout "Standard" nicht gefunden. Bitte in Zoho CRM unter Einstellungen → Layouts ein Layout mit Namen "Standard" für das Modul Angebote anlegen.`,
-        );
-      }
-
-      const payload = buildQuotePayload({
-        projectName: projectName,
-        customerName,
-        dealId,
-        contactZohoId: contactId,
-        accountZohoId: accountId,
-        calcData,
-        zusatz,
-        validity: 30,
-        layoutId,
-        contractStart: calcData?.config_json?.contract_start || undefined,
-      });
-
-      // 1. Create or update quote – Layout only on create (Zoho rejects
-      //    layout changes on existing records unless required fields match).
-      //    On update we must REPLACE Quoted_Items, not append (Zoho default).
-      let quoteId: string;
-      if (mode === 'update' && existingQuoteId) {
-        const { Layout: _layout, ...updatePayload } = payload;
-        const upd = await zohoClient.updateQuoteReplaceItems(existingQuoteId, updatePayload);
-        const updResp = upd?.data?.[0];
-        if (!updResp || (updResp.code && updResp.code !== 'SUCCESS')) {
-          throw new Error(updResp?.message || 'Quote-Update fehlgeschlagen');
-        }
-        quoteId = existingQuoteId;
-      } else {
-        const created = await zohoClient.createQuote(payload);
-        const createdResp = created?.data?.[0];
-        if (!createdResp || createdResp.code !== 'SUCCESS') {
-          throw new Error(createdResp?.message || 'Quote-Erstellung fehlgeschlagen');
-        }
-        quoteId = createdResp.details.id;
-        await supabase.from('projects').update({ zoho_estimate_id: quoteId }).eq('id', projectId);
-      }
-      markZohoIdFresh(quoteId);
-
-      // 2. PDF lokal erzeugen (volle Designkontrolle, kein Zoho-Render-Roundtrip)
-      const pdfBlob = await generateAngebotPdf({
-        projectName,
-        projectId,
-        calcData,
-        zusatz,
-        showPrices,
-        customerName,
-        contactPerson,
-        customerAddress,
-        customerNumber,
-        angebotNumber,
-        ansprechpartner,
-      });
-
-      // 3. Anhang an Zoho-Quote pushen, immer neu, mit Timestamp im Dateinamen
-      //    -> Versionierung über die Anhang-Liste, alte PDFs bleiben als Historie.
-      const fileName = `Angebot_${angebotNumber || quoteId}_${timestampForFilename()}.pdf`;
-      const attachResp = await zohoClient.attachToQuote(quoteId, pdfBlob, fileName);
-      const attachmentId = attachResp?.data?.[0]?.details?.id || null;
-
-      // 4. Document-Record für die App-eigene Dokumentenliste
-      await supabase.from('documents').insert({
-        project_id: projectId,
-        document_type: 'angebot',
-        file_name: fileName,
-        file_url: `https://crm.zoho.eu/crm/org/Quotes/${quoteId}`,
-        file_size: pdfBlob.size,
-        zoho_attachment_id: attachmentId,
-      });
-
-      // 5. Refresh queries
-      queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project_zoho_ids', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-
-      toast.success(
-        (mode === 'update' ? 'Angebot in Zoho aktualisiert.' : 'Angebot in Zoho erstellt.') +
-        ` PDF "${fileName}" als Anhang gespeichert.`,
-        { duration: 6000 },
-      );
-    } catch (err: any) {
-      console.error(err);
-      toast.error('Zoho-Fehler: ' + (err.message || err));
-    } finally {
-      setZohoBusy(false);
-    }
-  };
-
-  const handleZohoClick = () => {
-    if (existingQuoteId) {
-      setConfirmReplace(true);
-    } else {
-      runZohoQuoteFlow('create');
-    }
-  };
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">📄 Angebot erstellen</CardTitle>
+        <CardTitle className="text-base">📄 Angebot</CardTitle>
       </CardHeader>
       <CardContent>
         {!calcData ? (
-          <p className="text-sm text-muted-foreground">Bitte zuerst eine Kalkulation im Kalkulations-Modul anlegen.</p>
+          <p className="text-sm text-muted-foreground">
+            Bitte zuerst eine Kalkulation im Kalkulations-Modul anlegen.
+          </p>
         ) : (
           <div className="space-y-4">
-            {/* Read-only preview */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="bg-muted/40 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">Vertragsart</p>
-                <p className="font-medium text-sm">{financeLabels[calcData.finance_type] || calcData.finance_type}</p>
+                <p className="font-medium text-sm">
+                  {financeLabels[calcData.finance_type] || calcData.finance_type}
+                </p>
               </div>
               <div className="bg-muted/40 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">Laufzeit</p>
@@ -232,13 +111,13 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
               </div>
             </div>
 
-            {/* Prominent monthly rate */}
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">Monatliche Rate</p>
-              <p className="text-2xl font-heading font-bold text-primary">{fmt(calcData.total_monthly_rate || 0)} €</p>
+              <p className="text-2xl font-heading font-bold text-primary">
+                {fmt(calcData.total_monthly_rate || 0)} €
+              </p>
             </div>
 
-            {/* Volume info */}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-muted-foreground">S/W-Volumen: </span>
@@ -246,34 +125,33 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
               </div>
               <div>
                 <span className="text-muted-foreground">Farb-Volumen: </span>
-                <span className="font-medium">{colorVolume.toLocaleString('de-DE')} Seiten/Monat</span>
+                <span className="font-medium">
+                  {colorVolume.toLocaleString('de-DE')} Seiten/Monat
+                </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Folgeseitenpreis S/W: </span>
-                <span className="font-medium">{folgeseitenSw.toLocaleString('de-DE', { minimumFractionDigits: 4 })} €</span>
+                <span className="font-medium">
+                  {folgeseitenSw.toLocaleString('de-DE', { minimumFractionDigits: 4 })} €
+                </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Folgeseitenpreis Farbe: </span>
-                <span className="font-medium">{folgeseitenFarbe.toLocaleString('de-DE', { minimumFractionDigits: 4 })} €</span>
+                <span className="font-medium">
+                  {folgeseitenFarbe.toLocaleString('de-DE', { minimumFractionDigits: 4 })} €
+                </span>
               </div>
             </div>
 
-            {/* Show prices toggle (used in HTML preview) */}
             <div className="flex items-center justify-between border rounded-lg px-3 py-2">
               <Label className="text-sm">Einzelpreise in Vorschau anzeigen</Label>
               <Switch checked={showPrices} onCheckedChange={setShowPrices} />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Button onClick={() => setPreviewOpen(true)} variant="outline">
-                <Eye className="h-4 w-4 mr-2" />
-                PDF Vorschau
-              </Button>
-              <Button onClick={handleZohoClick} disabled={zohoBusy}>
-                {zohoBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                {existingQuoteId ? 'Zoho-Angebot aktualisieren' : 'Angebot in Zoho erstellen'}
-              </Button>
-            </div>
+            <Button onClick={() => setPreviewOpen(true)} className="w-full">
+              <Eye className="h-4 w-4 mr-2" />
+              PDF Vorschau & in Zoho speichern
+            </Button>
 
             {existingQuoteId && (
               <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3 py-2">
@@ -286,16 +164,24 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
                   size="sm"
                   className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={async () => {
-                    if (!confirm('Verknüpfung zum Zoho-Angebot wirklich entfernen?\n\nLokale Daten (Kalkulation, Zusatzvereinbarungen, Dokumente) bleiben unverändert. Anschließend kannst du ein neues Angebot in Zoho anlegen.')) return;
+                    if (
+                      !confirm(
+                        'Verknüpfung zum Zoho-Angebot wirklich entfernen?\n\nLokale Daten (Kalkulation, Zusatzvereinbarungen, Dokumente) bleiben unverändert. Ein neues Zoho-Angebot wird erst beim nächsten Speichern aus der Vorschau angelegt.',
+                      )
+                    )
+                      return;
                     const { error } = await supabase
                       .from('projects')
                       .update({ zoho_estimate_id: null })
                       .eq('id', projectId);
-                    if (error) { toast.error('Fehler: ' + error.message); return; }
+                    if (error) {
+                      toast.error('Fehler: ' + error.message);
+                      return;
+                    }
                     queryClient.invalidateQueries({ queryKey: ['project_zoho_ids', projectId] });
                     queryClient.invalidateQueries({ queryKey: ['project', projectId] });
                     queryClient.invalidateQueries({ queryKey: ['projects'] });
-                    toast.success('Verknüpfung entfernt. Du kannst jetzt ein neues Angebot in Zoho anlegen.');
+                    toast.success('Verknüpfung entfernt.');
                   }}
                 >
                   Verknüpfung entfernen
@@ -305,27 +191,6 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
           </div>
         )}
       </CardContent>
-
-      <AlertDialog open={confirmReplace} onOpenChange={setConfirmReplace}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Bestehendes Angebot vorhanden</AlertDialogTitle>
-            <AlertDialogDescription>
-              Es existiert bereits ein Zoho-Angebot (#{existingQuoteId}). Möchtest du das bestehende
-              Angebot updaten oder ein neues als Revision anlegen?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmReplace(false); runZohoQuoteFlow('create'); }}>
-              Neue Revision
-            </AlertDialogAction>
-            <AlertDialogAction onClick={() => { setConfirmReplace(false); runZohoQuoteFlow('update'); }}>
-              Updaten
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {calcData && (
         <AngebotPreviewDialog
