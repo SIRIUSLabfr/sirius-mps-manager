@@ -14,7 +14,14 @@ import {
 import type { Zusatzvereinbarungen } from './ZusatzvereinbarungenCard';
 import { buildQuotePayload } from '@/lib/zohoQuoteBuilder';
 import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
+import { generateAngebotPdf } from '@/lib/angebotPdfGenerator';
 import AngebotPreviewDialog from './AngebotPreviewDialog';
+
+/** Sortierbarer Timestamp YYYY-MM-DD_HH-mm-ss (lokale Zeit). */
+const timestampForFilename = (d = new Date()) => {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+};
 
 interface CalcData {
   finance_type: string;
@@ -106,13 +113,6 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         );
       }
 
-      // App_Version inkrementieren -> triggert den Zoho-Workflow, der das
-      // Inventory-Template intern rendert und das PDF an die Quote anhängt.
-      // Zoho-Feld ist integer, max 9 Stellen. Unix-Sekunden ab 2020 -> 9 Stellen,
-      // monoton steigend, passt bis ~2051.
-      const EPOCH_2020 = 1577836800;
-      const nextVersion = Math.floor(Date.now() / 1000) - EPOCH_2020;
-
       const payload = buildQuotePayload({
         projectName: projectName,
         customerName,
@@ -124,7 +124,6 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
         validity: 30,
         layoutId,
         contractStart: calcData?.config_json?.contract_start || undefined,
-        appVersion: nextVersion,
       });
 
       // 1. Create or update quote – Layout only on create (Zoho rejects
@@ -150,25 +149,45 @@ export default function AngebotConfigCard({ projectId, projectName, calcData, zu
       }
       markZohoIdFresh(quoteId);
 
-      // 2. Document-Record (ohne PDF-Blob - PDF-Erstellung läuft jetzt
-      //    asynchron via Zoho-Workflow auf der Quote selbst).
+      // 2. PDF lokal erzeugen (volle Designkontrolle, kein Zoho-Render-Roundtrip)
+      const pdfBlob = await generateAngebotPdf({
+        projectName,
+        projectId,
+        calcData,
+        zusatz,
+        showPrices,
+        customerName,
+        contactPerson,
+        customerAddress,
+        customerNumber,
+        angebotNumber,
+        ansprechpartner,
+      });
+
+      // 3. Anhang an Zoho-Quote pushen, immer neu, mit Timestamp im Dateinamen
+      //    -> Versionierung über die Anhang-Liste, alte PDFs bleiben als Historie.
+      const fileName = `Angebot_${angebotNumber || quoteId}_${timestampForFilename()}.pdf`;
+      const attachResp = await zohoClient.attachToQuote(quoteId, pdfBlob, fileName);
+      const attachmentId = attachResp?.data?.[0]?.details?.id || null;
+
+      // 4. Document-Record für die App-eigene Dokumentenliste
       await supabase.from('documents').insert({
         project_id: projectId,
         document_type: 'angebot',
-        file_name: `Zoho Quote #${quoteId} (App_Version ${nextVersion})`,
+        file_name: fileName,
         file_url: `https://crm.zoho.eu/crm/org/Quotes/${quoteId}`,
-        file_size: 0,
-        zoho_attachment_id: null,
+        file_size: pdfBlob.size,
+        zoho_attachment_id: attachmentId,
       });
 
-      // 3. Refresh queries
+      // 5. Refresh queries
       queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project_zoho_ids', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
 
       toast.success(
         (mode === 'update' ? 'Angebot in Zoho aktualisiert.' : 'Angebot in Zoho erstellt.') +
-        ' Das PDF wird in Zoho per Workflow erstellt und an die Quote angehängt.',
+        ` PDF "${fileName}" als Anhang gespeichert.`,
         { duration: 6000 },
       );
     } catch (err: any) {
