@@ -261,11 +261,45 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
   const handleImportFromCalc = async () => {
     setBusy(true);
     try {
-      // Standort-Match nach Group-Label (case-insensitive)
+      // 1. Distinct group labels aus der Kalkulation sammeln und sicherstellen,
+      //    dass jeder als locations-Eintrag existiert. Group-Labels in der
+      //    Kalkulation sind freie Strings — Standort-Dropdown der Abwicklung
+      //    braucht echte Location-Records mit FK.
+      const distinctLabels = Array.from(
+        new Set(
+          calcDevices
+            .map((g) => (g.label || '').trim())
+            .filter(Boolean),
+        ),
+      );
+
       const locByName = new Map<string, string>();
       locations.forEach((l: any) => locByName.set(String(l.name).toLowerCase(), l.id));
 
-      // Bestehende from_quote_item_ids → ID, fuer Update statt Insert.
+      const missingLabels = distinctLabels.filter(
+        (l) => !locByName.has(l.toLowerCase()),
+      );
+
+      if (missingLabels.length > 0) {
+        const inserts = missingLabels.map((name, idx) => ({
+          project_id: projectId,
+          name,
+          location_type: 'site' as const,
+          parent_id: null,
+          sort_order: (locations.length || 0) + idx,
+        }));
+        const { data: newLocs, error: locErr } = await supabase
+          .from('locations')
+          .insert(inserts as any)
+          .select();
+        if (locErr) throw locErr;
+        (newLocs || []).forEach((l: any) =>
+          locByName.set(String(l.name).toLowerCase(), l.id),
+        );
+        queryClient.invalidateQueries({ queryKey: ['locations', projectId] });
+      }
+
+      // 2. Bestehende from_quote_item_ids → ID, fuer Update statt Insert.
       const existingByKey = new Map<string, string>();
       devices.forEach((d) => {
         if (d.from_quote_item_id) existingByKey.set(d.from_quote_item_id, d.id);
@@ -275,7 +309,9 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
       const updates: Array<{ id: string; patch: Record<string, any> }> = [];
 
       calcDevices.forEach((g) => {
-        const locId = g.label ? locByName.get(g.label.toLowerCase()) || null : null;
+        const locId = g.label
+          ? locByName.get(g.label.toLowerCase()) || null
+          : null;
         for (let i = 1; i <= (g.quantity || 1); i++) {
           const key = `${g.key}-${i}`;
           const fields = {
@@ -298,17 +334,19 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
         }
       });
 
-      if (inserts.length === 0 && updates.length === 0) {
+      if (inserts.length === 0 && updates.length === 0 && missingLabels.length === 0) {
         toast.message('Keine Kalkulations-Geraete gefunden.');
         return;
       }
 
+      const parts: string[] = [];
+      if (missingLabels.length > 0) parts.push(`${missingLabels.length} neue(r) Standort(e)`);
+      if (inserts.length > 0) parts.push(`${inserts.length} neue(s) Geraet(e)`);
+      if (updates.length > 0) parts.push(`${updates.length} bestehende(s) Geraet(e) aktualisieren`);
       if (
         !confirm(
-          `${inserts.length} neue Geraet(e) hinzufuegen` +
-            (updates.length > 0
-              ? ` und ${updates.length} bestehende(s) aktualisieren?`
-              : '?') +
+          parts.join(' + ') +
+            ' anlegen / synchronisieren?' +
             (updates.length > 0
               ? '\n\nManuelle Aenderungen an Modell / Optionen / Standort der bestehenden Geraete werden ueberschrieben.'
               : ''),
@@ -326,9 +364,11 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
         if (error) throw error;
       }
 
+      const created = missingLabels.length > 0 ? `, ${missingLabels.length} Standort(e) angelegt` : '';
       toast.success(
         `${inserts.length} hinzugefuegt` +
           (updates.length > 0 ? `, ${updates.length} aktualisiert` : '') +
+          created +
           '.',
       );
       refresh();
