@@ -15,6 +15,7 @@ import { ClipboardList, Building2, User, Euro, FileText, CheckCircle2, Send, Ext
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useZohoIdValidation } from '@/hooks/useZohoIdValidation';
+import ContactPicker, { type ContactEntry } from '@/components/potential/ContactPicker';
 
 export default function PotentialOverviewPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -219,7 +220,13 @@ export default function PotentialOverviewPage() {
   const closingDate = dealRecord?.Closing_Date;
   const owner = dealRecord?.Owner?.name;
   const accountName = dealRecord?.Account_Name?.name;
+  const accountId = dealRecord?.Account_Name?.id || null;
   const dealName = dealRecord?.Deal_Name;
+
+  const customerContacts: ContactEntry[] = useMemo(() => {
+    const raw = (project as any)?.customer_contacts;
+    return Array.isArray(raw) ? raw : [];
+  }, [project]);
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
@@ -389,6 +396,15 @@ export default function PotentialOverviewPage() {
           </CardContent>
         </Card>
       )}
+
+      <ContactPicker
+        projectId={projectId!}
+        accountId={accountId}
+        contacts={customerContacts}
+        onChange={() => {
+          queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+        }}
+      />
 
       <Tabs defaultValue="devices">
         <TabsList>

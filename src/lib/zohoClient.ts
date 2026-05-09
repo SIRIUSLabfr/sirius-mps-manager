@@ -256,6 +256,18 @@ export const zohoClient = {
     return zohoClient.api(`Contacts/search?word=${encodeURIComponent(query)}`);
   },
 
+  /**
+   * Sucht Kontakte mit Namens-Match, gefiltert auf einen Account.
+   * Nutzt Zohos `criteria`-Syntax: First_Name oder Last_Name beginnt
+   * mit dem Query, AND Account_Name.id == accountId.
+   */
+  searchContactsByAccount: async (accountId: string, query: string) => {
+    const q = query.trim();
+    if (!accountId || q.length < 1) return null;
+    const criteria = `((Account_Name.id:equals:${accountId})and((Last_Name:starts_with:${q})or(First_Name:starts_with:${q})))`;
+    return zohoClient.api(`Contacts/search?criteria=${encodeURIComponent(criteria)}`);
+  },
+
   updateDeal: async (dealId: string, fields: Record<string, any>) => {
     return zohoClient.api('Deals', 'PUT', {
       data: [{ id: dealId, ...fields }],
