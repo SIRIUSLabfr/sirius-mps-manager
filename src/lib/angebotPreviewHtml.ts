@@ -203,6 +203,8 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
   .ap-detail { font-size: 9px; color: #94A3B8; line-height: 1.7; }
 
   .sdc-block {
+    display: block;
+    text-decoration: none;
     margin-top: 28px;
     background: #080813;
     color: #CCFFF7;
@@ -212,7 +214,9 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
     box-shadow: 0 4px 16px rgba(8, 8, 19, 0.18);
     position: relative;
     overflow: hidden;
+    cursor: pointer;
   }
+  .sdc-block:hover { box-shadow: 0 6px 22px rgba(233, 82, 151, 0.28); }
   .sdc-tag {
     display: inline-block;
     font-size: 8px;
@@ -402,7 +406,7 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
       </div>
     </div>
 
-    <div class="sdc-block">
+    <a class="sdc-block" href="https://www.smiling-data-club.de" target="_blank" rel="noopener noreferrer" data-sdc-link>
       <div class="sdc-tag">SDC · ONLINE</div>
       <div class="sdc-title">▸ SMILING DATA CLUB</div>
       <div class="sdc-tagline">
@@ -416,7 +420,7 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
       <div class="sdc-cta">
         ▸ JOIN THE CLUB <span>·</span> SMILING-DATA.CLUB ◂
       </div>
-    </div>
+    </a>
   </div>
   ${pageFooter}
 </section>

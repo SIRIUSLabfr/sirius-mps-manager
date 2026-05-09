@@ -137,6 +137,11 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
 
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
+    // Beim Rendern merken: welche PDF-Page beginnt jede Section?
+    // Brauchen wir, um klickbare Link-Annotationen (z. B. SDC-Box auf
+    // Seite 4) auf die richtige PDF-Seite zu legen.
+    const sectionStartPages: number[] = [];
+
     for (let i = 0; i < sections.length; i++) {
       const section = sections[i];
 
@@ -147,15 +152,12 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
         logging: false,
       });
 
-      // Scale nach A4-Breite, Höhe ergibt sich proportional.
       const imgHeightMM = (canvas.height * A4_W_MM) / canvas.width;
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
       if (i > 0) pdf.addPage();
+      sectionStartPages.push(pdf.getNumberOfPages());
 
-      // Wenn der Section-Content höher als A4 ist (z. B. sehr viele
-      // Geräte oder Zusatz-Items): über mehrere PDF-Seiten splitten,
-      // damit nichts abgeschnitten wird.
       if (imgHeightMM <= A4_H_MM + 0.5) {
         pdf.addImage(imgData, 'JPEG', 0, 0, A4_W_MM, imgHeightMM);
       } else {
@@ -170,6 +172,38 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
           heightLeft -= A4_H_MM;
         }
       }
+    }
+
+    // Klickbare Link-Annotation für die SDC-Box (auf Seite 4).
+    // html2canvas erzeugt nur Bitmaps — Hyperlinks müssen separat per
+    // jsPDF angetragen werden, aufbauend auf der Box-Position relativ zur
+    // umgebenden Section.
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const link = section.querySelector<HTMLElement>('[data-sdc-link]');
+      if (!link) continue;
+      const url = (link.getAttribute('href') || '').trim();
+      if (!url) continue;
+
+      const sectionRect = section.getBoundingClientRect();
+      const linkRect = link.getBoundingClientRect();
+      // Eine Section ist im DOM 210mm breit → Conversion-Faktor:
+      const pxPerMm = sectionRect.width / A4_W_MM;
+      const xMm = (linkRect.left - sectionRect.left) / pxPerMm;
+      const yMm = (linkRect.top - sectionRect.top) / pxPerMm;
+      const wMm = linkRect.width / pxPerMm;
+      const hMm = linkRect.height / pxPerMm;
+
+      // Falls die Section über mehrere PDF-Seiten lief und die Box
+      // hinter A4_H_MM liegt, einfach überspringen (Link wäre falsch
+      // platziert). Im Normalfall passt Section 4 auf eine Seite.
+      if (yMm + hMm > A4_H_MM + 1) {
+        console.warn('[Angebot PDF] SDC link overflows page boundary — skipping link annotation');
+        continue;
+      }
+
+      pdf.setPage(sectionStartPages[i]);
+      pdf.link(xMm, yMm, wMm, hMm, { url });
     }
 
     // „Seite X von Y" auf jeder PDF-Seite unten rechts überlegen.
