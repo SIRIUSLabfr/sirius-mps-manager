@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjectDevices } from '@/hooks/useProjectData';
@@ -222,6 +222,48 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
 
   const importable = calcDevices.length > 0;
   const hasDevices = devices.length > 0;
+
+  // Distinct Standort-Tags aus allen Kalk-Geraete-Gruppen — auch
+  // ohne Klick auf 'Aus Kalkulation uebernehmen' werden fehlende
+  // Tags als locations-Records angelegt, sobald die Card lädt.
+  // Damit ist der Standort-Dropdown auch fuer manuell hinzugefuegte
+  // Geraete sofort gefuellt.
+  const allCalcLabels = useMemo(() => {
+    const set = new Set<string>();
+    calcDevices.forEach((g) =>
+      (g.label || '')
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .forEach((t) => set.add(t)),
+    );
+    return Array.from(set);
+  }, [calcDevices]);
+
+  const syncLocations = useCallback(async () => {
+    if (allCalcLabels.length === 0) return;
+    const known = new Set(locations.map((l: any) => String(l.name).toLowerCase()));
+    const missing = allCalcLabels.filter((l) => !known.has(l.toLowerCase()));
+    if (missing.length === 0) return;
+    try {
+      const inserts = missing.map((name, idx) => ({
+        project_id: projectId,
+        name,
+        location_type: 'site' as const,
+        parent_id: null,
+        sort_order: (locations.length || 0) + idx,
+      }));
+      const { error } = await supabase.from('locations').insert(inserts as any);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['locations', projectId] });
+    } catch (err) {
+      console.warn('[BeauftragteGeraete] location auto-sync failed:', err);
+    }
+  }, [allCalcLabels, locations, projectId, queryClient]);
+
+  useEffect(() => {
+    syncLocations();
+  }, [syncLocations]);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['devices', projectId] });
