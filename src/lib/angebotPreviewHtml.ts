@@ -8,6 +8,8 @@ export interface AngebotPreviewInput {
   contactPerson?: string;
   angebotNumber?: string;
   ansprechpartner?: { name: string; role?: string; email?: string; phone?: string } | null;
+  /** Optional Public-URL oder data:URI des Kunden-Logos */
+  customerLogoUrl?: string;
   calcData: {
     finance_type: string;
     term_months: number;
@@ -126,12 +128,8 @@ export function buildAngebotHtml(
       </div>
     </header>`;
 
-  const pageFooter = `
-    <footer class="page-footer">
-      SIRIUS GmbH document solutions · Abrichstr. 23 · 79108 Freiburg ·
-      Geschäftsführer: Fabian Schüler, Michael Wangerowski, Manfred Schüler ·
-      Registergericht: Amtsgericht Freiburg · HRB 2624
-    </footer>`;
+  // Footer wird vom PDF-Renderer (Puppeteer footerTemplate) gesetzt
+  const pageFooter = '';
 
   return `
 <!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Angebot</title>
@@ -141,13 +139,14 @@ export function buildAngebotHtml(
 
   body { font-family: "Inter", "Segoe UI", sans-serif; font-size: 11px; line-height: 1.6; color: #334155; background: #FFFFFF; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  /* Eine PDF-Seite = ein .pdf-page Wrapper, A4 hoch (297mm), feste Breite. */
+  /* Eine PDF-Seite = ein .pdf-page Wrapper. min-height 282mm beruecksichtigt
+     den 15mm-Footer-Bereich, den Puppeteer am unteren Rand reserviert. */
   .pdf-page {
     width: 210mm;
-    min-height: 297mm;
+    min-height: 282mm;
     background: #fff;
     box-sizing: border-box;
-    padding: 0 0 28mm 0;
+    padding: 0 0 8mm 0;
     position: relative;
     page-break-after: always;
     break-after: page;
@@ -157,8 +156,18 @@ export function buildAngebotHtml(
   body.preview .pdf-page + .pdf-page { margin-top: 12px; box-shadow: 0 -1px 0 #E2E8F0; }
 
   .page-header { padding: 18px 36px 14px; display: table; width: 100%; border-bottom: 1.5px solid #E2E8F0; box-sizing: border-box; }
-  .page-header .logo { display: table-cell; vertical-align: middle; height: 42px; max-width: 180px; }
+  .page-header .logo { display: table-cell; vertical-align: middle; height: 56px; max-width: 220px; }
   .page-header-right { display: table-cell; vertical-align: middle; text-align: right; font-size: 8px; color: #94A3B8; line-height: 1.7; letter-spacing: 0.02em; }
+
+  /* Empfaenger + Kunden-Logo nebeneinander */
+  .meta-left { position: relative; }
+  .customer-logo {
+    max-height: 60px;
+    max-width: 140px;
+    object-fit: contain;
+    margin-bottom: 14px;
+    display: block;
+  }
 
   .content { padding: 24px 36px 24px; }
 
@@ -291,7 +300,8 @@ export function buildAngebotHtml(
   }
   .sdc-cta span { color: #E95297; }
 
-  .page-footer { position: absolute; bottom: 10mm; left: 0; right: 0; padding: 0 36px; text-align: center; font-size: 7.5px; color: #94A3B8; line-height: 1.6; letter-spacing: 0.01em; }
+  /* Footer wird von Puppeteer per footerTemplate auf jede Seite gemalt
+     (mit "Seite X von Y") — kein HTML-Footer mehr noetig. */
 
   .placeholder-tag { background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; }
 </style></head>
@@ -303,6 +313,7 @@ export function buildAngebotHtml(
   <div class="content">
     <div class="meta-row">
       <div class="meta-left">
+        ${p.customerLogoUrl ? `<img src="${escapeHtml(p.customerLogoUrl)}" class="customer-logo" alt="Kunden-Logo" crossorigin="anonymous" />` : ''}
         <div class="sender-line">SIRIUS GmbH · Abrichstr. 23 · 79108 Freiburg</div>
         <div class="recipient-name">${p.customerName ? escapeHtml(p.customerName) : placeholder('Kundenname')}</div>
         <div class="recipient-detail">
@@ -343,7 +354,7 @@ export function buildAngebotHtml(
     <div class="section-line"></div>
 
     <table class="ptable">
-      <thead><tr><th>Artikel</th><th>Beschreibung</th><th>Menge</th></tr></thead>
+      <thead><tr><th>Artikel</th><th>Optionen</th><th>Menge</th></tr></thead>
       <tbody>
         ${deviceRows || '<tr><td colspan="3" style="text-align:center;color:#94A3B8;padding:18px;">Keine Geräte in der Kalkulation</td></tr>'}
       </tbody>

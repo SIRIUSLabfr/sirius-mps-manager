@@ -32,6 +32,7 @@ interface Props {
   customerNumber?: string;
   angebotNumber?: string;
   ansprechpartner?: { name: string; role?: string; email?: string; phone?: string } | null;
+  customerLogoUrl?: string;
 }
 
 const financeLabels: Record<string, string> = {
@@ -55,6 +56,7 @@ export default function AngebotConfigCard({
   customerNumber,
   angebotNumber,
   ansprechpartner,
+  customerLogoUrl,
 }: Props) {
   const [showPrices, setShowPrices] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -204,6 +206,7 @@ export default function AngebotConfigCard({
           contactPerson={contactPerson}
           angebotNumber={angebotNumber}
           ansprechpartner={ansprechpartner}
+          customerLogoUrl={customerLogoUrl}
           calcData={calcData}
           zusatz={zusatz}
           quoteId={existingQuoteId}
