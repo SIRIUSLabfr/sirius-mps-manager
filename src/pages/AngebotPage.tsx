@@ -153,7 +153,11 @@ export default function AngebotPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  // Build Ansprechpartner: prefer Zoho deal owner, fallback to customer contact
+  // Build Ansprechpartner: prefer Zoho deal owner, fallback to customer contact.
+  // ACHTUNG: ansprechpartner ist der SIRIUS-Mitarbeiter, NICHT der Kunden-Kontakt.
+  // Letzterer kommt aus projects.customer_contacts (siehe customerContactName unten)
+  // und wird als contactPerson an AngebotConfigCard durchgereicht — die PDF-Anrede
+  // soll den Kunden ansprechen, nicht den eigenen Vertriebler.
   const ansprechpartner = dealOwner
     ? {
         name: dealOwner.name,
@@ -165,6 +169,15 @@ export default function AngebotPage() {
           : undefined,
       }
     : null;
+
+  // Erster gepflegter Kunden-Kontakt aus dem Projekt (über die Potential-
+  // übersicht / NewProjectDialog gepflegt). Geht als Anrede ins Angebot.
+  const customerContactName: string | undefined = (() => {
+    const list = (project as any)?.customer_contacts;
+    if (!Array.isArray(list)) return undefined;
+    const first = list.find((c: any) => c?.name?.trim());
+    return first?.name || undefined;
+  })();
 
   const { data: docs = [] } = useDocuments(projectId || null);
   const signedDoc = docs.find(d => d.document_type === 'auftrag_unterschrieben');
@@ -220,7 +233,7 @@ export default function AngebotPage() {
         } : null}
         zusatz={zusatz}
         customerName={project?.customer_name}
-        contactPerson={ansprechpartner?.name}
+        contactPerson={customerContactName}
         customerAddress={(project as any)?.warehouse_address}
         customerNumber={project?.customer_number || undefined}
         angebotNumber={project?.project_number || undefined}

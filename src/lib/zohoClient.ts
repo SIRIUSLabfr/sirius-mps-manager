@@ -13,6 +13,14 @@ export const QUOTE_LAYOUT_NAME = 'Standard';
  */
 export const ZOHO_ACCOUNT_CUSTOMER_NUMBER_FIELD = 'Kundennummer';
 
+/**
+ * API-Name des Custom-Felds am Zoho-Quote-Modul für die Angebots-Nummer
+ * (im Inventory-Template als ${Angebote.Angebotsnr.} referenziert).
+ * Fallback ist `Quote_Number` (Standard-Feld), falls dieses Custom-Feld
+ * nicht existiert oder leer ist.
+ */
+export const ZOHO_QUOTE_OFFER_NUMBER_FIELD = 'Angebotsnr';
+
 let _quoteLayoutIdCache: string | null = null;
 
 // IDs the user has just created/updated. Validation hooks must NOT clear

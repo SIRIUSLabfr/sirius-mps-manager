@@ -1,9 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, Save } from 'lucide-react';
+import { Loader2, FileText, Save, Download } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { zohoClient, markZohoIdFresh, ZOHO_ACCOUNT_CUSTOMER_NUMBER_FIELD } from '@/lib/zohoClient';
+import {
+  zohoClient,
+  markZohoIdFresh,
+  ZOHO_ACCOUNT_CUSTOMER_NUMBER_FIELD,
+  ZOHO_QUOTE_OFFER_NUMBER_FIELD,
+} from '@/lib/zohoClient';
 import { buildQuotePayload, buildDraftQuotePayload } from '@/lib/zohoQuoteBuilder';
 import { buildAngebotHtml } from '@/lib/angebotPreviewHtml';
 import { generateAngebotPdf } from '@/lib/angebotPdfGenerator';
@@ -47,6 +52,7 @@ const timestampForFilename = (d = new Date()) => {
 export default function AngebotPreviewDialog(props: Props) {
   const { open, onOpenChange, projectId, projectName, calcData, zusatz, quoteId } = props;
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const queryClient = useQueryClient();
 
   // Quote-Metadaten aus Zoho laden, sobald der Dialog mit verknüpfter
@@ -69,8 +75,10 @@ export default function AngebotPreviewDialog(props: Props) {
         accountFields?.[ZOHO_ACCOUNT_CUSTOMER_NUMBER_FIELD] ||
         accountFields?.Account_Number ||
         undefined;
+      const offerNumber =
+        quote?.[ZOHO_QUOTE_OFFER_NUMBER_FIELD] || quote?.Quote_Number || undefined;
       return {
-        angebotNumber: quote?.Quote_Number ? String(quote.Quote_Number) : undefined,
+        angebotNumber: offerNumber ? String(offerNumber) : undefined,
         customerNumber: customerNumber ? String(customerNumber) : undefined,
       };
     },
@@ -85,6 +93,39 @@ export default function AngebotPreviewDialog(props: Props) {
   };
 
   const html = open ? buildAngebotHtml(enrichedProps, { forPdf: false }) : '';
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const pdfBlob = await generateAngebotPdf({
+        projectName,
+        projectId,
+        calcData,
+        zusatz,
+        customerName: props.customerName,
+        customerNumber: enrichedProps.customerNumber,
+        customerAddress: props.customerAddress,
+        contactPerson: props.contactPerson,
+        angebotNumber: enrichedProps.angebotNumber,
+        ansprechpartner: props.ansprechpartner,
+      });
+      const fileName = `Angebot_${enrichedProps.angebotNumber || 'NEU'}_${timestampForFilename()}.pdf`;
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`PDF heruntergeladen: ${fileName}`);
+    } catch (err: any) {
+      console.error('[AngebotPreviewDialog] download failed:', err);
+      toast.error('Fehler beim Erzeugen: ' + (err?.message || err));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const handleSaveToZoho = async () => {
     setSaving(true);
@@ -209,7 +250,20 @@ export default function AngebotPreviewDialog(props: Props) {
               )}
             </DialogTitle>
             <div className="flex items-center gap-2">
-              <Button onClick={handleSaveToZoho} disabled={saving} size="sm">
+              <Button
+                onClick={handleDownload}
+                disabled={downloading || saving}
+                size="sm"
+                variant="outline"
+              >
+                {downloading ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Herunterladen
+              </Button>
+              <Button onClick={handleSaveToZoho} disabled={saving || downloading} size="sm">
                 {saving ? (
                   <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                 ) : (
