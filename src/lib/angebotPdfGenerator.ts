@@ -28,6 +28,29 @@ const A4_W_MM = 210;
 const A4_H_MM = 297;
 
 /**
+ * Lädt ein Asset (z. B. Logo) und liefert es als `data:`-URI.
+ * Wird vor dem html2canvas-Run benutzt, damit Images im versteckten
+ * Render-Container nicht erst über das Netz laden müssen — das ist
+ * sonst die Hauptursache für `createPattern`-Fehler („image argument
+ * is a canvas element with a width or height of 0").
+ */
+async function fetchAsDataUri(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
  * PDF-Export. Rendert exakt das Vorschau-HTML — pro `[data-pdf-page]`-
  * Section ein eigenes Canvas → eine eigene PDF-Seite. Damit gibt's
  * keine zerschnittenen Tabellen, und Anschreiben/Geräte/Zusatz/Kontakte
@@ -72,7 +95,17 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   wrapper.innerHTML = `${styleTags}<div id="pdf-root" style="width:210mm;background:#fff;">${bodyHtml}</div>`;
   document.body.appendChild(wrapper);
 
-  // Bilder (Logo!) laden lassen, sonst rendert html2canvas leere Boxen.
+  // Logo vorab als data:URI auflösen und in alle <img class="logo">
+  // einsetzen — vermeidet Race-Conditions beim Bild-Laden im versteckten
+  // Wrapper, die zu html2canvas-Errors führen.
+  const logoDataUri = await fetchAsDataUri('/sirius-logo.png');
+  if (logoDataUri) {
+    wrapper.querySelectorAll<HTMLImageElement>('img.logo').forEach((img) => {
+      img.src = logoDataUri;
+    });
+  }
+
+  // Auf vollständiges Laden aller Images warten.
   await Promise.all(
     Array.from(wrapper.querySelectorAll('img')).map(
       (img) =>
@@ -83,6 +116,16 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
         })
     )
   );
+
+  // Defensive: Images, die nach dem Wait immer noch 0x0 sind (404,
+  // CORS-Block, Decode-Fehler), aus dem DOM entfernen — sonst scheitert
+  // html2canvas mit "createPattern ... width or height of 0".
+  wrapper.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
+    if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+      console.warn('[Angebot PDF] Removing broken/empty image:', img.src);
+      img.remove();
+    }
+  });
 
   try {
     const sections = Array.from(
