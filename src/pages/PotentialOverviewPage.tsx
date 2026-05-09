@@ -409,7 +409,7 @@ export default function PotentialOverviewPage() {
 
       <CustomerLogoCard
         projectId={projectId!}
-        logoUrl={(project as any)?.customer_logo_url}
+        logoUrl={(project as any)?.quote_config?.customer_logo_data_uri}
       />
 
       <Tabs defaultValue="devices">

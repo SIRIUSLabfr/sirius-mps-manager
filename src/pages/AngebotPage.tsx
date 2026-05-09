@@ -238,7 +238,7 @@ export default function AngebotPage() {
         customerNumber={project?.customer_number || undefined}
         angebotNumber={project?.project_number || undefined}
         ansprechpartner={ansprechpartner}
-        customerLogoUrl={(project as any)?.customer_logo_url || undefined}
+        customerLogoUrl={(project as any)?.quote_config?.customer_logo_data_uri || undefined}
       />
 
       <ZusatzvereinbarungenCard
