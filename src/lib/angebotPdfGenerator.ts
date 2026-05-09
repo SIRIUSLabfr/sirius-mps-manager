@@ -24,19 +24,15 @@ interface PdfInput {
   ansprechpartner?: { name: string; role?: string; email?: string; phone?: string } | null;
 }
 
+const A4_W_MM = 210;
+const A4_H_MM = 297;
+
 /**
- * PDF-Export des Angebots. Rendert exakt dasselbe HTML, das die
- * Vorschau (`AngebotPreviewDialog`) anzeigt — Single Source of Truth
- * via `buildAngebotHtml`.
- *
- * Strategie: HTML in einem versteckten Container rendern, mit
- * html2canvas einmal komplett zur Bitmap machen, in A4-große Slices
- * schneiden und Slice für Slice als eigene PDF-Seite einfügen.
- *
- * `html2canvas` und `jspdf` werden statisch importiert — dynamische
- * Imports erzeugen separate Vite-Chunks, die nach einem Deploy mit
- * altem Browser-Cache zu "Failed to fetch dynamically imported module"
- * führen.
+ * PDF-Export. Rendert exakt das Vorschau-HTML — pro `[data-pdf-page]`-
+ * Section ein eigenes Canvas → eine eigene PDF-Seite. Damit gibt's
+ * keine zerschnittenen Tabellen, und Anschreiben/Geräte/Zusatz/Kontakte
+ * landen jeweils auf ihrer eigenen Seite. Footer + „Seite X von Y"
+ * werden nach allen Renders über jede PDF-Seite drüber gemalt.
  */
 export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   const html = buildAngebotHtml(
@@ -54,8 +50,9 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
     { forPdf: true }
   );
 
-  // Wir brauchen aus dem kompletten <html>…</html>-String nur den Body-
-  // Inhalt + Styles, damit er in unserem Render-Container lebt.
+  // Body-Inhalt + Styles aus dem HTML extrahieren — wir packen das
+  // in einen versteckten Container im aktuellen DOM, sonst kann
+  // html2canvas die Schriften / Bilder nicht resolved kriegen.
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const styleTags = Array.from(doc.querySelectorAll('style'))
@@ -63,7 +60,6 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
     .join('\n');
   const bodyHtml = doc.body.innerHTML;
 
-  // Hidden render container, A4 breit (210 mm)
   const wrapper = document.createElement('div');
   wrapper.style.position = 'fixed';
   wrapper.style.left = '0';
@@ -76,59 +72,71 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
   wrapper.innerHTML = `${styleTags}<div id="pdf-root" style="width:210mm;background:#fff;">${bodyHtml}</div>`;
   document.body.appendChild(wrapper);
 
-  // Bilder fertig laden lassen
-  const images = wrapper.querySelectorAll('img');
+  // Bilder (Logo!) laden lassen, sonst rendert html2canvas leere Boxen.
   await Promise.all(
-    Array.from(images).map(
+    Array.from(wrapper.querySelectorAll('img')).map(
       (img) =>
         new Promise<void>((resolve) => {
-          if (img.complete) return resolve();
+          if (img.complete && img.naturalWidth > 0) return resolve();
           img.onload = () => resolve();
           img.onerror = () => resolve();
         })
     )
   );
 
-  const root = wrapper.querySelector('#pdf-root') as HTMLElement;
-
   try {
-    const canvas = await html2canvas(root, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-    });
-
-    const A4_W_MM = 210;
-    const A4_H_MM = 297;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-
-    // Bildhöhe in mm bei voller A4-Breite
-    const pdfImgHeightMM = (canvas.height * A4_W_MM) / canvas.width;
-
-    // Slice-Strategie: Eine einzige hohe Bitmap, pro PDF-Seite den
-    // sichtbaren Ausschnitt per negativem Y-Offset platzieren.
-    let heightLeft = pdfImgHeightMM;
-    let position = 0;
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-
-    pdf.addImage(imgData, 'JPEG', 0, position, A4_W_MM, pdfImgHeightMM);
-    heightLeft -= A4_H_MM;
-
-    while (heightLeft > 0) {
-      position -= A4_H_MM;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, A4_W_MM, pdfImgHeightMM);
-      heightLeft -= A4_H_MM;
+    const sections = Array.from(
+      wrapper.querySelectorAll<HTMLElement>('[data-pdf-page]')
+    );
+    if (sections.length === 0) {
+      throw new Error('No [data-pdf-page] sections found in HTML');
     }
 
-    // Seitenzahlen
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+
+      const canvas = await html2canvas(section, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      // Scale nach A4-Breite, Höhe ergibt sich proportional.
+      const imgHeightMM = (canvas.height * A4_W_MM) / canvas.width;
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+      if (i > 0) pdf.addPage();
+
+      // Wenn der Section-Content höher als A4 ist (z. B. sehr viele
+      // Geräte oder Zusatz-Items): über mehrere PDF-Seiten splitten,
+      // damit nichts abgeschnitten wird.
+      if (imgHeightMM <= A4_H_MM + 0.5) {
+        pdf.addImage(imgData, 'JPEG', 0, 0, A4_W_MM, imgHeightMM);
+      } else {
+        let heightLeft = imgHeightMM;
+        let position = 0;
+        pdf.addImage(imgData, 'JPEG', 0, position, A4_W_MM, imgHeightMM);
+        heightLeft -= A4_H_MM;
+        while (heightLeft > 0) {
+          position -= A4_H_MM;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, position, A4_W_MM, imgHeightMM);
+          heightLeft -= A4_H_MM;
+        }
+      }
+    }
+
+    // „Seite X von Y" auf jeder PDF-Seite unten rechts überlegen.
     const pageCount = pdf.getNumberOfPages();
+    pdf.setFont('helvetica', 'normal');
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
       pdf.setFontSize(8);
       pdf.setTextColor(148, 163, 184);
-      pdf.text(`Seite ${i} von ${pageCount}`, A4_W_MM - 15, A4_H_MM - 8, { align: 'right' });
+      pdf.text(`Seite ${i} von ${pageCount}`, A4_W_MM - 12, A4_H_MM - 6, { align: 'right' });
     }
 
     return pdf.output('blob');
