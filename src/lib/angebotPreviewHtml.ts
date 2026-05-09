@@ -170,7 +170,7 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
   .anschreiben p { margin: 0 0 8px; }
 
   .section-header { font-size: 13px; font-weight: 700; color: #0F172A; margin: 0 0 4px; display: flex; align-items: center; }
-  .section-num { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: #3B6BC3; color: #FFFFFF; font-size: 10px; font-weight: 700; text-align: center; line-height: 22px; margin-right: 8px; }
+  .section-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #3B6BC3; color: #FFFFFF; font-size: 10px; font-weight: 700; line-height: 1; margin-right: 8px; }
   .section-line { height: 1px; margin-bottom: 14px; background: linear-gradient(90deg, #CBD5E1, transparent 70%); }
 
   .ptable { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
@@ -195,9 +195,10 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
 
   .z-title { font-size: 11px; font-weight: 700; color: #3B6BC3; letter-spacing: 0.04em; text-transform: uppercase; margin: 20px 0 10px; }
   .z-item { font-size: 10px; color: #475569; line-height: 1.8; margin-bottom: 5px; padding-left: 2px; }
-  .z-num { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #EFF6FF; color: #3B6BC3; font-size: 8px; font-weight: 700; text-align: center; line-height: 16px; margin-right: 6px; }
+  .z-num { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #EFF6FF; color: #3B6BC3; font-size: 8px; font-weight: 700; line-height: 1; margin-right: 6px; vertical-align: middle; }
 
-  .ap-card { display: inline-block; width: 46%; vertical-align: top; margin-right: 3%; padding: 14px 16px; background: #F8FAFC; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
+  .ap-row { display: flex; gap: 12px; margin-bottom: 10px; }
+  .ap-card { flex: 1 1 0; padding: 14px 16px; background: #F8FAFC; border-radius: 8px; box-sizing: border-box; }
   .ap-role { font-size: 7px; text-transform: uppercase; letter-spacing: 0.1em; color: #3B6BC3; font-weight: 700; margin-bottom: 3px; }
   .ap-name { font-size: 12px; font-weight: 700; color: #0F172A; margin-bottom: 3px; }
   .ap-detail { font-size: 9px; color: #94A3B8; line-height: 1.7; }
@@ -387,7 +388,7 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
     <div class="section-header"><span class="section-num">4</span>Ihre Ansprechpartner</div>
     <div class="section-line"></div>
 
-    <div>
+    <div class="ap-row">
       <div class="ap-card">
         <div class="ap-role">Ihr Ansprechpartner</div>
         <div class="ap-name">${p.ansprechpartner?.name ? escapeHtml(p.ansprechpartner.name) : '–'}</div>
