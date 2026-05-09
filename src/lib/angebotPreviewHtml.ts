@@ -202,8 +202,81 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
   .ap-name { font-size: 12px; font-weight: 700; color: #0F172A; margin-bottom: 3px; }
   .ap-detail { font-size: 9px; color: #94A3B8; line-height: 1.7; }
 
-  .sdc-placeholder { margin-top: 28px; padding: 18px; background: #F0F5FF; border: 1px dashed #94B8E5; border-radius: 8px; font-size: 9px; color: #475569; line-height: 1.7; }
-  .sdc-placeholder strong { color: #1E293B; font-weight: 700; }
+  .sdc-block {
+    margin-top: 28px;
+    background: #080813;
+    color: #CCFFF7;
+    border-radius: 10px;
+    padding: 22px 24px;
+    font-family: "Courier New", "Liberation Mono", monospace;
+    box-shadow: 0 4px 16px rgba(8, 8, 19, 0.18);
+    position: relative;
+    overflow: hidden;
+  }
+  .sdc-tag {
+    display: inline-block;
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    color: #4FB8CD;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding: 2px 8px;
+    border: 1px solid #4FB8CD;
+    border-radius: 3px;
+  }
+  .sdc-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #E95297;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .sdc-tagline {
+    font-size: 11px;
+    color: #CCFFF7;
+    margin-bottom: 18px;
+    letter-spacing: 0.04em;
+  }
+  .sdc-tagline em {
+    color: #4FB8CD;
+    font-style: normal;
+    font-weight: 700;
+  }
+  .sdc-pillars {
+    display: table;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 8px 0;
+    margin-bottom: 18px;
+  }
+  .sdc-pillar {
+    display: table-cell;
+    width: 33.33%;
+    padding: 12px 10px;
+    background: rgba(204, 255, 247, 0.06);
+    border: 1px solid rgba(79, 184, 205, 0.35);
+    border-radius: 6px;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #CCFFF7;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+  .sdc-pillar strong { color: #E95297; display: block; margin-bottom: 2px; font-size: 10px; }
+  .sdc-cta {
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4FB8CD;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(204, 255, 247, 0.18);
+  }
+  .sdc-cta span { color: #E95297; }
 
   .page-footer { position: absolute; bottom: 10mm; left: 0; right: 0; padding: 0 36px; text-align: center; font-size: 7.5px; color: #94A3B8; line-height: 1.6; letter-spacing: 0.01em; }
 
@@ -329,9 +402,20 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
       </div>
     </div>
 
-    <div class="sdc-placeholder">
-      <strong>Smiling Data Club</strong><br>
-      Bereich für die Smiling-Data-Club-Inhalte — wird in einem späteren Schritt befüllt.
+    <div class="sdc-block">
+      <div class="sdc-tag">SDC · ONLINE</div>
+      <div class="sdc-title">▸ SMILING DATA CLUB</div>
+      <div class="sdc-tagline">
+        Today's complexity. <em>Retro simplicity.</em>
+      </div>
+      <div class="sdc-pillars">
+        <div class="sdc-pillar"><strong>ZOHO ONE</strong>CRM &amp; Workflow</div>
+        <div class="sdc-pillar"><strong>DOCUWARE</strong>Dokumenten-Mgmt.</div>
+        <div class="sdc-pillar"><strong>KI &amp; AUTO-<br/>MATISIERUNG</strong>End-to-End</div>
+      </div>
+      <div class="sdc-cta">
+        ▸ JOIN THE CLUB <span>·</span> SMILING-DATA.CLUB ◂
+      </div>
     </div>
   </div>
   ${pageFooter}
