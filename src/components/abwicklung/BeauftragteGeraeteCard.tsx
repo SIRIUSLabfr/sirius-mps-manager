@@ -259,36 +259,81 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
   };
 
   const handleImportFromCalc = async () => {
-    if (!confirm(`${calcDevices.reduce((s, g) => s + (g.quantity || 1), 0)} Geräte aus der Kalkulation übernehmen?`)) return;
     setBusy(true);
     try {
-      const existingKeys = new Set(devices.map((d) => d.from_quote_item_id).filter(Boolean) as string[]);
       // Standort-Match nach Group-Label (case-insensitive)
       const locByName = new Map<string, string>();
       locations.forEach((l: any) => locByName.set(String(l.name).toLowerCase(), l.id));
-      const inserts = calcDevices.flatMap((g) =>
-        Array.from({ length: g.quantity || 1 })
-          .map((_, i) => ({
-            project_id: projectId,
+
+      // Bestehende from_quote_item_ids → ID, fuer Update statt Insert.
+      const existingByKey = new Map<string, string>();
+      devices.forEach((d) => {
+        if (d.from_quote_item_id) existingByKey.set(d.from_quote_item_id, d.id);
+      });
+
+      const inserts: any[] = [];
+      const updates: Array<{ id: string; patch: Record<string, any> }> = [];
+
+      calcDevices.forEach((g) => {
+        const locId = g.label ? locByName.get(g.label.toLowerCase()) || null : null;
+        for (let i = 1; i <= (g.quantity || 1); i++) {
+          const key = `${g.key}-${i}`;
+          const fields = {
             soll_manufacturer: g.manufacturer || null,
             soll_model: g.model,
             soll_options: g.options || null,
-            location_id: g.label ? locByName.get(g.label.toLowerCase()) || null : null,
-            from_quote_item_id: `${g.key}-${i + 1}`,
-            preparation_status: 'pending' as const,
-          }))
-          .filter((d) => !existingKeys.has(d.from_quote_item_id)),
-      );
-      if (inserts.length === 0) {
-        toast.message('Alle Kalkulations-Geräte sind bereits übernommen.');
+            location_id: locId,
+          };
+          const existingId = existingByKey.get(key);
+          if (existingId) {
+            updates.push({ id: existingId, patch: fields });
+          } else {
+            inserts.push({
+              project_id: projectId,
+              ...fields,
+              from_quote_item_id: key,
+              preparation_status: 'pending',
+            });
+          }
+        }
+      });
+
+      if (inserts.length === 0 && updates.length === 0) {
+        toast.message('Keine Kalkulations-Geraete gefunden.');
         return;
       }
-      const { error } = await supabase.from('devices').insert(inserts as any);
-      if (error) throw error;
-      toast.success(`${inserts.length} Gerät(e) übernommen.`);
+
+      if (
+        !confirm(
+          `${inserts.length} neue Geraet(e) hinzufuegen` +
+            (updates.length > 0
+              ? ` und ${updates.length} bestehende(s) aktualisieren?`
+              : '?') +
+            (updates.length > 0
+              ? '\n\nManuelle Aenderungen an Modell / Optionen / Standort der bestehenden Geraete werden ueberschrieben.'
+              : ''),
+        )
+      ) {
+        return;
+      }
+
+      if (inserts.length > 0) {
+        const { error } = await supabase.from('devices').insert(inserts as any);
+        if (error) throw error;
+      }
+      for (const u of updates) {
+        const { error } = await supabase.from('devices').update(u.patch).eq('id', u.id);
+        if (error) throw error;
+      }
+
+      toast.success(
+        `${inserts.length} hinzugefuegt` +
+          (updates.length > 0 ? `, ${updates.length} aktualisiert` : '') +
+          '.',
+      );
       refresh();
     } catch (err: any) {
-      toast.error('Fehler beim Übernehmen: ' + (err.message || err));
+      toast.error('Fehler beim Uebernehmen: ' + (err.message || err));
     } finally {
       setBusy(false);
     }
