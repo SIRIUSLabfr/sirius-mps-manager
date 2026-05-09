@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronDown, ChevronRight, Check, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import BeauftragteGeraeteCard from '@/components/abwicklung/BeauftragteGeraeteCard';
 
 export default function AbwicklungPage() {
   const { projectId } = useParams();
@@ -169,6 +170,9 @@ export default function AbwicklungPage() {
           </CollapsibleContent>
         </div>
       </Collapsible>
+
+      {/* Beauftragte Geräte: Liste editierbar, mit Push in SOP */}
+      {pid && <BeauftragteGeraeteCard projectId={pid} />}
 
       {/* Step groups */}
       {groups.map(group => {
