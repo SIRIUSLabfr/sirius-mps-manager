@@ -20,6 +20,7 @@ interface PdfInput {
   customerNumber?: string;
   angebotNumber?: string;
   ansprechpartner?: { name: string; role?: string; email?: string; phone?: string } | null;
+  customerLogoUrl?: string;
 }
 
 /**
@@ -55,9 +56,13 @@ async function fetchAsDataUri(url: string): Promise<string | null> {
  *   - Schriftrendering identisch zur Browser-Vorschau
  */
 export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
-  // Logo als data:URI vorab laden — der Server hat keinen Zugang zur
-  // App-URL. Beim Vorschau-Build ist das Asset zudem noch nicht im CDN.
-  const logoDataUri = await fetchAsDataUri('/sirius-logo.png');
+  // Beide Logos vorab als data:URI laden — der Render-Server (Chromium
+  // auf Netlify) hat keinen Zugang zur App-URL, und das Customer-Logo
+  // liegt auf Supabase-Storage (Cross-Origin → besser inline einbetten).
+  const [logoDataUri, customerLogoDataUri] = await Promise.all([
+    fetchAsDataUri('/sirius-logo.png'),
+    input.customerLogoUrl ? fetchAsDataUri(input.customerLogoUrl) : Promise.resolve(null),
+  ]);
 
   const html = buildAngebotHtml(
     {
@@ -68,6 +73,7 @@ export async function generateAngebotPdf(input: PdfInput): Promise<Blob> {
       contactPerson: input.contactPerson,
       angebotNumber: input.angebotNumber,
       ansprechpartner: input.ansprechpartner,
+      customerLogoUrl: customerLogoDataUri || input.customerLogoUrl,
       calcData: input.calcData,
       zusatz: input.zusatz,
     },

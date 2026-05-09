@@ -37,11 +37,24 @@ export default async (req: Request) => {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 20000 });
 
+    // Puppeteer-Footer mit "Seite X von Y" — auf jeder PDF-Seite identisch.
+    // Wichtig: explizite font-size, sonst rendert Chromium den Footer mit 0px.
+    const footerTemplate = `
+      <div style="font-size: 7.5px; color: #94A3B8; width: 100%; padding: 0 12mm; line-height: 1.5; letter-spacing: 0.01em; text-align: center; font-family: 'Inter', 'Segoe UI', sans-serif;">
+        SIRIUS GmbH document solutions · Abrichstr. 23 · 79108 Freiburg ·
+        Geschäftsführer: Fabian Schüler, Michael Wangerowski, Manfred Schüler ·
+        Registergericht: Amtsgericht Freiburg · HRB 2624
+        <br/>
+        Seite <span class="pageNumber"></span> von <span class="totalPages"></span>
+      </div>`;
+
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      preferCSSPageSize: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<div></div>',
+      footerTemplate,
+      margin: { top: '0', right: '0', bottom: '15mm', left: '0' },
     });
 
     return new Response(pdfBuffer as unknown as BodyInit, {

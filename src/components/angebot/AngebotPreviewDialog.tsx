@@ -38,6 +38,7 @@ interface Props {
   contactPerson?: string;
   angebotNumber?: string;
   ansprechpartner?: { name: string; role?: string; email?: string; phone?: string } | null;
+  customerLogoUrl?: string;
   calcData: CalcData;
   zusatz: Zusatzvereinbarungen;
   /** existing Zoho Quote ID to render */
@@ -108,6 +109,7 @@ export default function AngebotPreviewDialog(props: Props) {
         contactPerson: props.contactPerson,
         angebotNumber: enrichedProps.angebotNumber,
         ansprechpartner: props.ansprechpartner,
+        customerLogoUrl: props.customerLogoUrl,
       });
       const fileName = `Angebot_${enrichedProps.angebotNumber || 'NEU'}_${timestampForFilename()}.pdf`;
       const url = URL.createObjectURL(pdfBlob);
@@ -205,6 +207,7 @@ export default function AngebotPreviewDialog(props: Props) {
         contactPerson: props.contactPerson,
         angebotNumber: enrichedProps.angebotNumber,
         ansprechpartner: props.ansprechpartner,
+        customerLogoUrl: props.customerLogoUrl,
       });
 
       // 3. Als versionierten Anhang am Quote ablegen.

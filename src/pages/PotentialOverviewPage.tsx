@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useZohoIdValidation } from '@/hooks/useZohoIdValidation';
 import ContactPicker, { type ContactEntry } from '@/components/potential/ContactPicker';
+import CustomerLogoCard from '@/components/potential/CustomerLogoCard';
 
 export default function PotentialOverviewPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -404,6 +405,11 @@ export default function PotentialOverviewPage() {
         onChange={() => {
           queryClient.invalidateQueries({ queryKey: ['project', projectId] });
         }}
+      />
+
+      <CustomerLogoCard
+        projectId={projectId!}
+        logoUrl={(project as any)?.quote_config?.customer_logo_data_uri}
       />
 
       <Tabs defaultValue="devices">
