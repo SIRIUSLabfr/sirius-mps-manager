@@ -36,17 +36,21 @@ const escapeHtml = (s: string) =>
  * Single source of truth für das Angebots-Layout.
  * Genutzt von:
  *   - AngebotPreviewDialog (Vorschau im iframe)
- *   - generateAngebotPdf (PDF-Export)
+ *   - generateAngebotPdf (PDF-Export via Headless-Chromium)
  *
- * Struktur: vier `[data-pdf-page]`-Sections, je eine pro PDF-Seite.
- * Der Generator rendert jede Section als eigenes Canvas → eigene Seite,
- * sodass es keine zerschnittenen Tabellen oder Texte gibt.
+ * Vier `<section.pdf-page>`-Wrapper, je eine pro Seite. Mit
+ * `page-break-after: always` rendert Chromium daraus echte PDF-Seiten.
  *
- * Header (Logo) und Footer werden in jeder Section dupliziert, damit das
- * Layout konsistent bleibt und html2canvas alles in einem Rutsch sieht.
+ * `logoDataUri`: optional. Wenn gesetzt, wird das Logo inline als
+ * `data:`-URI eingebettet — wichtig für Server-Render, weil Chromium
+ * dort keinen Zugang zu `/sirius-logo.png` hat.
  */
-export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolean } = {}): string {
+export function buildAngebotHtml(
+  p: AngebotPreviewInput,
+  opts: { forPdf?: boolean; logoDataUri?: string } = {},
+): string {
   const forPdf = !!opts.forPdf;
+  const logoSrc = opts.logoDataUri || '/sirius-logo.png';
   const calc = p.calcData?.config_json?.calculated || {};
   const groups = p.calcData?.config_json?.device_groups || p.calcData?.config_json?.deviceGroups || [];
   const cfg = p.calcData?.config_json || {};
@@ -114,7 +118,7 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
   // Header + Footer pro Seite — auf jeder PDF-Page identisch wiederholen.
   const pageHeader = `
     <header class="page-header">
-      <img src="/sirius-logo.png" class="logo" alt="SIRIUS" />
+      <img src="${logoSrc}" class="logo" alt="SIRIUS" />
       <div class="page-header-right">
         SIRIUS GmbH document solutions<br>
         Abrichstr. 23 · 79108 Freiburg<br>
@@ -132,7 +136,10 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
   return `
 <!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Angebot</title>
 <style>
-  body { font-family: "Inter", "Segoe UI", sans-serif; font-size: 11px; line-height: 1.6; color: #334155; background: #FFFFFF; margin: 0; padding: 0; }
+  /* Chromium-Print: explizite A4 + null Margin, damit unsere Section-Padding greift */
+  @page { size: A4; margin: 0; }
+
+  body { font-family: "Inter", "Segoe UI", sans-serif; font-size: 11px; line-height: 1.6; color: #334155; background: #FFFFFF; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   /* Eine PDF-Seite = ein .pdf-page Wrapper, A4 hoch (297mm), feste Breite. */
   .pdf-page {
@@ -143,8 +150,9 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
     padding: 0 0 28mm 0;
     position: relative;
     page-break-after: always;
+    break-after: page;
   }
-  .pdf-page:last-child { page-break-after: auto; }
+  .pdf-page:last-child { page-break-after: auto; break-after: auto; }
   /* Vorschau im Browser: dezente Trennung zwischen den Seiten */
   body.preview .pdf-page + .pdf-page { margin-top: 12px; box-shadow: 0 -1px 0 #E2E8F0; }
 
