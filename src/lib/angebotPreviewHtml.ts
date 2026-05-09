@@ -34,12 +34,16 @@ const escapeHtml = (s: string) =>
 
 /**
  * Single source of truth für das Angebots-Layout.
- * Identisch genutzt von:
- *   - AngebotPreviewDialog (Vorschau im Browser)
- *   - generateAngebotPdf (PDF-Export, der an Zoho-Quote angehängt wird)
+ * Genutzt von:
+ *   - AngebotPreviewDialog (Vorschau im iframe)
+ *   - generateAngebotPdf (PDF-Export)
  *
- * Wenn `forPdf` true ist, werden Placeholder-Tags + Vorschau-only-Markup
- * weggelassen (echte Daten erwartet).
+ * Struktur: vier `[data-pdf-page]`-Sections, je eine pro PDF-Seite.
+ * Der Generator rendert jede Section als eigenes Canvas → eigene Seite,
+ * sodass es keine zerschnittenen Tabellen oder Texte gibt.
+ *
+ * Header (Logo) und Footer werden in jeder Section dupliziert, damit das
+ * Layout konsistent bleibt und html2canvas alles in einem Rutsch sieht.
  */
 export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolean } = {}): string {
   const forPdf = !!opts.forPdf;
@@ -107,15 +111,49 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
     )
     .join('');
 
+  // Header + Footer pro Seite — auf jeder PDF-Page identisch wiederholen.
+  const pageHeader = `
+    <header class="page-header">
+      <img src="/sirius-logo.png" class="logo" alt="SIRIUS" />
+      <div class="page-header-right">
+        SIRIUS GmbH document solutions<br>
+        Abrichstr. 23 · 79108 Freiburg<br>
+        (0761) 704070 · info@sirius-gmbh.de
+      </div>
+    </header>`;
+
+  const pageFooter = `
+    <footer class="page-footer">
+      SIRIUS GmbH document solutions · Abrichstr. 23 · 79108 Freiburg ·
+      Geschäftsführer: Fabian Schüler, Michael Wangerowski, Manfred Schüler ·
+      Registergericht: Amtsgericht Freiburg · HRB 2624
+    </footer>`;
+
   return `
 <!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Angebot</title>
 <style>
   body { font-family: "Inter", "Segoe UI", sans-serif; font-size: 11px; line-height: 1.6; color: #334155; background: #FFFFFF; margin: 0; padding: 0; }
-  .page { width: 100%; max-width: 210mm; margin: 0 auto; background: #fff; }
-  .header { padding: 24px 36px 20px; display: table; width: 100%; border-bottom: 1.5px solid #E2E8F0; box-sizing: border-box; }
-  .header-left { display: table-cell; vertical-align: middle; width: 45%; font-weight: 700; font-size: 14px; color: #3B6BC3; letter-spacing: -0.02em; }
-  .header-right { display: table-cell; vertical-align: middle; width: 55%; text-align: right; font-size: 8px; color: #94A3B8; line-height: 1.7; letter-spacing: 0.02em; }
-  .content { padding: 28px 36px 20px; }
+
+  /* Eine PDF-Seite = ein .pdf-page Wrapper, A4 hoch (297mm), feste Breite. */
+  .pdf-page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    box-sizing: border-box;
+    padding: 0 0 28mm 0;
+    position: relative;
+    page-break-after: always;
+  }
+  .pdf-page:last-child { page-break-after: auto; }
+  /* Vorschau im Browser: dezente Trennung zwischen den Seiten */
+  body.preview .pdf-page + .pdf-page { margin-top: 12px; box-shadow: 0 -1px 0 #E2E8F0; }
+
+  .page-header { padding: 18px 36px 14px; display: table; width: 100%; border-bottom: 1.5px solid #E2E8F0; box-sizing: border-box; }
+  .page-header .logo { display: table-cell; vertical-align: middle; height: 42px; max-width: 180px; }
+  .page-header-right { display: table-cell; vertical-align: middle; text-align: right; font-size: 8px; color: #94A3B8; line-height: 1.7; letter-spacing: 0.02em; }
+
+  .content { padding: 24px 36px 24px; }
+
   .meta-row { display: table; width: 100%; margin-bottom: 28px; }
   .meta-left { display: table-cell; vertical-align: top; width: 56%; }
   .meta-right { display: table-cell; vertical-align: top; width: 44%; text-align: right; }
@@ -131,7 +169,7 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
   .anschreiben { font-size: 10px; color: #475569; line-height: 1.85; margin-bottom: 28px; max-width: 460px; }
   .anschreiben p { margin: 0 0 8px; }
 
-  .section-header { font-size: 13px; font-weight: 700; color: #0F172A; margin: 28px 0 4px; display: flex; align-items: center; }
+  .section-header { font-size: 13px; font-weight: 700; color: #0F172A; margin: 0 0 4px; display: flex; align-items: center; }
   .section-num { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: #3B6BC3; color: #FFFFFF; font-size: 10px; font-weight: 700; text-align: center; line-height: 22px; margin-right: 8px; }
   .section-line { height: 1px; margin-bottom: 14px; background: linear-gradient(90deg, #CBD5E1, transparent 70%); }
 
@@ -159,27 +197,23 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
   .z-item { font-size: 10px; color: #475569; line-height: 1.8; margin-bottom: 5px; padding-left: 2px; }
   .z-num { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #EFF6FF; color: #3B6BC3; font-size: 8px; font-weight: 700; text-align: center; line-height: 16px; margin-right: 6px; }
 
-  .ap-card { display: inline-block; width: 46%; vertical-align: top; margin-right: 3%; padding: 12px 14px; background: #F8FAFC; border-radius: 8px; margin-bottom: 8px; box-sizing: border-box; }
+  .ap-card { display: inline-block; width: 46%; vertical-align: top; margin-right: 3%; padding: 14px 16px; background: #F8FAFC; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
   .ap-role { font-size: 7px; text-transform: uppercase; letter-spacing: 0.1em; color: #3B6BC3; font-weight: 700; margin-bottom: 3px; }
   .ap-name { font-size: 12px; font-weight: 700; color: #0F172A; margin-bottom: 3px; }
   .ap-detail { font-size: 9px; color: #94A3B8; line-height: 1.7; }
 
-  .footer { border-top: 1.5px solid #E2E8F0; padding: 14px 36px; display: table; width: 100%; margin-top: 28px; box-sizing: border-box; }
-  .footer-text { font-size: 8px; color: #94A3B8; line-height: 1.7; text-align: center; }
+  .sdc-placeholder { margin-top: 28px; padding: 18px; background: #F0F5FF; border: 1px dashed #94B8E5; border-radius: 8px; font-size: 9px; color: #475569; line-height: 1.7; }
+  .sdc-placeholder strong { color: #1E293B; font-weight: 700; }
+
+  .page-footer { position: absolute; bottom: 10mm; left: 0; right: 0; padding: 0 36px; text-align: center; font-size: 7.5px; color: #94A3B8; line-height: 1.6; letter-spacing: 0.01em; }
 
   .placeholder-tag { background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; }
 </style></head>
-<body>
-<div class="page">
-  <div class="header">
-    <div class="header-left">SIRIUS GmbH</div>
-    <div class="header-right">
-      SIRIUS GmbH document solutions<br>
-      Abrichstr. 23 · 79108 Freiburg<br>
-      (0761) 704070 · info@sirius-gmbh.de
-    </div>
-  </div>
+<body class="${forPdf ? '' : 'preview'}">
 
+<!-- ============ SEITE 1 · ANSCHREIBEN ============ -->
+<section class="pdf-page" data-pdf-page="1">
+  ${pageHeader}
   <div class="content">
     <div class="meta-row">
       <div class="meta-left">
@@ -211,7 +245,14 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
       <p>Wir freuen uns, wenn das Angebot Ihre Erwartungen erfüllt. Bei Fragen stehen wir Ihnen jederzeit gerne zur Verfügung.</p>
       <p>Mit freundlichen Grüßen<br>${p.ansprechpartner?.name ? escapeHtml(p.ansprechpartner.name) : 'SIRIUS Team'}</p>
     </div>
+  </div>
+  ${pageFooter}
+</section>
 
+<!-- ============ SEITE 2 · GERÄTE ============ -->
+<section class="pdf-page" data-pdf-page="2">
+  ${pageHeader}
+  <div class="content">
     <div class="section-header"><span class="section-num">1</span>Soll-Empfehlung – Geräte</div>
     <div class="section-line"></div>
 
@@ -222,7 +263,7 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
       </tbody>
     </table>
 
-    <div class="section-header"><span class="section-num">2</span>Konditionen und Zusatzvereinbarungen</div>
+    <div class="section-header" style="margin-top:32px;"><span class="section-num">2</span>Konditionen</div>
     <div class="section-line"></div>
 
     <table class="ktable k-highlight">
@@ -245,15 +286,28 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
       Lieferung an den Arbeitsplatz und Entsorgung der Verpackung.
       <br><br>
       <strong>Zahlung:</strong> Zzgl. der zum Zeitpunkt der Leistung gültigen gesetzlichen MwSt.
-      Sofern eine Einzugsermächtigung erteilt wird, gewähren wir 2% Skonto auf den monatlichen Rechnungsbetrag (Leasing ausgenommen).
     </div>
+  </div>
+  ${pageFooter}
+</section>
 
-    ${activeZusatz ? `
-      <div class="z-title">Zusatzvereinbarungen</div>
-      ${activeZusatz}
-    ` : ''}
+<!-- ============ SEITE 3 · ZUSATZVEREINBARUNGEN ============ -->
+<section class="pdf-page" data-pdf-page="3">
+  ${pageHeader}
+  <div class="content">
+    <div class="section-header"><span class="section-num">3</span>Zusatzvereinbarungen</div>
+    <div class="section-line"></div>
 
-    <div class="section-header"><span class="section-num">3</span>Ihre Ansprechpartner</div>
+    ${activeZusatz || '<p style="font-size:10px;color:#94A3B8;">Keine Zusatzvereinbarungen erfasst.</p>'}
+  </div>
+  ${pageFooter}
+</section>
+
+<!-- ============ SEITE 4 · KONTAKTDATEN ============ -->
+<section class="pdf-page" data-pdf-page="4">
+  ${pageHeader}
+  <div class="content">
+    <div class="section-header"><span class="section-num">4</span>Ihre Ansprechpartner</div>
     <div class="section-line"></div>
 
     <div>
@@ -274,15 +328,14 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="footer">
-    <div class="footer-text">
-      SIRIUS GmbH document solutions · Abrichstr. 23 · 79108 Freiburg<br>
-      Geschäftsführer: Fabian Schüler, Michael Wangerowski, Manfred Schüler<br>
-      Registergericht: Amtsgericht Freiburg · HRB 2624
+    <div class="sdc-placeholder">
+      <strong>Smiling Data Club</strong><br>
+      Bereich für die Smiling-Data-Club-Inhalte — wird in einem späteren Schritt befüllt.
     </div>
   </div>
-</div>
+  ${pageFooter}
+</section>
+
 </body></html>`;
 }
