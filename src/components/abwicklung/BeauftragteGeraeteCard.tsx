@@ -2,12 +2,21 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProjectDevices } from '@/hooks/useProjectData';
+import { useLocations } from '@/hooks/useRolloutData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Send, CheckCircle2, Package, Download } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Plus, Trash2, Send, CheckCircle2, Package, Download, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -15,7 +24,7 @@ interface Props {
   projectId: string;
 }
 
-/** Inline-Edit-Cell mit 600ms-Debounce auf onBlur/onChange */
+/** Inline-Edit-Cell mit 600ms-Debounce für freie Textfelder */
 function EditCell({
   value,
   onChange,
@@ -54,13 +63,108 @@ function EditCell({
   );
 }
 
+/**
+ * Mehrfach-Auswahl der Optionen (Zubehör) aus dem Kalkulations-Pool.
+ * Speichert kommasepariert in soll_options. Nicht-im-Pool-Optionen
+ * (manuell vorher eingetippt) bleiben erhalten und werden im Popover
+ * weiter angezeigt.
+ */
+function OptionsMultiSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string | null | undefined;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = useMemo(
+    () =>
+      (value || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    [value],
+  );
+
+  const allChoices = useMemo(() => {
+    const set = new Set<string>(options);
+    selected.forEach((s) => set.add(s));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
+  }, [options, selected]);
+
+  const toggle = (opt: string) => {
+    const isSelected = selected.includes(opt);
+    const next = isSelected ? selected.filter((s) => s !== opt) : [...selected, opt];
+    onChange(next.join(', '));
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'h-7 w-full flex items-center justify-between gap-1 px-1.5 text-xs rounded',
+            'hover:bg-accent/40 focus:outline-none focus:ring-1 focus:ring-primary/30',
+          )}
+        >
+          <div className="flex flex-wrap gap-1 items-center min-w-0 flex-1">
+            {selected.length === 0 ? (
+              <span className="text-muted-foreground">– keine –</span>
+            ) : (
+              selected.map((s) => (
+                <Badge
+                  key={s}
+                  variant="secondary"
+                  className="text-[10px] font-normal px-1.5 py-0 h-5"
+                >
+                  {s}
+                </Badge>
+              ))
+            )}
+          </div>
+          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-1">
+        {allChoices.length === 0 ? (
+          <p className="text-xs text-muted-foreground p-2">
+            Keine Optionen in der Kalkulation gepflegt.
+          </p>
+        ) : (
+          <div className="max-h-60 overflow-y-auto">
+            {allChoices.map((opt) => {
+              const checked = selected.includes(opt);
+              return (
+                <label
+                  key={opt}
+                  className="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent/40 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={() => toggle(opt)}
+                  />
+                  <span className="flex-1">{opt}</span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function BeauftragteGeraeteCard({ projectId }: Props) {
   const queryClient = useQueryClient();
   const { data: devices = [] } = useProjectDevices(projectId);
+  const { data: locations = [] } = useLocations(projectId);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
-  // Aktive Kalkulation, um initiale Geräteübernahme anzubieten
+  // Aktive Kalkulation: Quelle für Geräte-Übernahme + Zubehör-Optionen
   const { data: calc } = useQuery({
     queryKey: ['calculation_active', projectId],
     queryFn: async () => {
@@ -74,17 +178,43 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
     },
   });
 
+  /** Distinct Liste aller Zubehör-Namen aus den Kalk-Geräte-Gruppen */
+  const accessoryOptions = useMemo(() => {
+    const cfg: any = calc?.config_json;
+    const groups = cfg?.deviceGroups || cfg?.device_groups || [];
+    const set = new Set<string>();
+    groups.forEach((g: any) => {
+      (g.accessories || []).forEach((a: any) => {
+        const name = a?.product?.name || a?.name;
+        if (name) set.add(String(name));
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
+  }, [calc]);
+
   const calcDevices = useMemo(() => {
     const cfg: any = calc?.config_json;
     const groups = cfg?.deviceGroups || cfg?.device_groups || [];
-    const out: Array<{ key: string; manufacturer: string; model: string; quantity: number; options?: string }> = [];
+    const out: Array<{
+      key: string;
+      manufacturer: string;
+      model: string;
+      quantity: number;
+      options?: string;
+      label?: string;
+    }> = [];
     groups.forEach((g: any, idx: number) => {
+      const accNames = (g.accessories || [])
+        .map((a: any) => a?.product?.name || a?.name)
+        .filter(Boolean)
+        .join(', ');
       out.push({
         key: g.id || `g-${idx}`,
         manufacturer: g.manufacturer || g.brand || g.mainDevice?.manufacturer || '',
         model: g.model || g.name || g.mainDevice?.name || g.mainDevice?.model || '',
         quantity: g.quantity || g.qty || g.mainQuantity || 1,
-        options: g.options || g.label || '',
+        options: accNames || undefined,
+        label: g.label || undefined,
       });
     });
     return out;
@@ -114,7 +244,7 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
     try {
       const { error } = await supabase.from('devices').insert({
         project_id: projectId,
-        soll_manufacturer: '',
+        soll_manufacturer: null,
         soll_model: '',
         soll_options: null,
         preparation_status: 'pending',
@@ -133,13 +263,17 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
     setBusy(true);
     try {
       const existingKeys = new Set(devices.map((d) => d.from_quote_item_id).filter(Boolean) as string[]);
+      // Standort-Match nach Group-Label (case-insensitive)
+      const locByName = new Map<string, string>();
+      locations.forEach((l: any) => locByName.set(String(l.name).toLowerCase(), l.id));
       const inserts = calcDevices.flatMap((g) =>
         Array.from({ length: g.quantity || 1 })
           .map((_, i) => ({
             project_id: projectId,
-            soll_manufacturer: g.manufacturer,
+            soll_manufacturer: g.manufacturer || null,
             soll_model: g.model,
             soll_options: g.options || null,
+            location_id: g.label ? locByName.get(g.label.toLowerCase()) || null : null,
             from_quote_item_id: `${g.key}-${i + 1}`,
             preparation_status: 'pending' as const,
           }))
@@ -269,9 +403,9 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
                     onCheckedChange={toggleAll}
                   />
                 </th>
-                <th className="text-left p-2 font-heading">Hersteller</th>
                 <th className="text-left p-2 font-heading">Modell</th>
                 <th className="text-left p-2 font-heading">Optionen</th>
+                <th className="text-left p-2 font-heading w-44">Standort</th>
                 <th className="text-left p-2 font-heading w-20">SOP</th>
                 <th className="w-10 p-2"></th>
               </tr>
@@ -293,24 +427,37 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
                   </td>
                   <td className="p-2">
                     <EditCell
-                      value={d.soll_manufacturer}
-                      onChange={(v) => handleUpdate(d.id, { soll_manufacturer: v || null })}
-                      placeholder="Hersteller"
-                    />
-                  </td>
-                  <td className="p-2">
-                    <EditCell
                       value={d.soll_model}
                       onChange={(v) => handleUpdate(d.id, { soll_model: v || null })}
                       placeholder="Modell"
                     />
                   </td>
                   <td className="p-2">
-                    <EditCell
+                    <OptionsMultiSelect
                       value={d.soll_options}
+                      options={accessoryOptions}
                       onChange={(v) => handleUpdate(d.id, { soll_options: v || null })}
-                      placeholder="–"
                     />
+                  </td>
+                  <td className="p-2">
+                    <Select
+                      value={d.location_id || '__none__'}
+                      onValueChange={(v) =>
+                        handleUpdate(d.id, { location_id: v === '__none__' ? null : v })
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="– kein Standort –" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">– kein Standort –</SelectItem>
+                        {locations.map((l: any) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className="p-2">
                     {(d as any).pushed_to_sop_at ? (
