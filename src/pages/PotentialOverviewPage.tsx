@@ -8,12 +8,9 @@ import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, Building2, User, Euro, FileText, CheckCircle2, Send, ExternalLink, Package } from 'lucide-react';
+import { ClipboardList, Building2, CheckCircle2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { useZohoIdValidation } from '@/hooks/useZohoIdValidation';
 import ContactPicker, { type ContactEntry } from '@/components/potential/ContactPicker';
 import CustomerLogoCard from '@/components/potential/CustomerLogoCard';
@@ -80,19 +77,6 @@ export default function PotentialOverviewPage() {
 
   const orderedDevices = useMemo(() => devices?.filter(d => d.from_quote_item_id) || [], [devices]);
 
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
-  const toggleDevice = (id: string) => {
-    setSelectedDeviceIds(prev => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  };
-  const toggleAll = () => {
-    if (selectedDeviceIds.size === orderedDevices.length) setSelectedDeviceIds(new Set());
-    else setSelectedDeviceIds(new Set(orderedDevices.map(d => d.id)));
-  };
-
   const [orderLoading, setOrderLoading] = useState(false);
   const handleOrderConfirmed = async () => {
     if (!projectId) return;
@@ -154,45 +138,6 @@ export default function PotentialOverviewPage() {
       toast.error('Fehler: ' + (e.message || e));
     } finally {
       setOrderLoading(false);
-    }
-  };
-
-  const handleSopPush = async () => {
-    if (selectedDeviceIds.size === 0) {
-      toast.warning('Bitte mindestens ein Gerät auswählen.');
-      return;
-    }
-    if (!projectId) return;
-
-    const selectedDevices = orderedDevices.filter(d => selectedDeviceIds.has(d.id));
-    const sopRows = selectedDevices.map(d => ({
-      project_id: projectId,
-      device_id: d.id,
-      manufacturer: d.soll_manufacturer || '',
-      model: d.soll_model || '',
-      options: d.soll_options || '',
-      preparation_status: 'pending',
-      delivery_status: 'pending',
-    }));
-
-    try {
-      const { error: sopErr } = await supabase.from('sop_orders').insert(sopRows);
-      if (sopErr) throw sopErr;
-
-      // Mark pushed
-      const now = new Date().toISOString();
-      const { error: devErr } = await supabase
-        .from('devices')
-        .update({ pushed_to_sop_at: now })
-        .in('id', Array.from(selectedDeviceIds));
-      if (devErr) throw devErr;
-
-      toast.success(`${selectedDevices.length} Gerät(e) in SOP gepusht.`);
-      setSelectedDeviceIds(new Set());
-      queryClient.invalidateQueries({ queryKey: ['devices', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['sop_orders', projectId] });
-    } catch (e: any) {
-      toast.error('Fehler beim SOP-Push: ' + (e.message || e));
     }
   };
 
@@ -336,137 +281,6 @@ export default function PotentialOverviewPage() {
         logoUrl={(project as any)?.quote_config?.customer_logo_data_uri}
       />
 
-      <Tabs defaultValue="devices">
-        <TabsList>
-          <TabsTrigger value="devices">
-            <Package className="h-4 w-4 mr-1.5" />
-            Beauftragte Geräte
-            {orderedDevices.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{orderedDevices.length}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="calc-preview">
-            <FileText className="h-4 w-4 mr-1.5" />
-            Aus Kalkulation
-            {calcDevices.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{calcDevices.length}</Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Beauftragte Geräte */}
-        <TabsContent value="devices" className="mt-4">
-          {!orderConfirmedAt ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                <Package className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                Noch keine Geräte beauftragt.<br />
-                Klicke <strong>Auftrag erteilt</strong> oben rechts, sobald der Auftrag bestätigt ist.
-              </CardContent>
-            </Card>
-          ) : orderedDevices.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Keine Geräte gefunden. Wurde die Kalkulation befüllt?
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-sm font-heading">
-                  {orderedDevices.length} Gerät(e)
-                </CardTitle>
-                <Button size="sm" onClick={handleSopPush} disabled={selectedDeviceIds.size === 0}>
-                  <Send className="h-3.5 w-3.5 mr-1.5" />
-                  SOP Push ({selectedDeviceIds.size})
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="p-2 w-10">
-                        <Checkbox
-                          checked={selectedDeviceIds.size === orderedDevices.length && orderedDevices.length > 0}
-                          onCheckedChange={toggleAll}
-                        />
-                      </th>
-                      <th className="text-left p-2 font-heading text-xs">Hersteller</th>
-                      <th className="text-left p-2 font-heading text-xs">Modell</th>
-                      <th className="text-left p-2 font-heading text-xs">Optionen</th>
-                      <th className="text-left p-2 font-heading text-xs">Status</th>
-                      <th className="text-left p-2 font-heading text-xs">SOP</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orderedDevices.map(d => (
-                      <tr key={d.id} className={cn('border-b hover:bg-accent/30', selectedDeviceIds.has(d.id) && 'bg-accent/30')}>
-                        <td className="p-2">
-                          <Checkbox
-                            checked={selectedDeviceIds.has(d.id)}
-                            onCheckedChange={() => toggleDevice(d.id)}
-                          />
-                        </td>
-                        <td className="p-2">{d.soll_manufacturer || '–'}</td>
-                        <td className="p-2 font-medium">{d.soll_model || '–'}</td>
-                        <td className="p-2 text-xs text-muted-foreground">{d.soll_options || '–'}</td>
-                        <td className="p-2">
-                          <Badge variant="outline" className="text-xs">{d.preparation_status}</Badge>
-                        </td>
-                        <td className="p-2">
-                          {(d as any).pushed_to_sop_at ? (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              gepusht
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">–</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Aus Kalkulation */}
-        <TabsContent value="calc-preview" className="mt-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-heading">Geräte aus Kalkulation</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {calcDevices.length === 0 ? (
-                <p className="p-6 text-sm text-center text-muted-foreground">Noch keine Kalkulation befüllt.</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left p-2 font-heading text-xs">Hersteller</th>
-                      <th className="text-left p-2 font-heading text-xs">Modell</th>
-                      <th className="text-left p-2 font-heading text-xs">Optionen</th>
-                      <th className="text-right p-2 font-heading text-xs">Anzahl</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {calcDevices.map(g => (
-                      <tr key={g.key} className="border-b">
-                        <td className="p-2">{g.manufacturer || '–'}</td>
-                        <td className="p-2 font-medium">{g.model || '–'}</td>
-                        <td className="p-2 text-xs text-muted-foreground">{g.options || '–'}</td>
-                        <td className="p-2 text-right font-mono">{g.quantity}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
