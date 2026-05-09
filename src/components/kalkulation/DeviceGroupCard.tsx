@@ -3,15 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useState } from 'react';
 import ZohoProductSearch, { type ZohoProduct } from './ZohoProductSearch';
+import LocationTagInput from './LocationTagInput';
 
 export interface PagePrices {
   bw: { name: string; price: number; volume: number; id: string } | null;
@@ -108,43 +102,20 @@ export default function DeviceGroupCard({ group, onChange, onRemove, locations }
   return (
     <Card className="border-border/60">
       <CardContent className="pt-4 space-y-4">
-        {/* Header: label + location dropdown + delete */}
-        <div className="flex items-center gap-2">
-          {locations && locations.length > 0 ? (
-            <Select
-              value={group.label || '__custom__'}
-              onValueChange={(v) => {
-                if (v === '__custom__') {
-                  onChange({ ...group, label: '' });
-                } else {
-                  onChange({ ...group, label: v });
-                }
-              }}
-            >
-              <SelectTrigger className="h-9 text-sm font-semibold flex-1">
-                <SelectValue placeholder="Standort wählen oder eingeben" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((l) => (
-                  <SelectItem key={l.id} value={l.name}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-                <SelectItem value="__custom__">Manuell eingeben…</SelectItem>
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              value={group.label}
-              onChange={(e) => onChange({ ...group, label: e.target.value })}
-              placeholder="Standort / Bezeichnung"
-              className="h-9 text-sm font-semibold border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary"
-            />
-          )}
+        {/* Header: standort tags + delete. Mehrere Standorte per Enter/Komma
+            möglich — beim Übernehmen in die Abwicklung wird je Stück das
+            i-te Label verwendet (oder das einzige, wenn nur eines gepflegt). */}
+        <div className="flex items-start gap-2">
+          <LocationTagInput
+            value={group.label || ''}
+            onChange={(next) => onChange({ ...group, label: next })}
+            placeholder="Standort / Bezeichnung — mehrere mit Enter/Komma"
+            className="flex-1"
+          />
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive mt-1"
             onClick={onRemove}
           >
             <X className="h-4 w-4" />

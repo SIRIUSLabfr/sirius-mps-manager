@@ -261,17 +261,20 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
   const handleImportFromCalc = async () => {
     setBusy(true);
     try {
-      // 1. Distinct group labels aus der Kalkulation sammeln und sicherstellen,
-      //    dass jeder als locations-Eintrag existiert. Group-Labels in der
-      //    Kalkulation sind freie Strings — Standort-Dropdown der Abwicklung
-      //    braucht echte Location-Records mit FK.
-      const distinctLabels = Array.from(
-        new Set(
-          calcDevices
-            .map((g) => (g.label || '').trim())
-            .filter(Boolean),
-        ),
-      );
+      // group.label ist komma-separiert: "Filiale Nord, Filiale Süd, ..."
+      // Pro Geraet wird das i-te Label verwendet, falls weniger Labels als
+      // Stueckzahl: alle bekommen das letzte/erste vorhandene.
+      const splitLabels = (s: string | undefined | null): string[] =>
+        (s || '')
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+
+      // 1. Distinct labels aus allen Geraete-Gruppen sammeln und als
+      //    locations-Records anlegen, falls noch nicht existent.
+      const allLabels = new Set<string>();
+      calcDevices.forEach((g) => splitLabels(g.label).forEach((l) => allLabels.add(l)));
+      const distinctLabels = Array.from(allLabels);
 
       const locByName = new Map<string, string>();
       locations.forEach((l: any) => locByName.set(String(l.name).toLowerCase(), l.id));
@@ -309,10 +312,11 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
       const updates: Array<{ id: string; patch: Record<string, any> }> = [];
 
       calcDevices.forEach((g) => {
-        const locId = g.label
-          ? locByName.get(g.label.toLowerCase()) || null
-          : null;
+        const labels = splitLabels(g.label);
         for (let i = 1; i <= (g.quantity || 1); i++) {
+          // i-tes Geraet bekommt i-ten Standort, fallback auf erstes Label
+          const labelForThis = labels[i - 1] || labels[0] || '';
+          const locId = labelForThis ? locByName.get(labelForThis.toLowerCase()) || null : null;
           const key = `${g.key}-${i}`;
           const fields = {
             soll_manufacturer: g.manufacturer || null,
