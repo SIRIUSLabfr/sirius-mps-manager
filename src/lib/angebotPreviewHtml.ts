@@ -206,7 +206,7 @@ export function buildAngebotHtml(p: AngebotPreviewInput, opts: { forPdf?: boolea
     <div class="title-sub">Ihr Ansprechpartner: <strong>${p.ansprechpartner?.name ? escapeHtml(p.ansprechpartner.name) : '–'}</strong></div>
 
     <div class="anschreiben">
-      <p>Sehr geehrte/r ${escapeHtml(p.contactPerson || p.customerName || 'Kunde')},</p>
+      <p>${p.contactPerson?.trim() ? `Sehr geehrte/r ${escapeHtml(p.contactPerson)}` : 'Sehr geehrte Damen und Herren'},</p>
       <p>vielen Dank für Ihr Interesse an unserem SIRIUS Print Konzept. Nachfolgend erhalten Sie Ihren individuellen Lösungsvorschlag.</p>
       <p>Wir freuen uns, wenn das Angebot Ihre Erwartungen erfüllt. Bei Fragen stehen wir Ihnen jederzeit gerne zur Verfügung.</p>
       <p>Mit freundlichen Grüßen<br>${p.ansprechpartner?.name ? escapeHtml(p.ansprechpartner.name) : 'SIRIUS Team'}</p>
