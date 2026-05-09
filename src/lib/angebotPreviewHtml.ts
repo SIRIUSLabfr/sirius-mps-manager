@@ -302,6 +302,12 @@ export function buildAngebotHtml(
   }
   .sdc-cta span { color: #E95297; }
 
+  /* Unterschriftsfeld unterhalb der Zusatzvereinbarungen */
+  .signature-row { display: table; width: 100%; margin-top: 56px; border-spacing: 24px 0; }
+  .signature-cell { display: table-cell; width: 50%; vertical-align: top; }
+  .signature-line { border-bottom: 0.6px solid #475569; height: 32px; margin-bottom: 6px; }
+  .signature-label { font-size: 9px; color: #64748B; letter-spacing: 0.04em; }
+
   /* Footer wird von Puppeteer per footerTemplate auf jede Seite gemalt
      (mit "Seite X von Y") — kein HTML-Footer mehr noetig. */
 
@@ -402,6 +408,17 @@ export function buildAngebotHtml(
     <div class="section-line"></div>
 
     ${activeZusatz || '<p style="font-size:10px;color:#94A3B8;">Keine Zusatzvereinbarungen erfasst.</p>'}
+
+    <div class="signature-row">
+      <div class="signature-cell">
+        <div class="signature-line"></div>
+        <div class="signature-label">Datum, Ort</div>
+      </div>
+      <div class="signature-cell">
+        <div class="signature-line"></div>
+        <div class="signature-label">Unterschrift Kunde</div>
+      </div>
+    </div>
   </div>
   ${pageFooter}
 </section>
