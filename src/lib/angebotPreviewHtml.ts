@@ -159,14 +159,16 @@ export function buildAngebotHtml(
   .page-header .logo { display: table-cell; vertical-align: middle; height: 56px; max-width: 220px; }
   .page-header-right { display: table-cell; vertical-align: middle; text-align: right; font-size: 8px; color: #94A3B8; line-height: 1.7; letter-spacing: 0.02em; }
 
-  /* Empfaenger + Kunden-Logo nebeneinander */
-  .meta-left { position: relative; }
+  /* Kunden-Logo prominent unter dem doc-title, mittig, mit Luft drumherum */
+  .customer-logo-block {
+    margin: 22px 0 32px;
+    text-align: center;
+  }
   .customer-logo {
-    max-height: 60px;
-    max-width: 140px;
+    max-height: 80px;
+    max-width: 220px;
     object-fit: contain;
-    margin-bottom: 14px;
-    display: block;
+    display: inline-block;
   }
 
   .content { padding: 24px 36px 24px; }
@@ -313,7 +315,6 @@ export function buildAngebotHtml(
   <div class="content">
     <div class="meta-row">
       <div class="meta-left">
-        ${p.customerLogoUrl ? `<img src="${escapeHtml(p.customerLogoUrl)}" class="customer-logo" alt="Kunden-Logo" crossorigin="anonymous" />` : ''}
         <div class="sender-line">SIRIUS GmbH · Abrichstr. 23 · 79108 Freiburg</div>
         <div class="recipient-name">${p.customerName ? escapeHtml(p.customerName) : placeholder('Kundenname')}</div>
         <div class="recipient-detail">
@@ -335,6 +336,11 @@ export function buildAngebotHtml(
 
     <div class="doc-title">Ihr individuelles<br><span>Angebot.</span></div>
     <div class="title-sub">Ihr Ansprechpartner: <strong>${p.ansprechpartner?.name ? escapeHtml(p.ansprechpartner.name) : '–'}</strong></div>
+
+    ${p.customerLogoUrl ? `
+    <div class="customer-logo-block">
+      <img src="${escapeHtml(p.customerLogoUrl)}" class="customer-logo" alt="Kunden-Logo" crossorigin="anonymous" />
+    </div>` : ''}
 
     <div class="anschreiben">
       <p>${p.contactPerson?.trim() ? `Sehr geehrte/r ${escapeHtml(p.contactPerson)}` : 'Sehr geehrte Damen und Herren'},</p>
