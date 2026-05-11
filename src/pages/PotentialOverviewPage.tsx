@@ -149,6 +149,7 @@ export default function PotentialOverviewPage() {
         const factor = num(cfg.calculated?.leasing_factor ?? (calc as any)?.leasing_factor);
         const termMonths = num(cfg.term_months ?? (calc as any)?.term_months);
         const hardwareEk = num(cfg.calculated?.total_hardware_ek ?? (calc as any)?.total_hardware_ek);
+        const grossMargin = num((calc as any)?.margin_total ?? cfg.margin_total);
         const financeType = (calc as any)?.finance_type as string | undefined;
         const contractStart: string | null = cfg.contract_start || null;
         const contractEnd =
@@ -175,6 +176,11 @@ export default function PotentialOverviewPage() {
           maintenance_share: serviceRate ?? undefined,
           leasing_share: leasingShare ?? undefined,
           goods_value: hardwareEk ?? undefined,
+          gross_margin: grossMargin ?? undefined,
+          // Initial-Aufteilung: Ertrag komplett auf Hardware, Service = 0.
+          // Der Abwickler kann es spaeter in der Nachkalkulation aufteilen.
+          margin_hardware: grossMargin ?? undefined,
+          margin_service: grossMargin !== undefined ? 0 : undefined,
           contract_start: contractStart || undefined,
           contract_end: contractEnd || undefined,
           order_date: new Date().toISOString().slice(0, 10),
