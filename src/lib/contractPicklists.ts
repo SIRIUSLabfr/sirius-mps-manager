@@ -7,32 +7,31 @@
  * Picklists in Zoho hier mit nachziehen.
  */
 
-export const VERTRAGSART_OPTIONS = [
-  'Leasing',
-  'Eigenmiete',
-  'Kauf + Wartungsvertrag',
-  'All-In',
-] as const;
+/**
+ * Vertragsart = Vertragstyp (Master vs. Aufstockung). Wird vom
+ * Sachbearbeiter in der Abwicklung gewählt; Default beim Erstanlegen
+ * ist 'Mastervertrag'.
+ */
+export const VERTRAGSART_OPTIONS = ['Mastervertrag', 'Aufstockung'] as const;
 
+/** Leasinggeber-Picklist im Vertr_ge-Modul. */
 export const LEASINGGEBER_OPTIONS = [
   'Grenke',
-  'GEFA',
-  'Deutsche Leasing',
-  'Albis',
-  'DLL',
-  'BNP Paribas',
-  'abcfinance',
+  'Targo',
+  'Mercator',
+  'SIRIUS',
   'Sonstige',
 ] as const;
 
+/** Zahlungsweise-Picklist im Vertr_ge-Modul. */
 export const ZAHLUNGSWEISE_OPTIONS = ['monatlich', 'quartalsweise'] as const;
 
 /**
- * Mapping local `finance_type` (calc) → `contract_type` (order_processing /
- * Vertragsart-Picklist). Beim „Auftrag erteilt"-Flow wird der lokale Wert
- * über dieses Mapping auf den Picklist-Label normalisiert.
+ * Mapping local `finance_type` (calc) → `Finanzprodukt`-Picklist im
+ * Vertr_ge-Modul. Beim „Auftrag erteilt"-Flow und beim Vertrag-Anlegen
+ * wird der lokale Wert über dieses Mapping normalisiert.
  */
-export const FINANCE_TYPE_TO_VERTRAGSART: Record<string, string> = {
+export const FINANCE_TYPE_TO_FINANZPRODUKT: Record<string, string> = {
   leasing: 'Leasing',
   eigenmiete: 'Eigenmiete',
   miete: 'Eigenmiete',
@@ -42,7 +41,7 @@ export const FINANCE_TYPE_TO_VERTRAGSART: Record<string, string> = {
   all_in: 'All-In',
 };
 
-export function normalizeVertragsart(financeType?: string | null): string | undefined {
+export function normalizeFinanzprodukt(financeType?: string | null): string | undefined {
   if (!financeType) return undefined;
-  return FINANCE_TYPE_TO_VERTRAGSART[financeType.toLowerCase()] || financeType;
+  return FINANCE_TYPE_TO_FINANZPRODUKT[financeType.toLowerCase()] || financeType;
 }

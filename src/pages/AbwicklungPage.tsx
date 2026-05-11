@@ -25,7 +25,7 @@ import {
   VERTRAGSART_OPTIONS,
   LEASINGGEBER_OPTIONS,
   ZAHLUNGSWEISE_OPTIONS,
-  normalizeVertragsart,
+  normalizeFinanzprodukt,
 } from '@/lib/contractPicklists';
 
 export default function AbwicklungPage() {
@@ -176,10 +176,13 @@ export default function AbwicklungPage() {
 
       const patch: Record<string, any> = {
         finance_type: financeType || undefined,
-        // contract_type ist im UI die Vertragsart-Picklist — Werte aus
-        // dem lokalen finance_type werden auf den Zoho-Picklist-Label
-        // normalisiert ('leasing' → 'Leasing' etc.).
-        contract_type: normalizeVertragsart(financeType) || undefined,
+        // contract_type (Vertragsart) bleibt vom User gepflegt — Default
+        // 'Mastervertrag' nur beim allerersten Sync setzen, danach nicht
+        // mehr ueberschreiben, damit ein manuelles 'Aufstockung' nicht
+        // beim Resync zurueckgeschnappt wird.
+        contract_type: (processing as any)?.contract_type
+          ? undefined
+          : 'Mastervertrag',
         term_months: termMonths ?? undefined,
         factor: factor ?? undefined,
         rate: rate ?? undefined,
@@ -288,8 +291,11 @@ export default function AbwicklungPage() {
         vertragsnummer,
         kundenname: row?.customer_name || undefined,
         accountId,
-        vertragsart: normalizeVertragsart(processing.contract_type),
-        finanzprodukt: processing.finance_type,
+        // Vertragsart kommt direkt aus dem UI-Dropdown (Mastervertrag /
+        // Aufstockung). Finanzprodukt wird aus dem lokalen finance_type
+        // auf den Zoho-Picklist-Label normalisiert.
+        vertragsart: processing.contract_type,
+        finanzprodukt: normalizeFinanzprodukt(processing.finance_type),
         leasinggeber: (processing as any).leasing_provider,
         zahlungsweise: (processing as any).payment_method,
         grundlaufzeit: processing.term_months,
