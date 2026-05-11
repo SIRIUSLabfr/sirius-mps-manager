@@ -188,11 +188,12 @@ export default function PotentialOverviewPage() {
             .select('id')
             .eq('project_id', projectId)
             .maybeSingle();
-          if (existing?.id) {
+          const existingId = (existing as any)?.id;
+          if (existingId) {
             await supabase
               .from('order_processing' as any)
               .update(orderPatch)
-              .eq('id', existing.id);
+              .eq('id', existingId);
           } else {
             await supabase
               .from('order_processing' as any)
