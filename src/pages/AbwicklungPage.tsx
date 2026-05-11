@@ -21,6 +21,12 @@ import { buildVertragPayload, buildSalesOrderUpdatePayload } from '@/lib/zohoQuo
 import { supabase } from '@/integrations/supabase/client';
 import { logEdit } from '@/lib/auditLog';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  VERTRAGSART_OPTIONS,
+  LEASINGGEBER_OPTIONS,
+  ZAHLUNGSWEISE_OPTIONS,
+  normalizeVertragsart,
+} from '@/lib/contractPicklists';
 
 export default function AbwicklungPage() {
   const { projectId } = useParams();
@@ -54,19 +60,39 @@ export default function AbwicklungPage() {
     if (!processing?.id) return;
     const before = (processing as any)?.[field];
     if (JSON.stringify(before) === JSON.stringify(value)) return;
+
+    const updates: Record<string, any> = { [field]: value };
+
+    // Auto-calc Grundlaufzeitende, wenn contract_start oder term_months ändert
+    if (field === 'contract_start' || field === 'term_months') {
+      const start = field === 'contract_start' ? value : (processing as any)?.contract_start;
+      const months = field === 'term_months' ? value : (processing as any)?.term_months;
+      if (start && months && Number.isFinite(Number(months))) {
+        const d = new Date(start);
+        d.setMonth(d.getMonth() + Number(months));
+        updates.contract_end = d.toISOString().slice(0, 10);
+      }
+    }
+
     updateMut.mutate(
-      { id: processing.id, updates: { [field]: value } },
+      { id: processing.id, updates },
       {
         onSuccess: () => {
           if (!pid) return;
-          logEdit({
-            projectId: pid,
-            tableName: 'order_processing',
-            recordId: processing.id,
-            action: 'update',
-            before: { [field]: before },
-            after: { [field]: value },
-            fields: [field],
+          // Audit-Log: pro geaendertem Feld ein Eintrag mit Diff
+          Object.keys(updates).forEach((f) => {
+            const beforeVal = (processing as any)?.[f];
+            const afterVal = updates[f];
+            if (JSON.stringify(beforeVal) === JSON.stringify(afterVal)) return;
+            logEdit({
+              projectId: pid,
+              tableName: 'order_processing',
+              recordId: processing.id,
+              action: 'update',
+              before: { [f]: beforeVal },
+              after: { [f]: afterVal },
+              fields: [f],
+            });
           });
         },
       },
@@ -150,7 +176,10 @@ export default function AbwicklungPage() {
 
       const patch: Record<string, any> = {
         finance_type: financeType || undefined,
-        contract_type: financeType || undefined,
+        // contract_type ist im UI die Vertragsart-Picklist — Werte aus
+        // dem lokalen finance_type werden auf den Zoho-Picklist-Label
+        // normalisiert ('leasing' → 'Leasing' etc.).
+        contract_type: normalizeVertragsart(financeType) || undefined,
         term_months: termMonths ?? undefined,
         factor: factor ?? undefined,
         rate: rate ?? undefined,
@@ -259,8 +288,10 @@ export default function AbwicklungPage() {
         vertragsnummer,
         kundenname: row?.customer_name || undefined,
         accountId,
-        vertragsart: processing.contract_type,
+        vertragsart: normalizeVertragsart(processing.contract_type),
         finanzprodukt: processing.finance_type,
+        leasinggeber: (processing as any).leasing_provider,
+        zahlungsweise: (processing as any).payment_method,
         grundlaufzeit: processing.term_months,
         gesamtrateMonatl: processing.rate,
         leasingfaktor: processing.factor,
@@ -406,28 +437,30 @@ export default function AbwicklungPage() {
                 <ContractField label="Betreff" value={processing?.subject} onChange={v => saveField('subject', v)} />
                 <ContractField label="Auftragsnr." value={processing?.order_number} onChange={v => saveField('order_number', v)} />
                 <ContractField label="Auftragsdatum" value={processing?.order_date} onChange={v => saveField('order_date', v)} type="date" />
-                <ContractField label="Vertragsart" value={processing?.contract_type} onChange={v => saveField('contract_type', v)} />
-                <ContractField label="Finanzierung" value={processing?.finance_type} onChange={v => saveField('finance_type', v)} />
-                <ContractField label="Laufzeit (Mon.)" value={processing?.term_months} onChange={v => saveField('term_months', v ? parseInt(v) : null)} type="number" />
-                <ContractField label="Warenwert" value={processing?.goods_value} onChange={v => saveField('goods_value', v ? parseFloat(v) : null)} type="number" />
+                <ContractSelect label="Vertragsart" value={processing?.contract_type} options={[...VERTRAGSART_OPTIONS]} onChange={v => saveField('contract_type', v)} />
+                <ContractSelect label="Leasinggeber" value={(processing as any)?.leasing_provider} options={[...LEASINGGEBER_OPTIONS]} onChange={v => saveField('leasing_provider', v)} />
+                <ContractSelect label="Zahlungsweise" value={(processing as any)?.payment_method} options={[...ZAHLUNGSWEISE_OPTIONS]} onChange={v => saveField('payment_method', v)} />
                 <ContractField label="Vertragsbeginn" value={processing?.contract_start} onChange={v => saveField('contract_start', v)} type="date" />
-                <ContractField label="Vertragsende" value={processing?.contract_end} onChange={v => saveField('contract_end', v)} type="date" />
+                <ContractField label="Grundlaufzeit (Mon.)" value={processing?.term_months} onChange={v => saveField('term_months', v ? parseInt(v) : null)} type="number" />
+                <ContractField label="Grundlaufzeitende" value={processing?.contract_end} onChange={v => saveField('contract_end', v)} type="date" />
                 <ContractField label="Leasing-Nr." value={processing?.leasing_contract_nr} onChange={v => saveField('leasing_contract_nr', v)} />
                 <ContractField label="SX-Nr." value={processing?.sx_contract_nr} onChange={v => saveField('sx_contract_nr', v)} />
               </div>
 
               {/* Nachkalkulation: hier wird der konkrete Faktor + die
                   Aufteilung Leasing/Wartung gepflegt, sobald die Bank den
-                  Vertrag konkretisiert hat. */}
+                  Vertrag konkretisiert hat. Warennettowert gehört zur
+                  Kalkulationsbasis und sitzt daher mit drin. */}
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">
                   Nachkalkulation
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                   <ContractField label="Gesamtrate" value={processing?.rate} onChange={v => saveField('rate', v ? parseFloat(v) : null)} type="number" />
                   <ContractField label="Leasingfaktor" value={processing?.factor} onChange={v => saveField('factor', v ? parseFloat(v) : null)} type="number" />
                   <ContractField label="Wartungsanteil" value={processing?.maintenance_share} onChange={v => saveField('maintenance_share', v ? parseFloat(v) : null)} type="number" />
                   <ContractField label="Leasinganteil" value={processing?.leasing_share} onChange={v => saveField('leasing_share', v ? parseFloat(v) : null)} type="number" />
+                  <ContractField label="Warennettowert" value={processing?.goods_value} onChange={v => saveField('goods_value', v ? parseFloat(v) : null)} type="number" />
                 </div>
               </div>
 
@@ -534,6 +567,36 @@ function ContractField({ label, value, onChange, type = 'text' }: {
           className="h-8 text-sm"
         />
       )}
+    </div>
+  );
+}
+
+function ContractSelect({ label, value, options, onChange }: {
+  label: string;
+  value: any;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  const current = (value as string | null | undefined) ?? '__none__';
+  return (
+    <div className="space-y-1">
+      <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
+      <Select
+        value={current}
+        onValueChange={(v) => onChange(v === '__none__' ? '' : v)}
+      >
+        <SelectTrigger className="h-8 text-sm">
+          <SelectValue placeholder="– bitte wählen –" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">– bitte wählen –</SelectItem>
+          {options.map((opt) => (
+            <SelectItem key={opt} value={opt}>
+              {opt}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
