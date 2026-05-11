@@ -514,16 +514,16 @@ export default function AbwicklungPage() {
                     onChange={(self, partner) => saveFields({ leasing_share: self, maintenance_share: partner })}
                   />
                   <ContractField label="Leasingfaktor" value={processing?.factor} onChange={v => saveField('factor', v ? parseFloat(v) : null)} type="number" />
-                  <ReadOnlyEuroField label="Gesamtertrag" value={(processing as any)?.gross_margin} hint="aus Kalkulation" />
+                  <ReadOnlyEuroField label="Marge Gesamt" value={(processing as any)?.gross_margin} hint="aus Kalkulation" />
                   <PairedNumberField
-                    label="Ertrag Hardware"
+                    label="Marge Hardware"
                     value={(processing as any)?.margin_hardware}
                     partnerValue={(processing as any)?.margin_service}
                     total={(processing as any)?.gross_margin}
                     onChange={(self, partner) => saveFields({ margin_hardware: self, margin_service: partner })}
                   />
                   <PairedNumberField
-                    label="Ertrag Service"
+                    label="Marge Service"
                     value={(processing as any)?.margin_service}
                     partnerValue={(processing as any)?.margin_hardware}
                     total={(processing as any)?.gross_margin}
