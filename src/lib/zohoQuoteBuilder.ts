@@ -226,64 +226,61 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
 }
 
 /**
- * Build payload for a record in the Zoho custom module Vertr_ge.
+ * Build payload for a record in the Zoho custom module Vertr_ge (Verträge).
  *
- * Field-API-Namen analog zum Quotes-Modul (deutsche Namen, Underscore-
- * separiert). Falls in der Org einzelne Felder anders heißen, lehnt
- * Zoho den entsprechenden Key mit INVALID_DATA ab — der Toast-Text
- * zeigt dann den problematischen API-Namen.
+ * Field-API-Namen aus der Org bestätigt (Display → API):
+ *   Vertragsnummer → Name (Pflicht), Firmierung → Kundenname,
+ *   Account (Lookup), Vertragsart, Finanzprodukt, Vertragsbeginn,
+ *   Grundlaufzeitende, Grundlaufzeit (Monate), Leasingfaktor,
+ *   Gesamtrate_monatl, Leasingrate_monatl, Wartungsrate_monatl,
+ *   Warennettowert.
  *
- * Undefined-Felder werden vor dem Senden entfernt; nur das `Name`-Feld
- * (Pflicht im Custom-Modul) wird immer gesetzt.
+ * Undefined-Felder werden vor dem Senden entfernt.
  */
 export interface BuildVertragPayloadInput {
-  /** Name des neuen Vertrag-Records — Pflichtfeld im Custom-Modul. */
-  name: string;
-  dealId?: string;
+  /** Pflicht: Inhalt für das Vertragsnummer-Feld (`Name`). */
+  vertragsnummer: string;
+  /** Firmierung des Kunden (Display) → API `Kundenname`. */
+  kundenname?: string;
+  /** Zoho-Account-ID für den `Account`-Lookup. */
   accountId?: string;
-  contactId?: string;
-  quoteId?: string;
-  salesOrderId?: string;
-  contractType?: string | null;
-  financeType?: string | null;
-  termMonths?: number | null;
-  rate?: number | null;
-  factor?: number | null;
-  maintenanceShare?: number | null;
-  leasingShare?: number | null;
-  goodsValue?: number | null;
-  contractStart?: string | null;
-  contractEnd?: string | null;
-  leasingContractNr?: string | null;
-  sxContractNr?: string | null;
-  orderNumber?: string | null;
-  orderDate?: string | null;
-  subject?: string | null;
+  /** Vertragsart (Auswahlliste, z. B. "Leasing"). */
+  vertragsart?: string | null;
+  /** Finanzprodukt (Auswahlliste). */
+  finanzprodukt?: string | null;
+  /** Grundlaufzeit in Monaten. */
+  grundlaufzeit?: number | null;
+  /** Monatliche Gesamtrate (Währung). */
+  gesamtrateMonatl?: number | null;
+  /** Leasingfaktor (Dezimalstelle). */
+  leasingfaktor?: number | null;
+  /** Monatliche Wartungsrate (Währung). */
+  wartungsrateMonatl?: number | null;
+  /** Monatliche Leasingrate (Währung). */
+  leasingrateMonatl?: number | null;
+  /** Warennettowert (Währung). */
+  warennettowert?: number | null;
+  /** Vertragsbeginn (ISO-Datum YYYY-MM-DD). */
+  vertragsbeginn?: string | null;
+  /** Grundlaufzeitende (ISO-Datum). */
+  grundlaufzeitende?: string | null;
 }
 
 export function buildVertragPayload(input: BuildVertragPayloadInput): Record<string, any> {
   const payload: Record<string, any> = {
-    Name: input.name,
-    Subject: input.subject || input.name,
-    Deal_Name: input.dealId ? { id: input.dealId } : undefined,
-    Account_Name: input.accountId ? { id: input.accountId } : undefined,
-    Contact_Name: input.contactId ? { id: input.contactId } : undefined,
-    Angebot: input.quoteId ? { id: input.quoteId } : undefined,
-    Auftrag: input.salesOrderId ? { id: input.salesOrderId } : undefined,
-    Vertragsart: input.contractType || undefined,
-    Finanzierung: input.financeType || undefined,
-    Laufzeit_Vertrag: input.termMonths ?? undefined,
-    Gesamtrate: input.rate ?? undefined,
-    Leasingfaktor: input.factor ?? undefined,
-    Wartungsanteil: input.maintenanceShare ?? undefined,
-    Leasinganteil: input.leasingShare ?? undefined,
-    Warenwert: input.goodsValue ?? undefined,
-    Vertragsbeginn: input.contractStart || undefined,
-    Vertragsende: input.contractEnd || undefined,
-    Leasing_Nr: input.leasingContractNr || undefined,
-    SX_Nr: input.sxContractNr || undefined,
-    Auftragsnr: input.orderNumber || undefined,
-    Auftragsdatum: input.orderDate || undefined,
+    Name: input.vertragsnummer,
+    Kundenname: input.kundenname || undefined,
+    Account: input.accountId ? { id: input.accountId } : undefined,
+    Vertragsart: input.vertragsart || undefined,
+    Finanzprodukt: input.finanzprodukt || undefined,
+    Grundlaufzeit: input.grundlaufzeit ?? undefined,
+    Gesamtrate_monatl: input.gesamtrateMonatl ?? undefined,
+    Leasingfaktor: input.leasingfaktor ?? undefined,
+    Wartungsrate_monatl: input.wartungsrateMonatl ?? undefined,
+    Leasingrate_monatl: input.leasingrateMonatl ?? undefined,
+    Warennettowert: input.warennettowert ?? undefined,
+    Vertragsbeginn: input.vertragsbeginn || undefined,
+    Grundlaufzeitende: input.grundlaufzeitende || undefined,
   };
   Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
   return payload;

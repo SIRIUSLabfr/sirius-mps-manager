@@ -95,51 +95,43 @@ export default function AbwicklungPage() {
     }
     setContractSyncing(true);
     try {
-      // Account/Deal aus dem Projekt holen (fuer Verknuepfung im Vertrag)
+      // Account aus dem verknuepften Deal holen (fuer den Account-Lookup
+      // im Vertrag-Record).
       const { data: row } = await supabase
         .from('projects')
-        .select('zoho_deal_id, zoho_estimate_id, zoho_sales_order_id, quote_config, project_name, customer_name')
+        .select('zoho_deal_id, zoho_estimate_id, zoho_sales_order_id, quote_config, project_name, customer_name, project_number')
         .eq('id', pid)
         .maybeSingle();
       let accountId: string | undefined;
-      let contactId: string | undefined;
       if (row?.zoho_deal_id) {
         try {
           const dealRes = await zohoClient.getDeal(row.zoho_deal_id);
-          const deal = dealRes?.data?.[0];
-          accountId = deal?.Account_Name?.id;
-          contactId = deal?.Contact_Name?.id;
+          accountId = dealRes?.data?.[0]?.Account_Name?.id;
         } catch { /* deal optional */ }
       }
 
-      const name =
-        processing.subject ||
-        row?.project_name ||
-        row?.customer_name ||
+      // Vertragsnummer (`Name`, Pflichtfeld): Auftragsnr aus den
+      // Vertragsdaten bevorzugt, sonst Angebots-/Projektnummer, sonst
+      // Datumsnotation als Fallback.
+      const vertragsnummer =
+        processing.order_number ||
+        row?.project_number ||
         `Vertrag ${new Date().toLocaleDateString('de-DE')}`;
 
       const payload = buildVertragPayload({
-        name,
-        subject: processing.subject || undefined,
-        dealId: row?.zoho_deal_id || undefined,
+        vertragsnummer,
+        kundenname: row?.customer_name || undefined,
         accountId,
-        contactId,
-        quoteId: row?.zoho_estimate_id || undefined,
-        salesOrderId: row?.zoho_sales_order_id || undefined,
-        contractType: processing.contract_type,
-        financeType: processing.finance_type,
-        termMonths: processing.term_months,
-        rate: processing.rate,
-        factor: processing.factor,
-        maintenanceShare: processing.maintenance_share,
-        leasingShare: processing.leasing_share,
-        goodsValue: processing.goods_value,
-        contractStart: processing.contract_start,
-        contractEnd: processing.contract_end,
-        leasingContractNr: processing.leasing_contract_nr,
-        sxContractNr: processing.sx_contract_nr,
-        orderNumber: processing.order_number,
-        orderDate: processing.order_date,
+        vertragsart: processing.contract_type,
+        finanzprodukt: processing.finance_type,
+        grundlaufzeit: processing.term_months,
+        gesamtrateMonatl: processing.rate,
+        leasingfaktor: processing.factor,
+        wartungsrateMonatl: processing.maintenance_share,
+        leasingrateMonatl: processing.leasing_share,
+        warennettowert: processing.goods_value,
+        vertragsbeginn: processing.contract_start,
+        grundlaufzeitende: processing.contract_end,
       });
 
       const res = await zohoClient.createContract(payload);
