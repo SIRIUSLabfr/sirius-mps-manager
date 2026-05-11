@@ -248,6 +248,10 @@ export interface BuildVertragPayloadInput {
   vertragsart?: string | null;
   /** Finanzprodukt (Auswahlliste). */
   finanzprodukt?: string | null;
+  /** Leasinggeber (Auswahlliste, z. B. "Grenke"). */
+  leasinggeber?: string | null;
+  /** Zahlungsweise (Auswahlliste, z. B. "monatlich"). */
+  zahlungsweise?: string | null;
   /** Grundlaufzeit in Monaten. */
   grundlaufzeit?: number | null;
   /** Monatliche Gesamtrate (Währung). */
@@ -333,6 +337,8 @@ export function buildVertragPayload(input: BuildVertragPayloadInput): Record<str
     Account: input.accountId ? { id: input.accountId } : undefined,
     Vertragsart: input.vertragsart || undefined,
     Finanzprodukt: input.finanzprodukt || undefined,
+    Leasinggeber: input.leasinggeber || undefined,
+    Zahlungsweise: input.zahlungsweise || undefined,
     Grundlaufzeit: input.grundlaufzeit ?? undefined,
     Gesamtrate_monatl: input.gesamtrateMonatl ?? undefined,
     Leasingfaktor: input.leasingfaktor ?? undefined,
