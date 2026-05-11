@@ -77,6 +77,13 @@ export default function PotentialOverviewPage() {
 
   const orderedDevices = useMemo(() => devices?.filter(d => d.from_quote_item_id) || [], [devices]);
 
+  /** Robuste Numerisierung — verträgt Komma-Dezimals und String-Inputs. */
+  const num = (v: any): number | undefined => {
+    if (v === null || v === undefined || v === '') return undefined;
+    const n = typeof v === 'string' ? parseFloat(v.replace(',', '.')) : v;
+    return Number.isFinite(n) ? n : undefined;
+  };
+
   const [orderLoading, setOrderLoading] = useState(false);
   const handleOrderConfirmed = async () => {
     if (!projectId) return;
@@ -130,6 +137,71 @@ export default function PotentialOverviewPage() {
         })
         .eq('id', projectId);
       if (projErr) throw projErr;
+
+      // 4. Kalkulations-Werte in die Vertragsdaten der Abwicklung
+      //    (order_processing) uebernehmen, damit der Sachbearbeiter
+      //    nicht alles abtippen muss.
+      try {
+        const cfg = (calc as any)?.config_json || {};
+        const rate = num(cfg.calculated?.total_monthly_rate ?? (calc as any)?.total_monthly_rate);
+        const serviceRate = num(cfg.calculated?.service_rate ?? (calc as any)?.service_rate);
+        const factor = num(cfg.calculated?.leasing_factor ?? (calc as any)?.leasing_factor);
+        const termMonths = num(cfg.term_months ?? (calc as any)?.term_months);
+        const hardwareEk = num(cfg.calculated?.total_hardware_ek ?? (calc as any)?.total_hardware_ek);
+        const financeType = (calc as any)?.finance_type as string | undefined;
+        const contractStart: string | null = cfg.contract_start || null;
+        const contractEnd =
+          contractStart && termMonths
+            ? new Date(
+                new Date(contractStart).setMonth(
+                  new Date(contractStart).getMonth() + termMonths,
+                ),
+              ).toISOString().slice(0, 10)
+            : null;
+
+        const leasingShare =
+          rate !== undefined && serviceRate !== undefined
+            ? Math.max(0, rate - serviceRate)
+            : undefined;
+
+        const orderPatch: Record<string, any> = {
+          subject: project?.project_name || project?.customer_name || undefined,
+          finance_type: financeType || undefined,
+          contract_type: financeType || undefined,
+          term_months: termMonths ?? undefined,
+          factor: factor ?? undefined,
+          rate: rate ?? undefined,
+          maintenance_share: serviceRate ?? undefined,
+          leasing_share: leasingShare ?? undefined,
+          goods_value: hardwareEk ?? undefined,
+          contract_start: contractStart || undefined,
+          contract_end: contractEnd || undefined,
+          order_date: new Date().toISOString().slice(0, 10),
+        };
+        Object.keys(orderPatch).forEach((k) => orderPatch[k] === undefined && delete orderPatch[k]);
+
+        if (Object.keys(orderPatch).length > 0) {
+          // Existing order_processing-Row finden, sonst upsert
+          const { data: existing } = await supabase
+            .from('order_processing' as any)
+            .select('id')
+            .eq('project_id', projectId)
+            .maybeSingle();
+          if (existing?.id) {
+            await supabase
+              .from('order_processing' as any)
+              .update(orderPatch)
+              .eq('id', existing.id);
+          } else {
+            await supabase
+              .from('order_processing' as any)
+              .insert({ project_id: projectId, ...orderPatch, status: 'offen' });
+          }
+          queryClient.invalidateQueries({ queryKey: ['order_processing', projectId] });
+        }
+      } catch (opErr: any) {
+        console.warn('[handleOrderConfirmed] order_processing update failed:', opErr?.message || opErr);
+      }
 
       toast.success(`${toInsert.length} Gerät(e) übernommen. Auftrag erteilt.`);
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
