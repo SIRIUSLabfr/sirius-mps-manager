@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProject, useProjectDevices } from '@/hooks/useProjectData';
 import { useActiveProject } from '@/hooks/useActiveProject';
 import { zohoClient, markZohoIdFresh } from '@/lib/zohoClient';
+import { buildSalesOrderUpdatePayload } from '@/lib/zohoQuoteBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -201,6 +202,40 @@ export default function PotentialOverviewPage() {
         }
       } catch (opErr: any) {
         console.warn('[handleOrderConfirmed] order_processing update failed:', opErr?.message || opErr);
+      }
+
+      // 5. Sales Order mit den frischen Vertragsdaten angleichen.
+      //    Der Convert kopiert zwar die Quote-Felder, aber falls in der
+      //    Org einzelne Custom-Felder nicht 1:1 mit-konvertiert werden,
+      //    sorgt dieses Update fuer einen konsistenten SO-Stand.
+      const finalSalesOrderId = newSalesOrderId || salesOrderId;
+      if (finalSalesOrderId) {
+        try {
+          const cfg = (calc as any)?.config_json || {};
+          const rate = num(cfg.calculated?.total_monthly_rate ?? (calc as any)?.total_monthly_rate);
+          const serviceRate = num(cfg.calculated?.service_rate ?? (calc as any)?.service_rate);
+          const leasingShare =
+            rate !== undefined && serviceRate !== undefined
+              ? Math.max(0, rate - serviceRate)
+              : undefined;
+          const soPayload = buildSalesOrderUpdatePayload({
+            subject: project?.project_name || project?.customer_name || undefined,
+            financeType: (calc as any)?.finance_type || undefined,
+            contractType: (calc as any)?.finance_type || undefined,
+            termMonths: num(cfg.term_months ?? (calc as any)?.term_months),
+            rate,
+            factor: num(cfg.calculated?.leasing_factor ?? (calc as any)?.leasing_factor),
+            maintenanceShare: serviceRate,
+            leasingShare,
+            goodsValue: num(cfg.calculated?.total_hardware_ek ?? (calc as any)?.total_hardware_ek),
+            contractStart: cfg.contract_start || null,
+          });
+          if (Object.keys(soPayload).length > 0) {
+            await zohoClient.updateSalesOrder(finalSalesOrderId, soPayload);
+          }
+        } catch (soErr: any) {
+          console.warn('[handleOrderConfirmed] Sales-Order-Sync failed:', soErr?.message || soErr);
+        }
       }
 
       toast.success(`${toInsert.length} Gerät(e) übernommen. Auftrag erteilt.`);

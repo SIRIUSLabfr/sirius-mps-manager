@@ -266,6 +266,66 @@ export interface BuildVertragPayloadInput {
   grundlaufzeitende?: string | null;
 }
 
+interface SalesOrderUpdateInput {
+  subject?: string | null;
+  /** Lokales finance_type ('leasing'|'eigenmiete'|'kauf_wartung'|'allin'). */
+  financeType?: string | null;
+  /** Vertragsart-Picklist (z. B. 'Leasing', 'All-In'). Wenn nicht gesetzt,
+   *  leiten wir den Wert aus financeType über das Quote-Mapping ab. */
+  contractType?: string | null;
+  termMonths?: number | null;
+  rate?: number | null;
+  factor?: number | null;
+  maintenanceShare?: number | null;
+  leasingShare?: number | null;
+  goodsValue?: number | null;
+  contractStart?: string | null;
+}
+
+/**
+ * Mapping order_processing → Sales_Orders Custom-Fields.
+ *
+ * Sales_Orders trägt im Convert-Schritt die Quote-Werte; nach der
+ * Nachkalkulation in der Abwicklung schreiben wir die aktualisierten
+ * Werte mit den gleichen API-Namen wie im Quote-Builder zurück, damit
+ * die SO als Print-Vorlage konsistent bleibt.
+ *
+ * Felder ohne Wert werden vor dem Senden entfernt — Zoho lehnt unbekannte
+ * Custom-Field-Namen mit INVALID_DATA ab und nennt den problematischen
+ * Key, dann passen wir das Mapping gezielt nach.
+ */
+export function buildSalesOrderUpdatePayload(input: SalesOrderUpdateInput): Record<string, any> {
+  const ft = input.financeType?.toLowerCase();
+  const rateFields: Record<string, number> = {};
+  if (input.rate !== null && input.rate !== undefined && ft) {
+    if (ft === 'leasing') rateFields.Leasingrate = input.rate;
+    else if (ft === 'eigenmiete' || ft === 'miete') rateFields.Mietrate = input.rate;
+    else if (ft === 'allin' || ft === 'all_in' || ft === 'all-in') rateFields.All_In_Rate = input.rate;
+  }
+
+  const payload: Record<string, any> = {
+    Subject: input.subject || undefined,
+    Auswahlliste_1: ft
+      ? FINANCE_TYPE_TO_PICKLIST[ft] || input.financeType || undefined
+      : undefined,
+    Vertragsart: input.contractType || undefined,
+    Vertragsbeginn: input.contractStart || undefined,
+    Vertragslaufzeit: input.termMonths !== null && input.termMonths !== undefined
+      ? `${input.termMonths} Monate`
+      : undefined,
+    Laufzeit_Vertrag: input.termMonths ?? undefined,
+    Anzahl_Monate: input.termMonths ?? undefined,
+    Leasingfaktor: input.factor ?? undefined,
+    Leasinganteil: input.leasingShare ?? undefined,
+    Wartungsanteil: input.maintenanceShare ?? undefined,
+    Summe_UHG: input.goodsValue ?? undefined,
+    Gesamtrate: input.rate ?? undefined,
+    ...rateFields,
+  };
+  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+  return payload;
+}
+
 export function buildVertragPayload(input: BuildVertragPayloadInput): Record<string, any> {
   const payload: Record<string, any> = {
     Name: input.vertragsnummer,

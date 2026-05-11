@@ -200,6 +200,21 @@ export const zohoClient = {
   },
 
   /**
+   * Partial update of a Sales Order. Wir nutzen das, um nach 'Auftrag
+   * erteilt' und nach jeder Nachkalkulation die SO an die aktuellen
+   * Vertragsdaten anzugleichen.
+   */
+  updateSalesOrder: async (salesOrderId: string, fields: Record<string, any>) => {
+    return zohoClient.api(
+      `Sales_Orders/${salesOrderId}`,
+      'PUT',
+      { data: [{ id: salesOrderId, ...fields }] },
+      'crm',
+      { throwOnError: false },
+    );
+  },
+
+  /**
    * Create a record in the custom Vertr_ge (Verträge) module.
    * Field-Mapping siehe buildVertragPayload — unbekannte Felder lehnt
    * Zoho mit INVALID_DATA ab, der Fehler nennt den problematischen Key.

@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import BeauftragteGeraeteCard from '@/components/abwicklung/BeauftragteGeraeteCard';
 import { zohoClient, ZOHO_CONTRACT_MODULE } from '@/lib/zohoClient';
-import { buildVertragPayload } from '@/lib/zohoQuoteBuilder';
+import { buildVertragPayload, buildSalesOrderUpdatePayload } from '@/lib/zohoQuoteBuilder';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function AbwicklungPage() {
@@ -146,6 +146,31 @@ export default function AbwicklungPage() {
         .from('projects')
         .update({ quote_config: { ...existingConfig, zoho_contract_id: contractId } } as any)
         .eq('id', pid);
+
+      // Parallel die Sales Order an die aktuellen Vertragsdaten angleichen,
+      // damit das SO-Print-Layout konsistent zum Vertrag-Record bleibt.
+      if (row?.zoho_sales_order_id) {
+        try {
+          const soPayload = buildSalesOrderUpdatePayload({
+            subject: processing.subject || undefined,
+            financeType: processing.finance_type,
+            contractType: processing.contract_type,
+            termMonths: processing.term_months,
+            rate: processing.rate,
+            factor: processing.factor,
+            maintenanceShare: processing.maintenance_share,
+            leasingShare: processing.leasing_share,
+            goodsValue: processing.goods_value,
+            contractStart: processing.contract_start,
+          });
+          if (Object.keys(soPayload).length > 0) {
+            await zohoClient.updateSalesOrder(row.zoho_sales_order_id, soPayload);
+          }
+        } catch (soErr: any) {
+          console.warn('[Vertrag-Sync] Sales-Order-Update fehlgeschlagen:', soErr?.message || soErr);
+        }
+      }
+
       toast.success(`Vertrag in Zoho angelegt: #${contractId}`);
     } catch (err: any) {
       console.error('[Vertrag-Sync]', err);
