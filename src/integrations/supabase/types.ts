@@ -866,11 +866,14 @@ export type Database = {
           finance_type: string | null
           free_start_phase: string | null
           goods_value: number | null
+          gross_margin: number | null
           id: string
           leasing_contract_nr: string | null
           leasing_provider: string | null
           leasing_share: number | null
           maintenance_share: number | null
+          margin_hardware: number | null
+          margin_service: number | null
           offer_order_nr: string | null
           old_device_pickup: string | null
           order_date: string | null
@@ -907,11 +910,14 @@ export type Database = {
           finance_type?: string | null
           free_start_phase?: string | null
           goods_value?: number | null
+          gross_margin?: number | null
           id?: string
           leasing_contract_nr?: string | null
           leasing_provider?: string | null
           leasing_share?: number | null
           maintenance_share?: number | null
+          margin_hardware?: number | null
+          margin_service?: number | null
           offer_order_nr?: string | null
           old_device_pickup?: string | null
           order_date?: string | null
@@ -948,11 +954,14 @@ export type Database = {
           finance_type?: string | null
           free_start_phase?: string | null
           goods_value?: number | null
+          gross_margin?: number | null
           id?: string
           leasing_contract_nr?: string | null
           leasing_provider?: string | null
           leasing_share?: number | null
           maintenance_share?: number | null
+          margin_hardware?: number | null
+          margin_service?: number | null
           offer_order_nr?: string | null
           old_device_pickup?: string | null
           order_date?: string | null
