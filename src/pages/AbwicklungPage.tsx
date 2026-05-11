@@ -56,17 +56,21 @@ export default function AbwicklungPage() {
   const { total, done } = countSteps(steps, groups);
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const saveField = useCallback((field: string, value: any) => {
+  const saveFields = useCallback((patch: Record<string, any>) => {
     if (!processing?.id) return;
-    const before = (processing as any)?.[field];
-    if (JSON.stringify(before) === JSON.stringify(value)) return;
-
-    const updates: Record<string, any> = { [field]: value };
+    // Nur tatsaechliche Aenderungen behalten, damit der Audit-Log
+    // kein Rauschen produziert und keine Endlosschleife entsteht.
+    const updates: Record<string, any> = {};
+    Object.entries(patch).forEach(([f, v]) => {
+      const before = (processing as any)?.[f];
+      if (JSON.stringify(before) !== JSON.stringify(v)) updates[f] = v;
+    });
+    if (Object.keys(updates).length === 0) return;
 
     // Auto-calc Grundlaufzeitende, wenn contract_start oder term_months ändert
-    if (field === 'contract_start' || field === 'term_months') {
-      const start = field === 'contract_start' ? value : (processing as any)?.contract_start;
-      const months = field === 'term_months' ? value : (processing as any)?.term_months;
+    if ('contract_start' in updates || 'term_months' in updates) {
+      const start = 'contract_start' in updates ? updates.contract_start : (processing as any)?.contract_start;
+      const months = 'term_months' in updates ? updates.term_months : (processing as any)?.term_months;
       if (start && months && Number.isFinite(Number(months))) {
         const d = new Date(start);
         d.setMonth(d.getMonth() + Number(months));
@@ -98,6 +102,10 @@ export default function AbwicklungPage() {
       },
     );
   }, [processing, updateMut, pid]);
+
+  const saveField = useCallback((field: string, value: any) => {
+    saveFields({ [field]: value });
+  }, [saveFields]);
 
   const saveSteps = useCallback((newSteps: any) => {
     if (!processing?.id) return;
@@ -159,6 +167,7 @@ export default function AbwicklungPage() {
       const factor = numv(cfg.calculated?.leasing_factor ?? (calc as any)?.leasing_factor);
       const termMonths = numv(cfg.term_months ?? (calc as any)?.term_months);
       const hardwareEk = numv(cfg.calculated?.total_hardware_ek ?? (calc as any)?.total_hardware_ek);
+      const grossMargin = numv((calc as any)?.margin_total ?? cfg.margin_total);
       const financeType = (calc as any)?.finance_type as string | undefined;
       const contractStart: string | null = cfg.contract_start || null;
       const contractEnd =
@@ -189,9 +198,32 @@ export default function AbwicklungPage() {
         maintenance_share: serviceRate ?? undefined,
         leasing_share: leasingShare ?? undefined,
         goods_value: hardwareEk ?? undefined,
+        gross_margin: grossMargin ?? undefined,
         contract_start: contractStart || undefined,
         contract_end: contractEnd || undefined,
       };
+
+      // Gesamtertrag-Aufteilung: beim allerersten Sync (margin_hardware
+      // noch leer) komplett auf Hardware schlagen; wenn der User die
+      // Aufteilung bereits manuell vorgenommen hat, beim Resync nur
+      // proportional skalieren, damit die Summe weiter gross_margin
+      // ergibt — ein leerer margin_service-Wert wird dabei als 0
+      // interpretiert.
+      const currentGross = numv((processing as any)?.gross_margin);
+      const currentHw = numv((processing as any)?.margin_hardware);
+      const currentSvc = numv((processing as any)?.margin_service);
+      if (grossMargin !== undefined) {
+        const hasSplit = currentHw !== undefined || currentSvc !== undefined;
+        if (!hasSplit) {
+          patch.margin_hardware = grossMargin;
+          patch.margin_service = 0;
+        } else if (currentGross && currentGross !== grossMargin) {
+          const ratioHw = (currentHw ?? currentGross) / currentGross;
+          const newHw = Math.round(grossMargin * ratioHw * 100) / 100;
+          patch.margin_hardware = newHw;
+          patch.margin_service = Math.round((grossMargin - newHw) * 100) / 100;
+        }
+      }
       Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
       if (Object.keys(patch).length === 0) {
         toast.message('Kalkulation enthaelt keine uebernehmbaren Werte.');
@@ -453,19 +485,50 @@ export default function AbwicklungPage() {
                 <ContractField label="SX-Nr." value={processing?.sx_contract_nr} onChange={v => saveField('sx_contract_nr', v)} />
               </div>
 
-              {/* Nachkalkulation: hier wird der konkrete Faktor + die
-                  Aufteilung Leasing/Wartung gepflegt, sobald die Bank den
-                  Vertrag konkretisiert hat. Warennettowert gehört zur
-                  Kalkulationsbasis und sitzt daher mit drin. */}
+              {/* Nachkalkulation:
+                  - Gesamtrate + Gesamtertrag sind hier schreibgeschuetzt
+                    und kommen ausschliesslich ueber „Aus Kalkulation
+                    aktualisieren" aus der Kalkulation.
+                  - Wartungs-/Leasinganteil und Ertrag Hardware/Service
+                    sind jeweils Paare, deren Summe an die Rate bzw.
+                    den Gesamtertrag gekoppelt ist. Aendert der User
+                    einen Wert, wird der Partner automatisch nachgezogen. */}
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">
                   Nachkalkulation
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                  <ContractField label="Gesamtrate" value={processing?.rate} onChange={v => saveField('rate', v ? parseFloat(v) : null)} type="number" />
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <ReadOnlyEuroField label="Gesamtrate" value={processing?.rate} hint="aus Kalkulation" />
+                  <PairedNumberField
+                    label="Wartungsanteil"
+                    value={processing?.maintenance_share}
+                    partnerValue={processing?.leasing_share}
+                    total={processing?.rate}
+                    onChange={(self, partner) => saveFields({ maintenance_share: self, leasing_share: partner })}
+                  />
+                  <PairedNumberField
+                    label="Leasinganteil"
+                    value={processing?.leasing_share}
+                    partnerValue={processing?.maintenance_share}
+                    total={processing?.rate}
+                    onChange={(self, partner) => saveFields({ leasing_share: self, maintenance_share: partner })}
+                  />
                   <ContractField label="Leasingfaktor" value={processing?.factor} onChange={v => saveField('factor', v ? parseFloat(v) : null)} type="number" />
-                  <ContractField label="Wartungsanteil" value={processing?.maintenance_share} onChange={v => saveField('maintenance_share', v ? parseFloat(v) : null)} type="number" />
-                  <ContractField label="Leasinganteil" value={processing?.leasing_share} onChange={v => saveField('leasing_share', v ? parseFloat(v) : null)} type="number" />
+                  <ReadOnlyEuroField label="Gesamtertrag" value={(processing as any)?.gross_margin} hint="aus Kalkulation" />
+                  <PairedNumberField
+                    label="Ertrag Hardware"
+                    value={(processing as any)?.margin_hardware}
+                    partnerValue={(processing as any)?.margin_service}
+                    total={(processing as any)?.gross_margin}
+                    onChange={(self, partner) => saveFields({ margin_hardware: self, margin_service: partner })}
+                  />
+                  <PairedNumberField
+                    label="Ertrag Service"
+                    value={(processing as any)?.margin_service}
+                    partnerValue={(processing as any)?.margin_hardware}
+                    total={(processing as any)?.gross_margin}
+                    onChange={(self, partner) => saveFields({ margin_service: self, margin_hardware: partner })}
+                  />
                   <ContractField label="Warennettowert" value={processing?.goods_value} onChange={v => saveField('goods_value', v ? parseFloat(v) : null)} type="number" />
                 </div>
               </div>
@@ -535,6 +598,92 @@ export default function AbwicklungPage() {
           </Collapsible>
         );
       })}
+    </div>
+  );
+}
+
+const EUR_FMT = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+
+function ReadOnlyEuroField({ label, value, hint }: {
+  label: string;
+  value: any;
+  hint?: string;
+}) {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  const display =
+    num !== null && num !== undefined && Number.isFinite(num) ? EUR_FMT.format(num) : '–';
+  return (
+    <div className="space-y-1">
+      <label className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+        {label}
+        {hint && <span className="text-[10px] italic opacity-60">({hint})</span>}
+      </label>
+      <div className="h-8 px-3 flex items-center text-sm rounded-md border border-input bg-muted/40 text-foreground tabular-nums">
+        {display}
+      </div>
+    </div>
+  );
+}
+
+/** Paired-Field-Editor: self + partner muessen zusammen `total` ergeben.
+ *  Editierbar ist nur dieser eine Wert; beim Commit wird der Partner so
+ *  nachgezogen, dass die Summe bleibt. Wenn `total` (Gesamtrate /
+ *  Gesamtertrag) fehlt, faellt das Feld auf reine Einzel-Editierung
+ *  zurueck und schreibt nur sich selbst. */
+function PairedNumberField({ label, value, partnerValue, total, onChange }: {
+  label: string;
+  value: any;
+  partnerValue: any;
+  total: any;
+  onChange: (self: number | null, partner: number | null) => void;
+}) {
+  const [local, setLocal] = useState<string>(value !== null && value !== undefined ? String(value) : '');
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    setLocal(value !== null && value !== undefined ? String(value) : '');
+  }, [value]);
+
+  const commit = (raw: string) => {
+    const parsed = raw === '' ? null : parseFloat(raw.replace(',', '.'));
+    const self = parsed !== null && Number.isFinite(parsed) ? parsed : null;
+    const totalNum = typeof total === 'string' ? parseFloat(total) : total;
+    if (self !== null && Number.isFinite(totalNum)) {
+      // Selbstwert auf [0, total] klemmen, Partner = total - self.
+      const clampedSelf = Math.min(Math.max(self, 0), totalNum);
+      const partner = Math.round((totalNum - clampedSelf) * 100) / 100;
+      onChange(Math.round(clampedSelf * 100) / 100, partner);
+    } else {
+      onChange(self, partnerValue ?? null);
+    }
+  };
+
+  const handleChange = (v: string) => {
+    setLocal(v);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => commit(v), 800);
+  };
+
+  const sumOk = (() => {
+    const totalNum = typeof total === 'string' ? parseFloat(total) : total;
+    const selfNum = typeof value === 'string' ? parseFloat(value) : value;
+    const partnerNum = typeof partnerValue === 'string' ? parseFloat(partnerValue) : partnerValue;
+    if (!Number.isFinite(totalNum)) return true;
+    const s = (Number.isFinite(selfNum) ? selfNum : 0) + (Number.isFinite(partnerNum) ? partnerNum : 0);
+    return Math.abs(s - totalNum) < 0.01;
+  })();
+
+  return (
+    <div className="space-y-1">
+      <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
+      <Input
+        type="number"
+        step="0.01"
+        value={local}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={() => commit(local)}
+        className={cn('h-8 text-sm tabular-nums', !sumOk && 'border-destructive/60')}
+      />
     </div>
   );
 }
