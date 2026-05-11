@@ -11,13 +11,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, ChevronRight, Check, ClipboardList, FileSignature, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, ClipboardList, FileSignature, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import BeauftragteGeraeteCard from '@/components/abwicklung/BeauftragteGeraeteCard';
+import HistoryCard from '@/components/abwicklung/HistoryCard';
 import { zohoClient, ZOHO_CONTRACT_MODULE } from '@/lib/zohoClient';
 import { buildVertragPayload, buildSalesOrderUpdatePayload } from '@/lib/zohoQuoteBuilder';
 import { supabase } from '@/integrations/supabase/client';
+import { logEdit } from '@/lib/auditLog';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function AbwicklungPage() {
   const { projectId } = useParams();
@@ -30,6 +33,7 @@ export default function AbwicklungPage() {
 
   const projectType = (project as any)?.project_type || 'project';
   const groups = getGroupsForType(projectType);
+  const queryClient = useQueryClient();
 
   // Auto-create processing record if it doesn't exist
   useEffect(() => {
@@ -48,8 +52,26 @@ export default function AbwicklungPage() {
 
   const saveField = useCallback((field: string, value: any) => {
     if (!processing?.id) return;
-    updateMut.mutate({ id: processing.id, updates: { [field]: value } });
-  }, [processing?.id, updateMut]);
+    const before = (processing as any)?.[field];
+    if (JSON.stringify(before) === JSON.stringify(value)) return;
+    updateMut.mutate(
+      { id: processing.id, updates: { [field]: value } },
+      {
+        onSuccess: () => {
+          if (!pid) return;
+          logEdit({
+            projectId: pid,
+            tableName: 'order_processing',
+            recordId: processing.id,
+            action: 'update',
+            before: { [field]: before },
+            after: { [field]: value },
+            fields: [field],
+          });
+        },
+      },
+    );
+  }, [processing, updateMut, pid]);
 
   const saveSteps = useCallback((newSteps: any) => {
     if (!processing?.id) return;
@@ -80,6 +102,121 @@ export default function AbwicklungPage() {
   });
   const [contractOpen, setContractOpen] = useState(false);
   const [contractSyncing, setContractSyncing] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
+
+  /** Aktualisiert die Vertragsdaten aus der aktiven Kalkulation. Nutzt das
+   *  gleiche Mapping wie `handleOrderConfirmed` in der Potentialuebersicht
+   *  und sorgt fuer einen Audit-Log-Eintrag mit den geaenderten Feldern. */
+  const handleResync = async () => {
+    if (!pid) return;
+    setResyncing(true);
+    try {
+      const { data: calc } = await supabase
+        .from('calculations')
+        .select('*')
+        .eq('project_id', pid)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (!calc) {
+        toast.warning('Keine aktive Kalkulation gefunden.');
+        return;
+      }
+
+      const cfg = (calc as any)?.config_json || {};
+      const numv = (v: any) => {
+        if (v === null || v === undefined || v === '') return undefined;
+        const n = typeof v === 'string' ? parseFloat(v.replace(',', '.')) : v;
+        return Number.isFinite(n) ? n : undefined;
+      };
+      const rate = numv(cfg.calculated?.total_monthly_rate ?? (calc as any)?.total_monthly_rate);
+      const serviceRate = numv(cfg.calculated?.service_rate ?? (calc as any)?.service_rate);
+      const factor = numv(cfg.calculated?.leasing_factor ?? (calc as any)?.leasing_factor);
+      const termMonths = numv(cfg.term_months ?? (calc as any)?.term_months);
+      const hardwareEk = numv(cfg.calculated?.total_hardware_ek ?? (calc as any)?.total_hardware_ek);
+      const financeType = (calc as any)?.finance_type as string | undefined;
+      const contractStart: string | null = cfg.contract_start || null;
+      const contractEnd =
+        contractStart && termMonths
+          ? new Date(
+              new Date(contractStart).setMonth(
+                new Date(contractStart).getMonth() + termMonths,
+              ),
+            ).toISOString().slice(0, 10)
+          : null;
+      const leasingShare =
+        rate !== undefined && serviceRate !== undefined
+          ? Math.max(0, rate - serviceRate)
+          : undefined;
+
+      const patch: Record<string, any> = {
+        finance_type: financeType || undefined,
+        contract_type: financeType || undefined,
+        term_months: termMonths ?? undefined,
+        factor: factor ?? undefined,
+        rate: rate ?? undefined,
+        maintenance_share: serviceRate ?? undefined,
+        leasing_share: leasingShare ?? undefined,
+        goods_value: hardwareEk ?? undefined,
+        contract_start: contractStart || undefined,
+        contract_end: contractEnd || undefined,
+      };
+      Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
+      if (Object.keys(patch).length === 0) {
+        toast.message('Kalkulation enthaelt keine uebernehmbaren Werte.');
+        return;
+      }
+
+      // Vor-Werte (für Audit-Log) zusammenstellen
+      const before: Record<string, any> = {};
+      Object.keys(patch).forEach((k) => {
+        before[k] = (processing as any)?.[k] ?? null;
+      });
+
+      if (processing?.id) {
+        const { error } = await supabase
+          .from('order_processing' as any)
+          .update(patch)
+          .eq('id', processing.id);
+        if (error) throw error;
+        await logEdit({
+          projectId: pid,
+          tableName: 'order_processing',
+          recordId: processing.id,
+          action: 'update',
+          before,
+          after: patch,
+          fields: Object.keys(patch),
+          description: 'Synchronisation aus Kalkulation',
+        });
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('order_processing' as any)
+          .insert({ project_id: pid, ...patch, status: 'offen' })
+          .select()
+          .single();
+        if (error) throw error;
+        await logEdit({
+          projectId: pid,
+          tableName: 'order_processing',
+          recordId: (inserted as any)?.id,
+          action: 'insert',
+          after: patch,
+          description: 'Initial-Sync aus Kalkulation',
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['order_processing', pid] });
+      queryClient.invalidateQueries({ queryKey: ['audit_log', pid] });
+      // Geraete-Tabelle refetched, der eigene Sync-Button kann separat
+      // genutzt werden, um Geraete-Aenderungen aus der Kalk zu uebernehmen.
+      queryClient.invalidateQueries({ queryKey: ['calculation_active', pid] });
+      toast.success('Vertragsdaten aktualisiert.');
+    } catch (err: any) {
+      toast.error('Aktualisierung fehlgeschlagen: ' + (err?.message || err));
+    } finally {
+      setResyncing(false);
+    }
+  };
 
   /** Vertrag im Zoho-Custom-Modul Vertr_ge anlegen, alle Werte aus der
    *  Nachkalkulation + Vertragsdaten uebernehmen. Bei Erfolg wird die
@@ -194,21 +331,31 @@ export default function AbwicklungPage() {
           <ClipboardList className="h-6 w-6 text-primary" />
           <h1 className="font-heading text-xl font-bold">Abwicklung</h1>
         </div>
-        <Select
-          value={processing?.status || 'offen'}
-          onValueChange={(v) => saveField('status', v)}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map(s => (
-              <SelectItem key={s.value} value={s.value}>
-                <Badge className={cn('text-xs', s.color)} variant="secondary">{s.label}</Badge>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handleResync} disabled={resyncing}>
+            {resyncing ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Aus Kalkulation aktualisieren
+          </Button>
+          <Select
+            value={processing?.status || 'offen'}
+            onValueChange={(v) => saveField('status', v)}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map(s => (
+                <SelectItem key={s.value} value={s.value}>
+                  <Badge className={cn('text-xs', s.color)} variant="secondary">{s.label}</Badge>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Progress */}
@@ -301,6 +448,9 @@ export default function AbwicklungPage() {
 
       {/* Beauftragte Geräte: Liste editierbar, mit Push in SOP */}
       {pid && <BeauftragteGeraeteCard projectId={pid} />}
+
+      {/* Historie / Audit-Log — append-only, fuer alle sichtbar */}
+      {pid && <HistoryCard projectId={pid} />}
 
       {/* Step groups */}
       {groups.map(group => {

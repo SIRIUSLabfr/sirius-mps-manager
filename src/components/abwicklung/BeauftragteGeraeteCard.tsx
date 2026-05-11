@@ -19,6 +19,7 @@ import {
 import { Plus, Trash2, Send, CheckCircle2, Package, Download, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { logEdit } from '@/lib/auditLog';
 
 interface Props {
   projectId: string;
@@ -284,14 +285,27 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
   const handleAdd = async () => {
     setBusy(true);
     try {
-      const { error } = await supabase.from('devices').insert({
-        project_id: projectId,
-        soll_manufacturer: null,
-        soll_model: '',
-        soll_options: null,
-        preparation_status: 'pending',
-      } as any);
+      const { data: inserted, error } = await supabase
+        .from('devices')
+        .insert({
+          project_id: projectId,
+          soll_manufacturer: null,
+          soll_model: '',
+          soll_options: null,
+          preparation_status: 'pending',
+        } as any)
+        .select()
+        .single();
       if (error) throw error;
+      await logEdit({
+        projectId,
+        tableName: 'devices',
+        recordId: (inserted as any)?.id,
+        action: 'insert',
+        after: { manuell: true },
+        description: 'Manuell hinzugefügtes Gerät',
+      });
+      queryClient.invalidateQueries({ queryKey: ['audit_log', projectId] });
       refresh();
     } catch (err: any) {
       toast.error('Fehler beim Hinzufügen: ' + (err.message || err));
@@ -410,6 +424,20 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
         if (error) throw error;
       }
 
+      // Pauschal-Eintrag im Audit-Log statt N einzelner Eintraege.
+      if (inserts.length > 0 || updates.length > 0) {
+        await logEdit({
+          projectId,
+          tableName: 'devices',
+          action: inserts.length > 0 && updates.length === 0 ? 'insert' : 'update',
+          after: { synced_from_calculation: true, inserts: inserts.length, updates: updates.length },
+          description:
+            `Aus Kalkulation übernommen: ${inserts.length} neu, ${updates.length} aktualisiert` +
+            (missingLabels.length > 0 ? `, ${missingLabels.length} Standort(e) angelegt` : ''),
+        });
+        queryClient.invalidateQueries({ queryKey: ['audit_log', projectId] });
+      }
+
       const created = missingLabels.length > 0 ? `, ${missingLabels.length} Standort(e) angelegt` : '';
       toast.success(
         `${inserts.length} hinzugefuegt` +
@@ -427,8 +455,23 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
 
   const handleUpdate = async (id: string, patch: Record<string, any>) => {
     try {
+      const existing = devices.find((d) => d.id === id);
+      const before: Record<string, any> = {};
+      Object.keys(patch).forEach((k) => {
+        before[k] = (existing as any)?.[k] ?? null;
+      });
       const { error } = await supabase.from('devices').update(patch).eq('id', id);
       if (error) throw error;
+      await logEdit({
+        projectId,
+        tableName: 'devices',
+        recordId: id,
+        action: 'update',
+        before,
+        after: patch,
+        fields: Object.keys(patch),
+      });
+      queryClient.invalidateQueries({ queryKey: ['audit_log', projectId] });
       refresh();
     } catch (err: any) {
       toast.error('Speichern fehlgeschlagen: ' + (err.message || err));
@@ -438,6 +481,7 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
   const handleDelete = async (id: string) => {
     if (!confirm('Gerät wirklich entfernen?')) return;
     try {
+      const existing = devices.find((d) => d.id === id);
       const { error } = await supabase.from('devices').delete().eq('id', id);
       if (error) throw error;
       setSelectedIds((prev) => {
@@ -445,6 +489,22 @@ export default function BeauftragteGeraeteCard({ projectId }: Props) {
         n.delete(id);
         return n;
       });
+      await logEdit({
+        projectId,
+        tableName: 'devices',
+        recordId: id,
+        action: 'delete',
+        before: existing
+          ? {
+              soll_manufacturer: (existing as any).soll_manufacturer,
+              soll_model: (existing as any).soll_model,
+              soll_options: (existing as any).soll_options,
+              location_id: (existing as any).location_id,
+            }
+          : null,
+        description: 'Gerät entfernt',
+      });
+      queryClient.invalidateQueries({ queryKey: ['audit_log', projectId] });
       refresh();
     } catch (err: any) {
       toast.error('Löschen fehlgeschlagen: ' + (err.message || err));
