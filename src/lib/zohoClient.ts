@@ -21,6 +21,12 @@ export const ZOHO_ACCOUNT_CUSTOMER_NUMBER_FIELD = 'Kundennummer';
  */
 export const ZOHO_QUOTE_OFFER_NUMBER_FIELD = 'Angebotsnr';
 
+/**
+ * API-Name des Zoho-Custom-Moduls für Verträge. Zoho ersetzt Umlaute
+ * standardmäßig durch Underscore — "Verträge" → "Vertr_ge".
+ */
+export const ZOHO_CONTRACT_MODULE = 'Vertr_ge';
+
 let _quoteLayoutIdCache: string | null = null;
 
 // IDs the user has just created/updated. Validation hooks must NOT clear
@@ -191,6 +197,36 @@ export const zohoClient = {
 
   getAccount: async (accountId: string) => {
     return zohoClient.api(`Accounts/${accountId}`);
+  },
+
+  /**
+   * Partial update of a Sales Order. Wir nutzen das, um nach 'Auftrag
+   * erteilt' und nach jeder Nachkalkulation die SO an die aktuellen
+   * Vertragsdaten anzugleichen.
+   */
+  updateSalesOrder: async (salesOrderId: string, fields: Record<string, any>) => {
+    return zohoClient.api(
+      `Sales_Orders/${salesOrderId}`,
+      'PUT',
+      { data: [{ id: salesOrderId, ...fields }] },
+      'crm',
+      { throwOnError: false },
+    );
+  },
+
+  /**
+   * Create a record in the custom Vertr_ge (Verträge) module.
+   * Field-Mapping siehe buildVertragPayload — unbekannte Felder lehnt
+   * Zoho mit INVALID_DATA ab, der Fehler nennt den problematischen Key.
+   */
+  createContract: async (payload: Record<string, any>) => {
+    return zohoClient.api(
+      `${ZOHO_CONTRACT_MODULE}`,
+      'POST',
+      { data: [payload] },
+      'crm',
+      { throwOnError: true },
+    );
   },
 
   /**
@@ -505,13 +541,15 @@ export const zohoClient = {
 
   /**
    * Convert a Quote to a Sales Order (Zoho CRM convert action).
+   * v7 erwartet eine leere Action-Konfiguration im Body — Zusatzfelder
+   * wie `overwrite`/`notify_*` werden je nach Org abgelehnt.
    * v7 response shape: { data: [{ Sales_Order: "<id>" }] }
    */
   convertQuoteToSalesOrder: async (quoteId: string) => {
     const result = await zohoClient.api(
       `Quotes/${quoteId}/actions/convert`,
       'POST',
-      { data: [{ overwrite: true, notify_lead_owner: false, notify_new_entity_owner: false }] },
+      { data: [{}] },
       'crm',
       { throwOnError: true }
     );

@@ -225,6 +225,127 @@ export function buildQuotePayload(input: BuildQuotePayloadInput): Record<string,
   return payload;
 }
 
+/**
+ * Build payload for a record in the Zoho custom module Vertr_ge (Verträge).
+ *
+ * Field-API-Namen aus der Org bestätigt (Display → API):
+ *   Vertragsnummer → Name (Pflicht), Firmierung → Kundenname,
+ *   Account (Lookup), Vertragsart, Finanzprodukt, Vertragsbeginn,
+ *   Grundlaufzeitende, Grundlaufzeit (Monate), Leasingfaktor,
+ *   Gesamtrate_monatl, Leasingrate_monatl, Wartungsrate_monatl,
+ *   Warennettowert.
+ *
+ * Undefined-Felder werden vor dem Senden entfernt.
+ */
+export interface BuildVertragPayloadInput {
+  /** Pflicht: Inhalt für das Vertragsnummer-Feld (`Name`). */
+  vertragsnummer: string;
+  /** Firmierung des Kunden (Display) → API `Kundenname`. */
+  kundenname?: string;
+  /** Zoho-Account-ID für den `Account`-Lookup. */
+  accountId?: string;
+  /** Vertragsart (Auswahlliste, z. B. "Leasing"). */
+  vertragsart?: string | null;
+  /** Finanzprodukt (Auswahlliste). */
+  finanzprodukt?: string | null;
+  /** Grundlaufzeit in Monaten. */
+  grundlaufzeit?: number | null;
+  /** Monatliche Gesamtrate (Währung). */
+  gesamtrateMonatl?: number | null;
+  /** Leasingfaktor (Dezimalstelle). */
+  leasingfaktor?: number | null;
+  /** Monatliche Wartungsrate (Währung). */
+  wartungsrateMonatl?: number | null;
+  /** Monatliche Leasingrate (Währung). */
+  leasingrateMonatl?: number | null;
+  /** Warennettowert (Währung). */
+  warennettowert?: number | null;
+  /** Vertragsbeginn (ISO-Datum YYYY-MM-DD). */
+  vertragsbeginn?: string | null;
+  /** Grundlaufzeitende (ISO-Datum). */
+  grundlaufzeitende?: string | null;
+}
+
+interface SalesOrderUpdateInput {
+  subject?: string | null;
+  /** Lokales finance_type ('leasing'|'eigenmiete'|'kauf_wartung'|'allin'). */
+  financeType?: string | null;
+  /** Vertragsart-Picklist (z. B. 'Leasing', 'All-In'). Wenn nicht gesetzt,
+   *  leiten wir den Wert aus financeType über das Quote-Mapping ab. */
+  contractType?: string | null;
+  termMonths?: number | null;
+  rate?: number | null;
+  factor?: number | null;
+  maintenanceShare?: number | null;
+  leasingShare?: number | null;
+  goodsValue?: number | null;
+  contractStart?: string | null;
+}
+
+/**
+ * Mapping order_processing → Sales_Orders Custom-Fields.
+ *
+ * Sales_Orders trägt im Convert-Schritt die Quote-Werte; nach der
+ * Nachkalkulation in der Abwicklung schreiben wir die aktualisierten
+ * Werte mit den gleichen API-Namen wie im Quote-Builder zurück, damit
+ * die SO als Print-Vorlage konsistent bleibt.
+ *
+ * Felder ohne Wert werden vor dem Senden entfernt — Zoho lehnt unbekannte
+ * Custom-Field-Namen mit INVALID_DATA ab und nennt den problematischen
+ * Key, dann passen wir das Mapping gezielt nach.
+ */
+export function buildSalesOrderUpdatePayload(input: SalesOrderUpdateInput): Record<string, any> {
+  const ft = input.financeType?.toLowerCase();
+  const rateFields: Record<string, number> = {};
+  if (input.rate !== null && input.rate !== undefined && ft) {
+    if (ft === 'leasing') rateFields.Leasingrate = input.rate;
+    else if (ft === 'eigenmiete' || ft === 'miete') rateFields.Mietrate = input.rate;
+    else if (ft === 'allin' || ft === 'all_in' || ft === 'all-in') rateFields.All_In_Rate = input.rate;
+  }
+
+  const payload: Record<string, any> = {
+    Subject: input.subject || undefined,
+    Auswahlliste_1: ft
+      ? FINANCE_TYPE_TO_PICKLIST[ft] || input.financeType || undefined
+      : undefined,
+    Vertragsart: input.contractType || undefined,
+    Vertragsbeginn: input.contractStart || undefined,
+    Vertragslaufzeit: input.termMonths !== null && input.termMonths !== undefined
+      ? `${input.termMonths} Monate`
+      : undefined,
+    Laufzeit_Vertrag: input.termMonths ?? undefined,
+    Anzahl_Monate: input.termMonths ?? undefined,
+    Leasingfaktor: input.factor ?? undefined,
+    Leasinganteil: input.leasingShare ?? undefined,
+    Wartungsanteil: input.maintenanceShare ?? undefined,
+    Summe_UHG: input.goodsValue ?? undefined,
+    Gesamtrate: input.rate ?? undefined,
+    ...rateFields,
+  };
+  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+  return payload;
+}
+
+export function buildVertragPayload(input: BuildVertragPayloadInput): Record<string, any> {
+  const payload: Record<string, any> = {
+    Name: input.vertragsnummer,
+    Kundenname: input.kundenname || undefined,
+    Account: input.accountId ? { id: input.accountId } : undefined,
+    Vertragsart: input.vertragsart || undefined,
+    Finanzprodukt: input.finanzprodukt || undefined,
+    Grundlaufzeit: input.grundlaufzeit ?? undefined,
+    Gesamtrate_monatl: input.gesamtrateMonatl ?? undefined,
+    Leasingfaktor: input.leasingfaktor ?? undefined,
+    Wartungsrate_monatl: input.wartungsrateMonatl ?? undefined,
+    Leasingrate_monatl: input.leasingrateMonatl ?? undefined,
+    Warennettowert: input.warennettowert ?? undefined,
+    Vertragsbeginn: input.vertragsbeginn || undefined,
+    Grundlaufzeitende: input.grundlaufzeitende || undefined,
+  };
+  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+  return payload;
+}
+
 interface DraftQuoteInput {
   projectName: string;
   layoutId: string;

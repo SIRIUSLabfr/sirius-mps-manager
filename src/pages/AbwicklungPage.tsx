@@ -11,10 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, ChevronRight, Check, ClipboardList } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, ClipboardList, FileSignature, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import BeauftragteGeraeteCard from '@/components/abwicklung/BeauftragteGeraeteCard';
+import { zohoClient, ZOHO_CONTRACT_MODULE } from '@/lib/zohoClient';
+import { buildVertragPayload, buildSalesOrderUpdatePayload } from '@/lib/zohoQuoteBuilder';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AbwicklungPage() {
   const { projectId } = useParams();
@@ -76,6 +79,106 @@ export default function AbwicklungPage() {
     return o;
   });
   const [contractOpen, setContractOpen] = useState(false);
+  const [contractSyncing, setContractSyncing] = useState(false);
+
+  /** Vertrag im Zoho-Custom-Modul Vertr_ge anlegen, alle Werte aus der
+   *  Nachkalkulation + Vertragsdaten uebernehmen. Bei Erfolg wird die
+   *  Zoho-Vertrag-ID in projects.quote_config.zoho_contract_id geparkt
+   *  (kein neuer DB-Spalten-Bedarf). */
+  const handleCreateContract = async () => {
+    if (!pid || !processing) {
+      toast.error('Keine Abwicklungs-Daten geladen.');
+      return;
+    }
+    if (!processing.rate || !processing.term_months) {
+      if (!confirm('Gesamtrate oder Laufzeit fehlen. Trotzdem in Zoho anlegen?')) return;
+    }
+    setContractSyncing(true);
+    try {
+      // Account aus dem verknuepften Deal holen (fuer den Account-Lookup
+      // im Vertrag-Record).
+      const { data: row } = await supabase
+        .from('projects')
+        .select('zoho_deal_id, zoho_estimate_id, zoho_sales_order_id, quote_config, project_name, customer_name, project_number')
+        .eq('id', pid)
+        .maybeSingle();
+      let accountId: string | undefined;
+      if (row?.zoho_deal_id) {
+        try {
+          const dealRes = await zohoClient.getDeal(row.zoho_deal_id);
+          accountId = dealRes?.data?.[0]?.Account_Name?.id;
+        } catch { /* deal optional */ }
+      }
+
+      // Vertragsnummer (`Name`, Pflichtfeld): Auftragsnr aus den
+      // Vertragsdaten bevorzugt, sonst Angebots-/Projektnummer, sonst
+      // Datumsnotation als Fallback.
+      const vertragsnummer =
+        processing.order_number ||
+        row?.project_number ||
+        `Vertrag ${new Date().toLocaleDateString('de-DE')}`;
+
+      const payload = buildVertragPayload({
+        vertragsnummer,
+        kundenname: row?.customer_name || undefined,
+        accountId,
+        vertragsart: processing.contract_type,
+        finanzprodukt: processing.finance_type,
+        grundlaufzeit: processing.term_months,
+        gesamtrateMonatl: processing.rate,
+        leasingfaktor: processing.factor,
+        wartungsrateMonatl: processing.maintenance_share,
+        leasingrateMonatl: processing.leasing_share,
+        warennettowert: processing.goods_value,
+        vertragsbeginn: processing.contract_start,
+        grundlaufzeitende: processing.contract_end,
+      });
+
+      const res = await zohoClient.createContract(payload);
+      const detail = res?.data?.[0];
+      const contractId = detail?.details?.id;
+      if (!contractId) {
+        throw new Error('Zoho lieferte keine Vertrags-ID zurück.');
+      }
+      // Vertrag-ID in quote_config persistieren (keine neue DB-Spalte noetig).
+      const existingConfig = (row?.quote_config as Record<string, any>) || {};
+      await supabase
+        .from('projects')
+        .update({ quote_config: { ...existingConfig, zoho_contract_id: contractId } } as any)
+        .eq('id', pid);
+
+      // Parallel die Sales Order an die aktuellen Vertragsdaten angleichen,
+      // damit das SO-Print-Layout konsistent zum Vertrag-Record bleibt.
+      if (row?.zoho_sales_order_id) {
+        try {
+          const soPayload = buildSalesOrderUpdatePayload({
+            subject: processing.subject || undefined,
+            financeType: processing.finance_type,
+            contractType: processing.contract_type,
+            termMonths: processing.term_months,
+            rate: processing.rate,
+            factor: processing.factor,
+            maintenanceShare: processing.maintenance_share,
+            leasingShare: processing.leasing_share,
+            goodsValue: processing.goods_value,
+            contractStart: processing.contract_start,
+          });
+          if (Object.keys(soPayload).length > 0) {
+            await zohoClient.updateSalesOrder(row.zoho_sales_order_id, soPayload);
+          }
+        } catch (soErr: any) {
+          console.warn('[Vertrag-Sync] Sales-Order-Update fehlgeschlagen:', soErr?.message || soErr);
+        }
+      }
+
+      toast.success(`Vertrag in Zoho angelegt: #${contractId}`);
+    } catch (err: any) {
+      console.error('[Vertrag-Sync]', err);
+      toast.error('Vertrag-Anlage fehlgeschlagen: ' + (err?.message || err));
+    } finally {
+      setContractSyncing(false);
+    }
+  };
 
   if (isLoading) {
     return <div className="p-6 text-muted-foreground">Laden...</div>;
@@ -150,22 +253,47 @@ export default function AbwicklungPage() {
             {contractOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="px-4 pb-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-              <ContractField label="Betreff" value={processing?.subject} onChange={v => saveField('subject', v)} />
-              <ContractField label="Auftragsnr." value={processing?.order_number} onChange={v => saveField('order_number', v)} />
-              <ContractField label="Auftragsdatum" value={processing?.order_date} onChange={v => saveField('order_date', v)} type="date" />
-              <ContractField label="Vertragsart" value={processing?.contract_type} onChange={v => saveField('contract_type', v)} />
-              <ContractField label="Finanzierung" value={processing?.finance_type} onChange={v => saveField('finance_type', v)} />
-              <ContractField label="Laufzeit (Mon.)" value={processing?.term_months} onChange={v => saveField('term_months', v ? parseInt(v) : null)} type="number" />
-              <ContractField label="Faktor" value={processing?.factor} onChange={v => saveField('factor', v ? parseFloat(v) : null)} type="number" />
-              <ContractField label="Rate" value={processing?.rate} onChange={v => saveField('rate', v ? parseFloat(v) : null)} type="number" />
-              <ContractField label="Wartungsanteil" value={processing?.maintenance_share} onChange={v => saveField('maintenance_share', v ? parseFloat(v) : null)} type="number" />
-              <ContractField label="Leasinganteil" value={processing?.leasing_share} onChange={v => saveField('leasing_share', v ? parseFloat(v) : null)} type="number" />
-              <ContractField label="Warenwert" value={processing?.goods_value} onChange={v => saveField('goods_value', v ? parseFloat(v) : null)} type="number" />
-              <ContractField label="Vertragsbeginn" value={processing?.contract_start} onChange={v => saveField('contract_start', v)} type="date" />
-              <ContractField label="Vertragsende" value={processing?.contract_end} onChange={v => saveField('contract_end', v)} type="date" />
-              <ContractField label="Leasing-Nr." value={processing?.leasing_contract_nr} onChange={v => saveField('leasing_contract_nr', v)} />
-              <ContractField label="SX-Nr." value={processing?.sx_contract_nr} onChange={v => saveField('sx_contract_nr', v)} />
+            <div className="px-4 pb-4 space-y-4">
+              {/* Stammdaten + Vertrags-Eckdaten */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <ContractField label="Betreff" value={processing?.subject} onChange={v => saveField('subject', v)} />
+                <ContractField label="Auftragsnr." value={processing?.order_number} onChange={v => saveField('order_number', v)} />
+                <ContractField label="Auftragsdatum" value={processing?.order_date} onChange={v => saveField('order_date', v)} type="date" />
+                <ContractField label="Vertragsart" value={processing?.contract_type} onChange={v => saveField('contract_type', v)} />
+                <ContractField label="Finanzierung" value={processing?.finance_type} onChange={v => saveField('finance_type', v)} />
+                <ContractField label="Laufzeit (Mon.)" value={processing?.term_months} onChange={v => saveField('term_months', v ? parseInt(v) : null)} type="number" />
+                <ContractField label="Warenwert" value={processing?.goods_value} onChange={v => saveField('goods_value', v ? parseFloat(v) : null)} type="number" />
+                <ContractField label="Vertragsbeginn" value={processing?.contract_start} onChange={v => saveField('contract_start', v)} type="date" />
+                <ContractField label="Vertragsende" value={processing?.contract_end} onChange={v => saveField('contract_end', v)} type="date" />
+                <ContractField label="Leasing-Nr." value={processing?.leasing_contract_nr} onChange={v => saveField('leasing_contract_nr', v)} />
+                <ContractField label="SX-Nr." value={processing?.sx_contract_nr} onChange={v => saveField('sx_contract_nr', v)} />
+              </div>
+
+              {/* Nachkalkulation: hier wird der konkrete Faktor + die
+                  Aufteilung Leasing/Wartung gepflegt, sobald die Bank den
+                  Vertrag konkretisiert hat. */}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">
+                  Nachkalkulation
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <ContractField label="Gesamtrate" value={processing?.rate} onChange={v => saveField('rate', v ? parseFloat(v) : null)} type="number" />
+                  <ContractField label="Leasingfaktor" value={processing?.factor} onChange={v => saveField('factor', v ? parseFloat(v) : null)} type="number" />
+                  <ContractField label="Wartungsanteil" value={processing?.maintenance_share} onChange={v => saveField('maintenance_share', v ? parseFloat(v) : null)} type="number" />
+                  <ContractField label="Leasinganteil" value={processing?.leasing_share} onChange={v => saveField('leasing_share', v ? parseFloat(v) : null)} type="number" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end pt-1">
+                <Button size="sm" onClick={handleCreateContract} disabled={contractSyncing}>
+                  {contractSyncing ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <FileSignature className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Vertrag in Zoho anlegen
+                </Button>
+              </div>
             </div>
           </CollapsibleContent>
         </div>
