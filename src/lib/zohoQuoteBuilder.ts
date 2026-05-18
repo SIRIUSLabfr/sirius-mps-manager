@@ -352,35 +352,4 @@ export function buildVertragPayload(input: BuildVertragPayloadInput): Record<str
   return payload;
 }
 
-interface DraftQuoteInput {
-  projectName: string;
-  layoutId: string;
-  dealId?: string;
-  contactZohoId?: string;
-  accountZohoId?: string;
-  validity?: number;
-}
-
-/**
- * Minimaler Quote-Payload zum **initialen** Anlegen einer Draft-Quote
- * direkt nach Projekt-Anlage. Keine Quoted_Items (kommen später beim
- * "Speichern aus Vorschau"). Genug Felder, dass Zoho eine Quote_Number
- * vergeben kann und Deal/Account verknüpft sind.
- */
-export function buildDraftQuotePayload(input: DraftQuoteInput): Record<string, any> {
-  const payload: Record<string, any> = {
-    Subject: input.projectName?.trim() || `Angebot ${new Date().toLocaleDateString('de-DE')}`,
-    Quote_Stage: 'In Arbeit',
-    Layout: { id: input.layoutId },
-    Valid_Till: new Date(Date.now() + (input.validity ?? 30) * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0],
-    Deal_Name: input.dealId ? { id: input.dealId } : undefined,
-    Contact_Name: input.contactZohoId ? { id: input.contactZohoId } : undefined,
-    Account_Name: input.accountZohoId ? { id: input.accountZohoId } : undefined,
-  };
-  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
-  return payload;
-}
-
 export { QUOTE_INVENTORY_TEMPLATE_ID, zohoClient };
