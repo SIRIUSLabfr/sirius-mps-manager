@@ -9,7 +9,7 @@ import {
   ZOHO_ACCOUNT_CUSTOMER_NUMBER_FIELD,
   ZOHO_QUOTE_OFFER_NUMBER_FIELD,
 } from '@/lib/zohoClient';
-import { buildQuotePayload, buildDraftQuotePayload } from '@/lib/zohoQuoteBuilder';
+import { buildQuotePayload } from '@/lib/zohoQuoteBuilder';
 import { buildAngebotHtml } from '@/lib/angebotPreviewHtml';
 import { generateAngebotPdf } from '@/lib/angebotPdfGenerator';
 import { supabase } from '@/integrations/supabase/client';
@@ -139,8 +139,9 @@ export default function AngebotPreviewDialog(props: Props) {
         );
       }
 
-      // Bestandsprojekt ohne Draft-Quote? Eine Quote nachträglich anlegen,
-      // sofern wir wenigstens einen Deal haben — sonst hilflos.
+      // Bestandsprojekt ohne Quote? Direkt mit Items anlegen — Zoho v7
+      // verlangt Quoted_Items als Pflichtfeld auf dem Standard-Layout,
+      // ein leerer Draft (POST ohne Items) wird mit 400 abgelehnt.
       let activeQuoteId = quoteId || null;
       if (!activeQuoteId) {
         const { data: projectRow } = await supabase
@@ -155,15 +156,19 @@ export default function AngebotPreviewDialog(props: Props) {
         }
         const dealRes = await zohoClient.getDeal(projectRow.zoho_deal_id);
         const deal = dealRes?.data?.[0];
-        const draftPayload = buildDraftQuotePayload({
+        const createPayload = buildQuotePayload({
           projectName,
+          customerName: props.customerName,
+          calcData,
+          zusatz,
+          validity: 30,
           layoutId,
+          contractStart: calcData?.config_json?.contract_start || undefined,
           dealId: projectRow.zoho_deal_id,
           contactZohoId: deal?.Contact_Name?.id,
           accountZohoId: deal?.Account_Name?.id,
-          validity: 30,
         });
-        const created = await zohoClient.createQuote(draftPayload);
+        const created = await zohoClient.createQuote(createPayload);
         const cd = created?.data?.[0];
         if (cd?.code !== 'SUCCESS' || !cd.details?.id) {
           throw new Error(cd?.message || 'Quote-Erstellung fehlgeschlagen');
@@ -175,24 +180,24 @@ export default function AngebotPreviewDialog(props: Props) {
           .eq('id', projectId);
         markZohoIdFresh(activeQuoteId);
         queryClient.invalidateQueries({ queryKey: ['project_zoho_ids', projectId] });
-      }
-
-      // 1. Daten ins Quote pushen (Items + Custom-Fields). Quoted_Items
-      //    werden ersetzt, nicht angehängt.
-      const payload = buildQuotePayload({
-        projectName,
-        customerName: props.customerName,
-        calcData,
-        zusatz,
-        validity: 30,
-        layoutId,
-        contractStart: calcData?.config_json?.contract_start || undefined,
-      });
-      const { Layout: _layout, ...updatePayload } = payload;
-      const upd = await zohoClient.updateQuoteReplaceItems(activeQuoteId, updatePayload);
-      const updResp = upd?.data?.[0];
-      if (!updResp || (updResp.code && updResp.code !== 'SUCCESS')) {
-        throw new Error(updResp?.message || 'Quote-Update fehlgeschlagen');
+      } else {
+        // Vorhandene Quote: Items + Custom-Fields updaten (Items werden
+        // ersetzt, nicht angehängt).
+        const payload = buildQuotePayload({
+          projectName,
+          customerName: props.customerName,
+          calcData,
+          zusatz,
+          validity: 30,
+          layoutId,
+          contractStart: calcData?.config_json?.contract_start || undefined,
+        });
+        const { Layout: _layout, ...updatePayload } = payload;
+        const upd = await zohoClient.updateQuoteReplaceItems(activeQuoteId, updatePayload);
+        const updResp = upd?.data?.[0];
+        if (!updResp || (updResp.code && updResp.code !== 'SUCCESS')) {
+          throw new Error(updResp?.message || 'Quote-Update fehlgeschlagen');
+        }
       }
 
       // 2. PDF lokal erzeugen — exakt das HTML, das in der Vorschau steht.
